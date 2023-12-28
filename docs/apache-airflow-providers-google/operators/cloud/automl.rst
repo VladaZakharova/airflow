@@ -102,11 +102,13 @@ To create a Google AutoML model you can use
 The operator will wait for the operation to complete. Additionally the operator
 returns the id of model in :ref:`XCom <concepts:xcom>` under ``model_id`` key.
 
-This Operator is deprecated when running for text prediction and will be removed soon.
-All the functionality of legacy AutoML Natural Language and new features are available on the
-Vertex AI platform. Please use
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator`.
-When running Vertex AI Operator for training dat, please ensure that your data is correctly stored in Vertex AI
+This Operator is deprecated when running for text, video and vision prediction and will be removed soon.
+All the functionality of legacy AutoML Natural Language, Vision, Video Intelligence and new features are
+available on the Vertex AI platform. Please use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator`,
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLImageTrainingJobOperator` or
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator`.
+When running Vertex AI Operator for training data, please ensure that your data is correctly stored in Vertex AI
 datasets. To create and import data to the dataset please use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.dataset.CreateDatasetOperator`
 and

@@ -22,49 +22,49 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from typing import cast
+
+from google.cloud.aiplatform import schema
+from google.protobuf.struct_pb2 import Value
 
 from airflow.models.dag import DAG
-from airflow.models.xcom_arg import XComArg
-from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
-from airflow.providers.google.cloud.operators.automl import (
-    AutoMLCreateDatasetOperator,
-    AutoMLDeleteDatasetOperator,
-    AutoMLDeleteModelOperator,
-    AutoMLImportDataOperator,
-    AutoMLTrainModelOperator,
-)
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
     GCSSynchronizeBucketsOperator,
 )
+from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
+    CreateAutoMLVideoTrainingJobOperator,
+    DeleteAutoMLTrainingJobOperator,
+)
+from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
+    CreateDatasetOperator,
+    DeleteDatasetOperator,
+    ImportDataOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "example_automl_video_track"
-GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-GCP_AUTOML_LOCATION = "us-central1"
-DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
+REGION = "us-central1"
+VIDEO_DISPLAY_NAME = f"auto-ml-video-tracking-{ENV_ID}"
+MODEL_DISPLAY_NAME = f"auto-ml-video-tracking-model-{ENV_ID}"
+
 RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
+VIDEO_GCS_BUCKET_NAME = f"bucket_video_tracking_{ENV_ID}".replace("_", "-")
 
-MODEL_NAME = "video_track_test_model"
-MODEL = {
-    "display_name": MODEL_NAME,
-    "video_object_tracking_model_metadata": {},
+VIDEO_DATASET = {
+    "display_name": f"video-dataset-{ENV_ID}",
+    "metadata_schema_uri": schema.dataset.metadata.video,
+    "metadata": Value(string_value="video-dataset"),
 }
-
-DATASET_NAME = f"ds_video_track_{ENV_ID}".replace("-", "_")
-DATASET = {
-    "display_name": DATASET_NAME,
-    "video_object_tracking_dataset_metadata": {},
-}
-
-AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl/video_tracking.csv"
-IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [AUTOML_DATASET_BUCKET]}}
-
-
-extract_object_id = CloudAutoMLHook.extract_object_id
+VIDEO_DATA_CONFIG = [
+    {
+        "import_schema_uri": schema.dataset.ioformat.video.object_tracking,
+        # "gcs_source": {"uris": ["gs://cloud-samples-data/ai-platform-unified/video/traffic/traffic_videos_labels.csv"]},
+        "gcs_source": {"uris": [f"gs://{VIDEO_GCS_BUCKET_NAME}/automl/tracking.csv"]},
+    },
+]
 
 
 # Example DAG for AutoML Video Intelligence Object Tracking
@@ -73,73 +73,88 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    user_defined_macros={"extract_object_id": extract_object_id},
-    tags=["example", "automl", "video-tracking"],
+    tags=["example", "auto_ml", "video", "tracking"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
-        bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME,
+        bucket_name=VIDEO_GCS_BUCKET_NAME,
         storage_class="REGIONAL",
-        location=GCP_AUTOML_LOCATION,
+        location=REGION,
     )
 
     move_dataset_file = GCSSynchronizeBucketsOperator(
         task_id="move_dataset_to_bucket",
         source_bucket=RESOURCE_DATA_BUCKET,
         source_object="automl/datasets/video",
-        destination_bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
+        destination_bucket=VIDEO_GCS_BUCKET_NAME,
         destination_object="automl",
         recursive=True,
     )
 
-    create_dataset = AutoMLCreateDatasetOperator(
-        task_id="create_dataset", dataset=DATASET, location=GCP_AUTOML_LOCATION
+    create_video_dataset = CreateDatasetOperator(
+        task_id="video_dataset",
+        dataset=VIDEO_DATASET,
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    video_dataset_id = create_video_dataset.output["dataset_id"]
+
+    import_video_dataset = ImportDataOperator(
+        task_id="import_video_data",
+        dataset_id=video_dataset_id,
+        region=REGION,
+        project_id=PROJECT_ID,
+        import_configs=VIDEO_DATA_CONFIG,
     )
 
-    dataset_id = cast(str, XComArg(create_dataset, key="dataset_id"))
-    MODEL["dataset_id"] = dataset_id
+    # [START how_to_cloud_create_video_tracking_training_job_operator]
+    create_auto_ml_video_training_job = CreateAutoMLVideoTrainingJobOperator(
+        task_id="auto_ml_video_task",
+        display_name=VIDEO_DISPLAY_NAME,
+        prediction_type="object_tracking",
+        model_type="CLOUD",
+        dataset_id=video_dataset_id,
+        model_display_name=MODEL_DISPLAY_NAME,
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    # [END how_to_cloud_create_video_tracking_training_job_operator]
 
-    import_dataset = AutoMLImportDataOperator(
-        task_id="import_dataset",
-        dataset_id=dataset_id,
-        location=GCP_AUTOML_LOCATION,
-        input_config=IMPORT_INPUT_CONFIG,
+    delete_auto_ml_video_training_job = DeleteAutoMLTrainingJobOperator(
+        task_id="delete_auto_ml_video_training_job",
+        training_pipeline_id="{{ task_instance.xcom_pull(task_ids='auto_ml_video_task', "
+        "key='training_id') }}",
+        region=REGION,
+        project_id=PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    MODEL["dataset_id"] = dataset_id
-
-    create_model = AutoMLTrainModelOperator(task_id="create_model", model=MODEL, location=GCP_AUTOML_LOCATION)
-    model_id = cast(str, XComArg(create_model, key="model_id"))
-
-    delete_model = AutoMLDeleteModelOperator(
-        task_id="delete_model",
-        model_id=model_id,
-        location=GCP_AUTOML_LOCATION,
-        project_id=GCP_PROJECT_ID,
-    )
-
-    delete_dataset = AutoMLDeleteDatasetOperator(
-        task_id="delete_dataset",
-        dataset_id=dataset_id,
-        location=GCP_AUTOML_LOCATION,
-        project_id=GCP_PROJECT_ID,
+    delete_video_dataset = DeleteDatasetOperator(
+        task_id="delete_video_dataset",
+        dataset_id=video_dataset_id,
+        region=REGION,
+        project_id=PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket",
-        bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME,
+        bucket_name=VIDEO_GCS_BUCKET_NAME,
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (
         # TEST SETUP
-        [create_bucket >> move_dataset_file, create_dataset]
+        [
+            create_bucket >> move_dataset_file,
+            create_video_dataset,
+        ]
+        >> import_video_dataset
         # TEST BODY
-        >> import_dataset
-        >> create_model
+        >> create_auto_ml_video_training_job
         # TEST TEARDOWN
-        >> delete_model
-        >> delete_dataset
+        >> delete_auto_ml_video_training_job
+        >> delete_video_dataset
         >> delete_bucket
     )
 
