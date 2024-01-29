@@ -43,7 +43,7 @@ from google.cloud.container_v1 import ClusterManagerAsyncClient, ClusterManagerC
 from google.cloud.container_v1.types import Cluster, Operation
 from kubernetes import client, utils
 from kubernetes_asyncio import client as async_client
-from kubernetes_asyncio.client.models import V1Deployment
+from kubernetes.client.models import V1Deployment
 from kubernetes_asyncio.config.kube_config import FileOrData
 from urllib3.exceptions import HTTPError
 
@@ -565,7 +565,6 @@ class GKEPodHook(GoogleBaseHook, PodOperatorHookProtocol):
     ):
         """
         Perform an action from a yaml file on a Pod.
-
         This is done until the given Pod reaches given State, or raises an error.
 
         :param yaml_file: Contains the path to yaml file.
@@ -574,7 +573,6 @@ class GKEPodHook(GoogleBaseHook, PodOperatorHookProtocol):
         :param namespace: Contains the namespace to create all
         resources inside. The namespace must preexist otherwise the resource creation will fail. If the API
         object in the yaml file already contains a namespace definition this parameter has no effect.
-
         """
         k8s_client = self.get_conn()
 

@@ -442,10 +442,10 @@ class GKEStartKueueInsideClusterOperator(GoogleCloudBaseOperator):
         For more details about Kueue have a look at the reference:
         https://kueue.sigs.k8s.io/docs/overview/
 
-    :param project_id: The Google Developers Console [project ID or project number]
+    :param project_id: The Google Developers Console [project ID or project number].
     :param location: The name of the Google Kubernetes Engine zone or region in which the cluster resides.
-    :param cluster_name: The Cluster name in which to install Kueue
-    :param kueue_version: Version of Kueue to install
+    :param cluster_name: The Cluster name in which to install Kueue.
+    :param kueue_version: Version of Kueue to install.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token

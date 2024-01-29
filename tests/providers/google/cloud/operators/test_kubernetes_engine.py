@@ -65,7 +65,7 @@ GCLOUD_COMMAND = "gcloud container clusters get-credentials {} --zone {} --proje
 KUBE_ENV_VAR = "KUBECONFIG"
 FILE_NAME = "/tmp/mock_name"
 KUB_OP_PATH = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.{}"
-GKE_HOOK_MODULE_PATH = "airflow.providers.google.cloud.operators.kubernetes_engine"
+GKE_HOOK_MODULE_PATH = "airflow.providers.google.cloud.hooks.kubernetes_engine"
 GKE_HOOK_PATH = f"{GKE_HOOK_MODULE_PATH}.GKEHook"
 GKE_POD_HOOK_PATH = f"{GKE_HOOK_MODULE_PATH}.GKEPodHook"
 GKE_DEPLOYMENT_HOOK_PATH = f"{GKE_HOOK_MODULE_PATH}.GKEDeploymentHook"
@@ -345,7 +345,15 @@ class TestGKEPodOperator:
         assert ssl_ca_cert == SSL_CA_CERT
 
     @pytest.mark.db_test
-    def test_default_gcp_conn_id(self):
+    @mock.patch(f"{GKE_HOOK_PATH}.get_cluster")
+    def test_default_gcp_conn_id(self, get_cluster_mock):
+        get_cluster_mock.return_value = mock.MagicMock(
+            **{
+                "endpoint": "test-host",
+                "private_cluster_config.private_endpoint": "test-private-host",
+                "master_auth.cluster_ca_certificate": SSL_CA_CERT,
+            }
+        )
         gke_op = GKEStartPodOperator(
             project_id=TEST_GCP_PROJECT_ID,
             location=PROJECT_LOCATION,
