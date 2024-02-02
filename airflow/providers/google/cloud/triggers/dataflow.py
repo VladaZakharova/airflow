@@ -59,7 +59,6 @@ class TemplateJobStartTrigger(BaseTrigger):
         cancel_timeout: int | None = 5 * 60,
     ):
         super().__init__()
-
         self.project_id = project_id
         self.job_id = job_id
         self.location = location
@@ -132,6 +131,121 @@ class TemplateJobStartTrigger(BaseTrigger):
         except Exception as e:
             self.log.exception("Exception occurred while checking for job completion.")
             yield TriggerEvent({"status": "error", "message": str(e)})
+
+    def _get_async_hook(self) -> AsyncDataflowHook:
+        return AsyncDataflowHook(
+            gcp_conn_id=self.gcp_conn_id,
+            poll_sleep=self.poll_sleep,
+            impersonation_chain=self.impersonation_chain,
+            cancel_timeout=self.cancel_timeout,
+        )
+
+
+class JobAutoScalingEventTrigger(BaseTrigger):
+    """
+    Dataflow trigger to check if auto-scaling event job has been finished.
+
+    :param project_id: Required. the Google Cloud project ID in which the job was started.
+    :param job_id: Required. ID of the job.
+    :param location: Optional. the location where job is executed. If set to None then
+        the value of DEFAULT_DATAFLOW_LOCATION will be used
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional. Service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :param cancel_timeout: Optional. How long (in seconds) operator should wait for the pipeline to be
+        successfully cancelled when task is being killed.
+    """
+
+    def __init__(
+        self,
+        job_id: str,
+        project_id: str | None,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+        gcp_conn_id: str = "google_cloud_default",
+        poll_sleep: int = 10,
+        impersonation_chain: str | Sequence[str] | None = None,
+        cancel_timeout: int | None = 5 * 60,
+    ):
+        super().__init__()
+        self.project_id = project_id
+        self.job_id = job_id
+        self.location = location
+        self.gcp_conn_id = gcp_conn_id
+        self.poll_sleep = poll_sleep
+        self.impersonation_chain = impersonation_chain
+        self.cancel_timeout = cancel_timeout
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serializes class arguments and classpath."""
+        return (
+            "airflow.providers.google.cloud.triggers.dataflow.JobAutoScalingEventTrigger",
+            {
+                "project_id": self.project_id,
+                "job_id": self.job_id,
+                "location": self.location,
+                "gcp_conn_id": self.gcp_conn_id,
+                "poll_sleep": self.poll_sleep,
+                "impersonation_chain": self.impersonation_chain,
+                "cancel_timeout": self.cancel_timeout,
+            },
+        )
+
+    async def run(self):
+        """
+        Main loop of the class in where it is fetching the job status and yields certain Event.
+
+        If the job has status success then it yields TriggerEvent with success status, if job has
+        status failed - with error status and if the job is being deleted - with deleted status.
+        In any other case Trigger will wait for specified amount of time
+        stored in self.polling_period_seconds variable.
+        """
+        hook = self._get_async_hook()
+        while True:
+            try:
+                status = await hook.get_job_status(
+                    job_id=self.job_id,
+                    project_id=self.project_id,
+                    location=self.location,
+                )
+                if status == JobState.JOB_STATE_DONE:
+                    yield TriggerEvent(
+                        {
+                            "job_id": self.job_id,
+                            "status": "success",
+                            "message": f"Dataflow job with id '{self.job_id}' has completed successfully.",
+                        }
+                    )
+                    return
+                elif status == JobState.JOB_STATE_FAILED:
+                    yield TriggerEvent(
+                        {
+                            "job_id": self.job_id,
+                            "status": "error",
+                            "message": f"Dataflow job with id '{self.job_id}' has failed.",
+                        }
+                    )
+                    return
+                elif status == JobState.JOB_STATE_CANCELLED:
+                    yield TriggerEvent(
+                        {
+                            "job_id": self.job_id,
+                            "status": "cancelled",
+                            "message": f"Dataflow job with id '{self.job_id}' has been explicitely cancelled.",
+                        }
+                    )
+                    return
+                self.log.info("Current job status is: %s", status)
+                self.log.info("Sleeping for %s seconds.", self.poll_sleep)
+                await asyncio.sleep(self.poll_sleep)
+            except Exception as e:
+                self.log.error("Exception occurred while checking for job status.")
+                yield TriggerEvent({"status": "error", "message": str(e)})
 
     def _get_async_hook(self) -> AsyncDataflowHook:
         return AsyncDataflowHook(

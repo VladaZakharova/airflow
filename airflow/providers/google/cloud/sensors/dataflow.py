@@ -18,13 +18,18 @@
 """This module contains a Google Cloud Dataflow sensor."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
     DataflowHook,
     DataflowJobStatus,
+)
+from airflow.providers.google.cloud.triggers.dataflow import (
+    JobAutoScalingEventTrigger,
+    TemplateJobStartTrigger,
 )
 from airflow.sensors.base import BaseSensorOperator
 
@@ -304,6 +309,7 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: If True, run the sensor in the deferrable mode.
     """
 
     template_fields: Sequence[str] = ("job_id",)
@@ -312,12 +318,13 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         self,
         *,
         job_id: str,
-        callback: Callable,
+        callback: Callable | None = None,
         fail_on_terminal_state: bool = True,
         project_id: str | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -328,6 +335,7 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         self.location = location
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.deferrable = deferrable
         self.hook: DataflowHook | None = None
 
     def poke(self, context: Context) -> bool:
@@ -357,3 +365,30 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         )
 
         return self.callback(result)
+
+    def execute(self, context: Context) -> Any:
+        """Airflow runs this method on the worker and defers using the trigger."""
+        if not self.deferrable:
+            super().execute(context)
+        else:
+            self.defer(
+                trigger=JobAutoScalingEventTrigger(
+                    job_id=self.job_id,
+                    project_id=self.project_id,
+                    location=self.location,
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: Context, event: dict[str, str]) -> str:
+        """
+        Callback for when the trigger fires - returns immediately.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
+        """
+        if event["status"] == "success":
+            self.log.info("Sensor detected an auto-scaling event: %s", event["message"])
+            return event["message"]
+        raise AirflowException(f"Sensor failed with the following message: {event['message']}")

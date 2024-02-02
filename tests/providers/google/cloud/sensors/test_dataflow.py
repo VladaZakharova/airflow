@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
 from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
 from airflow.providers.google.cloud.sensors.dataflow import (
     DataflowJobAutoScalingEventsSensor,
@@ -29,6 +29,7 @@ from airflow.providers.google.cloud.sensors.dataflow import (
     DataflowJobMetricsSensor,
     DataflowJobStatusSensor,
 )
+from airflow.providers.google.cloud.triggers.dataflow import JobAutoScalingEventTrigger
 
 TEST_TASK_ID = "task_id"
 TEST_JOB_ID = "test_job_id"
@@ -146,7 +147,7 @@ class TestDataflowJobMetricsSensor:
         callback.assert_called_once_with(mock_fetch_job_metrics_by_id.return_value.__getitem__.return_value)
 
 
-class DataflowJobMessagesSensorTest:
+class TestDataflowJobMessagesSensor:
     @pytest.mark.parametrize(
         "job_current_state, fail_on_terminal_state",
         [
@@ -223,7 +224,7 @@ class DataflowJobMessagesSensorTest:
         callback.assert_not_called()
 
 
-class DataflowJobAutoScalingEventsSensorTest:
+class TestDataflowJobAutoScalingEventsSensor:
     @pytest.mark.parametrize(
         "job_current_state, fail_on_terminal_state",
         [
@@ -298,3 +299,66 @@ class DataflowJobAutoScalingEventsSensorTest:
         )
         mock_fetch_job_autoscaling_events_by_id.assert_not_called()
         callback.assert_not_called()
+
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook")
+    def test_execute_enters_deferred_state(self, mock_hook):
+        """
+        Asserts that AutoScalingEventTrigger will be fired when
+        the DataflowJobAutoScalingEventSensor is executed and deferrable is set to True.
+        """
+        task = DataflowJobAutoScalingEventsSensor(
+            task_id=TEST_TASK_ID,
+            job_id=TEST_JOB_ID,
+            fail_on_terminal_state=False,
+            location=TEST_LOCATION,
+            project_id=TEST_PROJECT_ID,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            deferrable=True,
+        )
+        mock_hook.return_value.exists.return_value = False
+        with pytest.raises(TaskDeferred) as exc:
+            task.execute(None)
+        assert isinstance(exc.value.trigger, JobAutoScalingEventTrigger), "Trigger is not a JobAutoScalingEventTrigger"
+
+    def test_execute_complete_success_status(self):
+        """Tests that logging and return value are as expected."""
+        expected_message = f"Dataflow job with id '{TEST_JOB_ID}' has completed successfully."
+        task = DataflowJobAutoScalingEventsSensor(
+            task_id=TEST_TASK_ID,
+            job_id=TEST_JOB_ID,
+            fail_on_terminal_state=False,
+            location=TEST_LOCATION,
+            project_id=TEST_PROJECT_ID,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            deferrable=True,
+        )
+        actual_message = task.execute_complete(
+            context=None,
+            event={
+                "job_id": TEST_JOB_ID,
+                "status": "success",
+                "message": expected_message,
+            }
+        )
+        assert actual_message == expected_message
+
+    @pytest.mark.parametrize(
+        "event_status, event_message",
+        (("error", "test error message"), ("cancelled", "test cancelled message"))
+    )
+    def test_execute_complete_not_success_status_raises_exception(self, event_status, event_message):
+        """Tests that an AirflowException is raised in case of error event when deferrable is set to True"""
+        task = DataflowJobAutoScalingEventsSensor(
+            task_id=TEST_TASK_ID,
+            job_id=TEST_JOB_ID,
+            fail_on_terminal_state=False,
+            location=TEST_LOCATION,
+            project_id=TEST_PROJECT_ID,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            deferrable=True,
+        )
+        with pytest.raises(AirflowException):
+            task.execute_complete(context=None, event={"status": event_status, "message": event_message})

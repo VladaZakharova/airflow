@@ -128,6 +128,14 @@ with DAG(
         fail_on_terminal_state=False,
     )
 
+    wait_for_go_job_async_autoscaling_event_deferred = DataflowJobAutoScalingEventsSensor(
+        task_id="wait_for_go_job_async_autoscaling_event_deferred",
+        job_id="{{task_instance.xcom_pull('start_go_pipeline_dataflow_runner')['dataflow_job_id']}}",
+        location=LOCATION,
+        fail_on_terminal_state=False,
+        deferrable=True,
+    )
+
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
@@ -142,6 +150,7 @@ with DAG(
             wait_for_go_job_async_done,
             wait_for_go_job_async_message,
             wait_for_go_job_async_autoscaling_event,
+            wait_for_go_job_async_autoscaling_event_deferred,
         ]
         # TEST TEARDOWN
         >> delete_bucket
