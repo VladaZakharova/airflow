@@ -27,10 +27,7 @@ from airflow.providers.google.cloud.hooks.dataflow import (
     DataflowHook,
     DataflowJobStatus,
 )
-from airflow.providers.google.cloud.triggers.dataflow import (
-    JobAutoScalingEventTrigger,
-    TemplateJobStartTrigger,
-)
+from airflow.providers.google.cloud.triggers.dataflow import JobAutoScalingEventTrigger
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -295,8 +292,10 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
     :param callback: callback which is called with list of read job metrics
         See:
         https://cloud.google.com/dataflow/docs/reference/rest/v1b3/MetricUpdate
+        Not supported in the deferrable mode.
     :param fail_on_terminal_state: If set to true sensor will raise Exception when
-        job is in terminal state
+        job is in terminal state.
+        Not supported in the deferrable mode.
     :param project_id: Optional, the Google Cloud project ID in which to start a job.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
     :param location: Job location.
@@ -372,6 +371,7 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
             super().execute(context)
         else:
             self.defer(
+                timeout=self.execution_timeout,
                 trigger=JobAutoScalingEventTrigger(
                     job_id=self.job_id,
                     project_id=self.project_id,
@@ -388,6 +388,7 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
+        self.log.info("Sensor checks for auto-scaling events...")
         if event["status"] == "success":
             self.log.info("Sensor detected an auto-scaling event: %s", event["message"])
             return event["message"]
