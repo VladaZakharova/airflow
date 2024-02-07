@@ -22,12 +22,11 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from pathlib import Path
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -35,10 +34,11 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 DAG_ID = "gcs_upload_download"
 
+RESOURCES_BUCKET_NAME = "airflow-system-tests-resources"
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 FILE_NAME = "example_upload.txt"
 PATH_TO_SAVED_FILE = "example_upload_download.txt"
-UPLOAD_FILE_PATH = str(Path(__file__).parent / "resources" / FILE_NAME)
+UPLOAD_FILE_PATH = f"gcs/{FILE_NAME}"
 
 
 with DAG(
@@ -57,11 +57,13 @@ with DAG(
     # [END howto_operator_gcs_create_bucket]
 
     # [START howto_operator_local_filesystem_to_gcs]
-    upload_file = LocalFilesystemToGCSOperator(
+    upload_file = GCSToGCSOperator(
         task_id="upload_file",
-        src=UPLOAD_FILE_PATH,
-        dst=FILE_NAME,
-        bucket=BUCKET_NAME,
+        source_bucket=RESOURCES_BUCKET_NAME,
+        source_object=UPLOAD_FILE_PATH,
+        destination_bucket=BUCKET_NAME,
+        destination_object=FILE_NAME,
+        exact_match=True,
     )
     # [END howto_operator_local_filesystem_to_gcs]
 
