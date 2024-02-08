@@ -27,7 +27,10 @@ from airflow.providers.google.cloud.hooks.dataflow import (
     DataflowHook,
     DataflowJobStatus,
 )
-from airflow.providers.google.cloud.triggers.dataflow import JobAutoScalingEventTrigger
+from airflow.providers.google.cloud.triggers.dataflow import (
+    DataflowJobAutoScalingEventTerminalStateTrigger,
+    DataflowJobAutoScalingEventTrigger,
+)
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -211,90 +214,9 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
     :param callback: callback which is called with list of read job metrics
         See:
         https://cloud.google.com/dataflow/docs/reference/rest/v1b3/MetricUpdate
-    :param fail_on_terminal_state: If set to true sensor will raise Exception when
-        job is in terminal state
-    :param project_id: Optional, the Google Cloud project ID in which to start a job.
-        If set to None or missing, the default project_id from the Google Cloud connection is used.
-    :param location: Job location.
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
-    """
-
-    template_fields: Sequence[str] = ("job_id",)
-
-    def __init__(
-        self,
-        *,
-        job_id: str,
-        callback: Callable,
-        fail_on_terminal_state: bool = True,
-        project_id: str | None = None,
-        location: str = DEFAULT_DATAFLOW_LOCATION,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.job_id = job_id
-        self.project_id = project_id
-        self.callback = callback
-        self.fail_on_terminal_state = fail_on_terminal_state
-        self.location = location
-        self.gcp_conn_id = gcp_conn_id
-        self.impersonation_chain = impersonation_chain
-        self.hook: DataflowHook | None = None
-
-    def poke(self, context: Context) -> bool:
-        self.hook = DataflowHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-
-        if self.fail_on_terminal_state:
-            job = self.hook.get_job(
-                job_id=self.job_id,
-                project_id=self.project_id,
-                location=self.location,
-            )
-            job_status = job["currentState"]
-            if job_status in DataflowJobStatus.TERMINAL_STATES:
-                # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
-                message = f"Job with id '{self.job_id}' is already in terminal state: {job_status}"
-                if self.soft_fail:
-                    raise AirflowSkipException(message)
-                raise AirflowException(message)
-
-        result = self.hook.fetch_job_messages_by_id(
-            job_id=self.job_id,
-            project_id=self.project_id,
-            location=self.location,
-        )
-
-        return self.callback(result)
-
-
-class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
-    """
-    Checks for the job autoscaling event in Google Cloud Dataflow.
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:DataflowJobAutoScalingEventsSensor`
-
-    :param job_id: ID of the job to be checked.
-    :param callback: callback which is called with list of read job metrics
-        See:
-        https://cloud.google.com/dataflow/docs/reference/rest/v1b3/MetricUpdate
         Not supported in the deferrable mode.
     :param fail_on_terminal_state: If set to true sensor will raise Exception when
-        job is in terminal state.
+        job is in terminal state
         Not supported in the deferrable mode.
     :param project_id: Optional, the Google Cloud project ID in which to start a job.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
@@ -317,7 +239,7 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         self,
         *,
         job_id: str,
-        callback: Callable | None = None,
+        callback: Callable,
         fail_on_terminal_state: bool = True,
         project_id: str | None = None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
@@ -342,7 +264,164 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
+        # This block looks like it belongs to another sensor.
+        # A similar function is performed by DataflowJobStatusSensor.
+        if self.fail_on_terminal_state:
+            job = self.hook.get_job(
+                job_id=self.job_id,
+                project_id=self.project_id,
+                location=self.location,
+            )
+            job_status = job["currentState"]
+            if job_status in DataflowJobStatus.TERMINAL_STATES:
+                # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+                message = f"Job with id '{self.job_id}' is already in terminal state: {job_status}"
+                if self.soft_fail:
+                    raise AirflowSkipException(message)
+                raise AirflowException(message)
 
+        result = self.hook.fetch_job_messages_by_id(
+            job_id=self.job_id,
+            project_id=self.project_id,
+            location=self.location,
+        )
+
+        return self.callback(result)
+
+    def execute(self, context: Context) -> Any:
+        """Airflow runs this method on the worker and defers using the trigger."""
+        if not self.deferrable:
+            super().execute(context)
+        else:
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=DataflowJobAutoScalingEventTrigger(
+                    job_id=self.job_id,
+                    project_id=self.project_id,
+                    location=self.location,
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                ),
+                method_name="execute_complete",
+            )
+
+    def invoke_defer(self):
+        if self.fail_on_terminal_state:
+            # self.defer(
+            #     trigger=DataflowJobAutoScalingEventTerminalStateTrigger(
+            #         job_id=self.job_id,
+            #         project_id=self.project_id,
+            #         location=self.location,
+            #         gcp_conn_id=self.gcp_conn_id,
+            #         impersonation_chain=self.impersonation_chain,
+            #     ),
+            #     method_name="execute_complete_if_terminal_state",
+            # )
+            pass
+        else:
+            self.defer(
+                trigger=DataflowJobAutoScalingEventTrigger(
+                    job_id=self.job_id,
+                    project_id=self.project_id,
+                    location=self.location,
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: Context, event: dict[str, str | list]) -> Any:
+        """
+        Callback for when the trigger fires - returns immediately.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
+        """
+        if event["status"] == "success":
+            self.log.info(event["message"])
+            return self.callback(event["result"]) if self.callback else True
+        if self.soft_fail:
+            raise AirflowSkipException(f"Sensor failed with the following message: {event['message']}.")
+        raise AirflowException(f"Sensor failed with the following message: {event['message']}")
+
+    def execute_complete_if_terminal_state(self, context: Context, event: dict[str, str]) -> Any:
+        """
+        Callback for when the trigger fires - returns immediately.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
+        """
+        if event["status"] != "success":
+            message = f"Sensor failed with the following message: {event['message']}"
+        else:
+            message = event["message"]
+
+        if self.soft_fail:
+            raise AirflowSkipException(message)
+        raise AirflowException(message)
+
+
+class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
+    """
+    Checks for the job autoscaling event in Google Cloud Dataflow.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowJobAutoScalingEventsSensor`
+
+    :param job_id: ID of the job to be checked.
+    :param callback: callback which is called with list of read job metrics
+        See:
+        https://cloud.google.com/dataflow/docs/reference/rest/v1b3/MetricUpdate
+        Not supported in the deferrable mode.
+    :param fail_on_terminal_state: If set to true sensor will raise Exception when
+        job is in terminal state.
+    :param project_id: Optional, the Google Cloud project ID in which to start a job.
+        If set to None or missing, the default project_id from the Google Cloud connection is used.
+    :param location: Job location.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :param deferrable: If True, run the sensor in the deferrable mode.
+    """
+
+    template_fields: Sequence[str] = ("job_id",)
+
+    def __init__(
+        self,
+        *,
+        job_id: str,
+        callback: Callable | None,
+        fail_on_terminal_state: bool = True,
+        project_id: str | None = None,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.job_id = job_id
+        self.project_id = project_id
+        self.callback = callback
+        self.fail_on_terminal_state = fail_on_terminal_state
+        self.location = location
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.deferrable = deferrable
+        self.hook: DataflowHook | None = None
+
+    def poke(self, context: Context) -> bool:
+        self.hook = DataflowHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        # This block looks like it belongs to another sensor.
+        # A similar function is performed by DataflowJobStatusSensor.
         if self.fail_on_terminal_state:
             job = self.hook.get_job(
                 job_id=self.job_id,
@@ -362,6 +441,7 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
             project_id=self.project_id,
             location=self.location,
         )
+        self.log.info("Poke Result: %s. \n Item type: %s", result, type(result[0]))
 
         return self.callback(result)
 
@@ -370,9 +450,25 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         if not self.deferrable:
             super().execute(context)
         else:
+            self.invoke_defer()
+
+    def invoke_defer(self) -> None:
+        if self.fail_on_terminal_state:
+            self.log.warning("Right Defer is HERE")
             self.defer(
-                timeout=self.execution_timeout,
-                trigger=JobAutoScalingEventTrigger(
+                trigger=DataflowJobAutoScalingEventTerminalStateTrigger(
+                    job_id=self.job_id,
+                    project_id=self.project_id,
+                    location=self.location,
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                ),
+                method_name="execute_complete_if_terminal_state",
+            )
+        else:
+            self.log.warning("WRONG Defer is HERE")
+            self.defer(
+                trigger=DataflowJobAutoScalingEventTrigger(
                     job_id=self.job_id,
                     project_id=self.project_id,
                     location=self.location,
@@ -382,14 +478,32 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
                 method_name="execute_complete",
             )
 
-    def execute_complete(self, context: Context, event: dict[str, str]) -> str:
+    def execute_complete(self, context: Context, event: dict[str, str | list]) -> Any:
         """
         Callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
-        self.log.info("Sensor checks for auto-scaling events...")
+        self.log.warning("WRONG event is HERE. %s", event)
         if event["status"] == "success":
-            self.log.info("Sensor detected an auto-scaling event: %s", event["message"])
-            return event["message"]
+            self.log.info(event["message"])
+            return self.callback(event["result"]) if self.callback else True
+        if self.soft_fail:
+            raise AirflowSkipException(f"Sensor failed with the following message: {event['message']}.")
         raise AirflowException(f"Sensor failed with the following message: {event['message']}")
+
+    def execute_complete_if_terminal_state(self, context: Context, event: dict[str, str]) -> Any:
+        """
+        Callback for when the trigger fires - returns immediately.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
+        """
+        self.log.warning("RIGHT event is HERE. %s", event)
+        if event["status"] != "success":
+            message = f"Sensor failed with the following message: {event['message']}"
+        else:
+            message = event["message"]
+
+        if self.soft_fail:
+            raise AirflowSkipException(message)
+        raise AirflowException(message)

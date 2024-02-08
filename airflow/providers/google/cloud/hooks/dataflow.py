@@ -30,7 +30,17 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence, TypeVar, cast
 
 from deprecated import deprecated
-from google.cloud.dataflow_v1beta3 import GetJobRequest, Job, JobState, JobsV1Beta3AsyncClient, JobView
+from google.cloud.dataflow_v1beta3 import (
+    GetJobRequest,
+    Job,
+    JobState,
+    JobsV1Beta3AsyncClient,
+    JobView,
+    ListJobMessagesRequest,
+    MessagesV1Beta3AsyncClient,
+)
+from google.cloud.dataflow_v1beta3.services.messages_v1_beta3.pagers import ListJobMessagesAsyncPager
+from google.cloud.dataflow_v1beta3.types import JobMessageImportance
 from google.cloud.dataflow_v1beta3.types.jobs import ListJobsRequest
 from googleapiclient.discovery import build
 
@@ -1352,3 +1362,78 @@ class AsyncDataflowHook(GoogleBaseAsyncHook):
         )
         page_result: ListJobsAsyncPager = await client.list_jobs(request=request)
         return page_result
+
+    async def list_job_messages(
+        self,
+        project_id: str,
+        job_id: str,
+        minimum_importance: int = JobMessageImportance.JOB_MESSAGE_BASIC,
+        page_size: int | None = None,
+        page_token: str | None = None,
+        location: str | None = DEFAULT_DATAFLOW_LOCATION,
+    ) -> ListJobMessagesAsyncPager:
+        """Helper method."""
+        project_id = project_id or (await self.get_project_id())
+        client = await self.initialize_client(MessagesV1Beta3AsyncClient)
+        request = ListJobMessagesRequest(
+            {
+                "project_id": project_id,
+                "job_id": job_id,
+                "minimum_importance": minimum_importance,
+                "page_size": page_size,
+                "page_token": page_token,
+                "location": location,
+            }
+        )
+        page_results: ListJobMessagesAsyncPager = await client.list_job_messages(request=request)
+        return page_results
+
+    # async def list_job_autoscaling_events(self, project_id: str, job_id: str, location: str) -> list[dict]:
+    #     """
+    #     Helper method to fetch the job autoscaling events with the specified Job ID.
+
+    #     :param job_id: Job ID to get.
+    #     :return: the list of AutoscalingEvents. See:
+    #         https://cloud.google.com/dataflow/docs/reference/rest/v1b3/ListJobMessagesResponse#autoscalingevent
+    #     """
+    #     client = await self.initialize_client(MessagesV1Beta3AsyncClient)
+    #     project_id = project_id or (await self.get_project_id())
+
+    #     autoscaling_events: list[dict] = []
+    #     page_result: dict
+    #     # job_messages = await self.list_job_messages(project_id=project_id, job_id=job_id, location=location)
+    #     # self.log.info(f"THIS IS JOB MESSAGES {list(job_messages)}")
+    #     async for page_result in client.list_job_messages(project_id=project_id, job_id=job_id, location=location):
+    #         self.log.info(f"THIS IS JOB MESSAGE {page_result}, type = {page_result}")
+    #         # autoscaling_events.extend(page_result.get("autoscalingEvents", []))
+    #     self.log.info(f"THESE are EVENTS {autoscaling_events}")
+
+        # return autoscaling_events
+
+    # def _fetch_list_job_messages_responses(self, job_id: str) -> Generator[dict, None, None]:
+    #     """
+    #     Helper method to fetch ListJobMessagesResponse with the specified Job ID.
+
+    #     :param job_id: Job ID to get.
+    #     :return: yields the ListJobMessagesResponse. See:
+    #         https://cloud.google.com/dataflow/docs/reference/rest/v1b3/ListJobMessagesResponse
+    #     """
+    #     request = (
+    #         self._dataflow.projects()
+    #         .locations()
+    #         .jobs()
+    #         .messages()
+    #         .list(projectId=self._project_number, location=self._job_location, jobId=job_id)
+    #     )
+
+    #     while request is not None:
+    #         response = request.execute(num_retries=self._num_retries)
+    #         yield response
+
+    #         request = (
+    #             self._dataflow.projects()
+    #             .locations()
+    #             .jobs()
+    #             .messages()
+    #             .list_next(previous_request=request, previous_response=response)
+    #         )

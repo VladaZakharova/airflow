@@ -25,7 +25,7 @@ import pytest
 from google.cloud.dataflow_v1beta3 import JobState
 
 from airflow.providers.google.cloud.triggers.dataflow import (
-    JobAutoScalingEventTrigger,
+    DataflowJobAutoScalingEventTrigger,
     TemplateJobStartTrigger,
 )
 from airflow.triggers.base import TriggerEvent
@@ -54,7 +54,7 @@ def template_job_start_trigger():
 
 @pytest.fixture
 def job_autoscaling_event_trigger():
-    return JobAutoScalingEventTrigger(
+    return DataflowJobAutoScalingEventTrigger(
         project_id=PROJECT_ID,
         job_id=JOB_ID,
         location=LOCATION,
@@ -159,11 +159,11 @@ class TestTemplateJobStartTrigger:
 
 
 # LO!
-class TestJobAutoScalingEventTrigger:
+class TestDataflowJobAutoScalingEventTrigger:
 
     def test_serialize(self, job_autoscaling_event_trigger):
         expected_data = (
-            "airflow.providers.google.cloud.triggers.dataflow.JobAutoScalingEventTrigger",
+            "airflow.providers.google.cloud.triggers.dataflow.DataflowJobAutoScalingEventTrigger",
             {
                 "project_id": PROJECT_ID,
                 "job_id": JOB_ID,
@@ -237,7 +237,7 @@ class TestJobAutoScalingEventTrigger:
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
     async def test_run_loop_is_still_running(self, mock_job_status, job_autoscaling_event_trigger, caplog):
-        """Test that JobAutoScalingEventTrigger is still in loop if the job status is RUNNING."""
+        """Test that DataflowJobAutoScalingEventTrigger is still in loop if the job status is RUNNING."""
         mock_job_status.return_value = JobState.JOB_STATE_RUNNING
         caplog.set_level(logging.INFO)
         task = asyncio.create_task(job_autoscaling_event_trigger.run().__anext__())
@@ -250,7 +250,7 @@ class TestJobAutoScalingEventTrigger:
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
     async def test_run_loop_exception(self, mock_job_status, job_autoscaling_event_trigger):
         """
-        Tests the JobAutoScalingEventTrigger does fire if there is an exception.
+        Tests the DataflowJobAutoScalingEventTrigger does fire if there is an exception.
         """
         mock_job_status.side_effect = mock.AsyncMock(side_effect=Exception("Test exception"))
         expected_event = TriggerEvent({"status": "error", "message": "Test exception"})

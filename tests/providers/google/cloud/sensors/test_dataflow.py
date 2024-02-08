@@ -29,7 +29,7 @@ from airflow.providers.google.cloud.sensors.dataflow import (
     DataflowJobMetricsSensor,
     DataflowJobStatusSensor,
 )
-from airflow.providers.google.cloud.triggers.dataflow import JobAutoScalingEventTrigger
+from airflow.providers.google.cloud.triggers.dataflow import DataflowJobAutoScalingEventTrigger
 
 TEST_TASK_ID = "task_id"
 TEST_JOB_ID = "test_job_id"
@@ -319,7 +319,10 @@ class TestDataflowJobAutoScalingEventsSensor:
         mock_hook.return_value.exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             task.execute(None)
-        assert isinstance(exc.value.trigger, JobAutoScalingEventTrigger), "Trigger is not a JobAutoScalingEventTrigger"
+        assert isinstance(
+            exc.value.trigger,
+            DataflowJobAutoScalingEventTrigger
+        ), "Trigger is not a DataflowJobAutoScalingEventTrigger"
 
     def test_execute_complete_success_status(self):
         """Tests that logging and return value are as expected."""
