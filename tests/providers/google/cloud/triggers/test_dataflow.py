@@ -26,6 +26,7 @@ from google.cloud.dataflow_v1beta3 import JobState
 
 from airflow.providers.google.cloud.triggers.dataflow import (
     DataflowJobAutoScalingEventTrigger,
+    DataflowJobMessagesTrigger,
     TemplateJobStartTrigger,
 )
 from airflow.triggers.base import TriggerEvent
@@ -53,7 +54,7 @@ def template_job_start_trigger():
 
 
 @pytest.fixture
-def job_autoscaling_event_trigger():
+def dataflow_job_autoscaling_event_trigger():
     return DataflowJobAutoScalingEventTrigger(
         project_id=PROJECT_ID,
         job_id=JOB_ID,
@@ -62,6 +63,21 @@ def job_autoscaling_event_trigger():
         poll_sleep=POLL_SLEEP,
         impersonation_chain=IMPERSONATION_CHAIN,
         cancel_timeout=CANCEL_TIMEOUT,
+        fail_on_terminal_state=False,
+    )
+
+
+@pytest.fixture
+def dataflow_job_messages_trigger():
+    return DataflowJobMessagesTrigger(
+        project_id=PROJECT_ID,
+        job_id=JOB_ID,
+        location=LOCATION,
+        gcp_conn_id=GCP_CONN_ID,
+        poll_sleep=POLL_SLEEP,
+        impersonation_chain=IMPERSONATION_CHAIN,
+        cancel_timeout=CANCEL_TIMEOUT,
+        fail_on_terminal_state=False,
     )
 
 
@@ -161,7 +177,7 @@ class TestTemplateJobStartTrigger:
 # LO!
 class TestDataflowJobAutoScalingEventTrigger:
 
-    def test_serialize(self, job_autoscaling_event_trigger):
+    def test_serialize(self, dataflow_job_autoscaling_event_trigger):
         expected_data = (
             "airflow.providers.google.cloud.triggers.dataflow.DataflowJobAutoScalingEventTrigger",
             {
@@ -172,9 +188,10 @@ class TestDataflowJobAutoScalingEventTrigger:
                 "poll_sleep": POLL_SLEEP,
                 "impersonation_chain": IMPERSONATION_CHAIN,
                 "cancel_timeout": CANCEL_TIMEOUT,
+                "fail_on_terminal_state": False,
             },
         )
-        actual_data = job_autoscaling_event_trigger.serialize()
+        actual_data = dataflow_job_autoscaling_event_trigger.serialize()
         assert actual_data == expected_data
 
     @pytest.mark.parametrize(
@@ -186,61 +203,61 @@ class TestDataflowJobAutoScalingEventTrigger:
         ("cancel_timeout", CANCEL_TIMEOUT),
     ],
     )
-    def test_get_async_hook(self, job_autoscaling_event_trigger, attr, expected):
-        hook = job_autoscaling_event_trigger._get_async_hook()
+    def test_get_async_hook(self, dataflow_job_autoscaling_event_trigger, attr, expected):
+        hook = dataflow_job_autoscaling_event_trigger._get_async_hook()
         actual = hook._hook_kwargs.get(attr)
         assert actual is not None
         assert actual == expected
 
+    @pytest.mark.parametrize(
+        "job_status_value",
+        [
+            JobState.JOB_STATE_DONE.value,
+            JobState.JOB_STATE_FAILED.value,
+            JobState.JOB_STATE_CANCELLED.value,
+            JobState.JOB_STATE_UPDATED.value,
+            JobState.JOB_STATE_DRAINED.value,
+        ]
+    )
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
-    async def test_run_loop_return_success_event(self, mock_job_status, job_autoscaling_event_trigger):
-        mock_job_status.return_value = JobState.JOB_STATE_DONE
+    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowJobAutoScalingEventTrigger.list_job_autoscaling_events")
+    async def test_run_yields_terminal_state_event_if_fail_on_terminal_state(
+        self,
+        mock_list_job_autoscaling_events,
+        mock_job_status,
+        job_status_value,
+        dataflow_job_autoscaling_event_trigger,
+    ):
+        dataflow_job_autoscaling_event_trigger.fail_on_terminal_state = True
+        mock_list_job_autoscaling_events.return_value = []
+        mock_job_status.return_value = job_status_value
         expected_event = TriggerEvent(
             {
-                "job_id": JOB_ID,
-                "status": "success",
-                "message": f"Dataflow job with id '{JOB_ID}' has completed successfully.",
-            }
-        )
-        actual_event = await job_autoscaling_event_trigger.run().asend(None)
-        assert actual_event == expected_event
-
-    @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
-    async def test_run_loop_return_failed_event(self, mock_job_status, job_autoscaling_event_trigger):
-        mock_job_status.return_value = JobState.JOB_STATE_FAILED
-        expected_event = TriggerEvent(
-            {
-                "job_id": JOB_ID,
                 "status": "error",
-                "message": f"Dataflow job with id '{JOB_ID}' has failed.",
+                "message": f"Job with id '{JOB_ID}' is already in terminal state: {job_status_value}",
+                "result": None,
             }
         )
-        actual_event = await job_autoscaling_event_trigger.run().asend(None)
+        actual_event = await dataflow_job_autoscaling_event_trigger.run().asend(None)
         assert actual_event == expected_event
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
-    async def test_run_loop_return_cancelled_event(self, mock_job_status, job_autoscaling_event_trigger):
-        mock_job_status.return_value = JobState.JOB_STATE_CANCELLED
-        expected_event = TriggerEvent(
-            {
-                "job_id": JOB_ID,
-                "status": "cancelled",
-                "message": f"Dataflow job with id '{JOB_ID}' has been explicitely cancelled.",
-            }
-        )
-        actual_event = await job_autoscaling_event_trigger.run().asend(None)
-        assert actual_event == expected_event
-
-    @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
-    async def test_run_loop_is_still_running(self, mock_job_status, job_autoscaling_event_trigger, caplog):
+    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowJobAutoScalingEventTrigger.list_job_autoscaling_events")
+    async def test_run_loop_is_still_running_if_fail_on_terminal_state(
+        self,
+        mock_list_job_autoscaling_events,
+        mock_job_status,
+        dataflow_job_autoscaling_event_trigger,
+        caplog,
+    ):
         """Test that DataflowJobAutoScalingEventTrigger is still in loop if the job status is RUNNING."""
-        mock_job_status.return_value = JobState.JOB_STATE_RUNNING
+        dataflow_job_autoscaling_event_trigger.fail_on_terminal_state = True
+        mock_job_status.return_value = "not a terminal state"
+        mock_list_job_autoscaling_events.return_value = []
         caplog.set_level(logging.INFO)
-        task = asyncio.create_task(job_autoscaling_event_trigger.run().__anext__())
+        task = asyncio.create_task(dataflow_job_autoscaling_event_trigger.run().__anext__())
         await asyncio.sleep(0.5)
         assert task.done() is False
         # cancel the task to suppress test warnings
@@ -248,11 +265,193 @@ class TestDataflowJobAutoScalingEventTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
-    async def test_run_loop_exception(self, mock_job_status, job_autoscaling_event_trigger):
+    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowJobAutoScalingEventTrigger.list_job_autoscaling_events")
+    async def test_run_yields_autoscaling_events(self, mock_list_job_autoscaling_events, mock_job_status, dataflow_job_autoscaling_event_trigger):
+        mock_job_status.return_value = JobState.JOB_STATE_DONE.value
+        test_autoscaling_events = [
+            {
+                'event_type': 2,
+                'description': {},
+                'time': '2024-02-05T13:43:31.066611771Z',
+                'worker_pool': 'Regular',
+                'current_num_workers': '0',
+                'target_num_workers': '0',
+            },
+            {
+                'target_num_workers': '1',
+                'event_type': 1, 'description': {},
+                'time': '2024-02-05T13:43:31.066611771Z',
+                'worker_pool': 'Regular',
+                'current_num_workers': '0',
+            },
+        ]
+        mock_list_job_autoscaling_events.return_value = test_autoscaling_events
+        expected_event = TriggerEvent(
+            {
+                "status": "success",
+                "message": f"Detected 2 autoscaling events for job '{JOB_ID}'",
+                "result": test_autoscaling_events,
+            }
+        )
+        actual_event = await dataflow_job_autoscaling_event_trigger.run().asend(None)
+        assert actual_event == expected_event
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
+    async def test_run_raises_exception(self, mock_job_status, dataflow_job_autoscaling_event_trigger):
         """
         Tests the DataflowJobAutoScalingEventTrigger does fire if there is an exception.
         """
         mock_job_status.side_effect = mock.AsyncMock(side_effect=Exception("Test exception"))
-        expected_event = TriggerEvent({"status": "error", "message": "Test exception"})
-        actual_event = await job_autoscaling_event_trigger.run().asend(None)
+        expected_event = TriggerEvent({"status": "error", "message": "Test exception", "result": None})
+        actual_event = await dataflow_job_autoscaling_event_trigger.run().asend(None)
         assert expected_event == actual_event
+
+    def test_mapped_terminal_job_statuses_are_mapped_correctly(self, dataflow_job_autoscaling_event_trigger):
+        """
+        Tests the DataflowJobAutoScalingEventTrigger does fire if there is an exception.
+        """
+        expected_job_status_values = [
+            JobState.JOB_STATE_DONE.value,
+            JobState.JOB_STATE_FAILED.value,
+            JobState.JOB_STATE_CANCELLED.value,
+            JobState.JOB_STATE_UPDATED.value,
+            JobState.JOB_STATE_DRAINED.value,
+        ]
+        actual_job_status_values = sorted(dataflow_job_autoscaling_event_trigger.mapped_terminal_job_statuses)
+        assert expected_job_status_values == actual_job_status_values
+
+
+class TestDataflowJobMessagesTrigger:
+    """Test case for DataflowJobMessagesTrigger"""
+
+    def test_serialize(self, dataflow_job_messages_trigger):
+        expected_data = (
+            "airflow.providers.google.cloud.triggers.dataflow.DataflowJobMessagesTrigger",
+            {
+                "project_id": PROJECT_ID,
+                "job_id": JOB_ID,
+                "location": LOCATION,
+                "gcp_conn_id": GCP_CONN_ID,
+                "poll_sleep": POLL_SLEEP,
+                "impersonation_chain": IMPERSONATION_CHAIN,
+                "cancel_timeout": CANCEL_TIMEOUT,
+                "fail_on_terminal_state": False,
+            },
+        )
+        actual_data = dataflow_job_messages_trigger.serialize()
+        assert actual_data == expected_data
+
+    @pytest.mark.parametrize(
+    "attr, expected",
+    [
+        ("gcp_conn_id", GCP_CONN_ID),
+        ("poll_sleep", POLL_SLEEP),
+        ("impersonation_chain", IMPERSONATION_CHAIN),
+        ("cancel_timeout", CANCEL_TIMEOUT),
+    ],
+    )
+    def test_get_async_hook(self, dataflow_job_messages_trigger, attr, expected):
+        hook = dataflow_job_messages_trigger._get_async_hook()
+        actual = hook._hook_kwargs.get(attr)
+        assert actual is not None
+        assert actual == expected
+
+    @pytest.mark.parametrize(
+        "job_status_value",
+        [
+            JobState.JOB_STATE_DONE.value,
+            JobState.JOB_STATE_FAILED.value,
+            JobState.JOB_STATE_CANCELLED.value,
+            JobState.JOB_STATE_UPDATED.value,
+            JobState.JOB_STATE_DRAINED.value,
+        ]
+    )
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowJobMessagesTrigger.list_job_messages")
+    async def test_run_yields_terminal_state_event_if_fail_on_terminal_state(
+        self,
+        mock_list_job_messages,
+        mock_job_status,
+        job_status_value,
+        dataflow_job_messages_trigger,
+    ):
+        dataflow_job_messages_trigger.fail_on_terminal_state = True
+        mock_list_job_messages.return_value = []
+        mock_job_status.return_value = job_status_value
+        expected_event = TriggerEvent(
+            {
+                "status": "error",
+                "message": f"Job with id '{JOB_ID}' is already in terminal state: {job_status_value}",
+                "result": None,
+            }
+        )
+        actual_event = await dataflow_job_messages_trigger.run().asend(None)
+        assert actual_event == expected_event
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowJobMessagesTrigger.list_job_messages")
+    async def test_run_loop_is_still_running_if_fail_on_terminal_state(
+        self,
+        mock_list_job_messages,
+        mock_job_status,
+        dataflow_job_messages_trigger,
+        caplog,
+    ):
+        """Test that DataflowJobMessagesTrigger is still in loop if the job status is RUNNING."""
+        dataflow_job_messages_trigger.fail_on_terminal_state = True
+        mock_job_status.return_value = "not a terminal state"
+        mock_list_job_messages.return_value = []
+        caplog.set_level(logging.INFO)
+        task = asyncio.create_task(dataflow_job_messages_trigger.run().__anext__())
+        await asyncio.sleep(0.5)
+        assert task.done() is False
+        # cancel the task to suppress test warnings
+        task.cancel()
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
+    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowJobMessagesTrigger.list_job_messages")
+    async def test_run_yields_job_messages(self, mock_list_job_messages, mock_job_status, dataflow_job_messages_trigger):
+        mock_job_status.return_value = JobState.JOB_STATE_DONE.value
+        test_job_messages = [
+            {'id': '1707695235850', 'time': '2024-02-06T23:47:15.850Z', 'message_text': 'Dataflow Runner V2 auto-enabled.', 'message_importance': 5},
+            {'id': '1707695635401', 'time': '2024-02-06T23:53:55.401Z', 'message_text': 'Worker configuration: n1-standard-1 in europe-west1-d.', 'message_importance': 5},
+        ]
+        mock_list_job_messages.return_value = test_job_messages
+        expected_event = TriggerEvent(
+            {
+                "status": "success",
+                "message": f"Detected 2 job messages for job '{JOB_ID}'",
+                "result": test_job_messages,
+            }
+        )
+        actual_event = await dataflow_job_messages_trigger.run().asend(None)
+        assert actual_event == expected_event
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
+    async def test_run_raises_exception(self, mock_job_status, dataflow_job_messages_trigger):
+        """
+        Tests the DataflowJobMessagesTrigger does fire if there is an exception.
+        """
+        mock_job_status.side_effect = mock.AsyncMock(side_effect=Exception("Test exception"))
+        expected_event = TriggerEvent({"status": "error", "message": "Test exception", "result": None})
+        actual_event = await dataflow_job_messages_trigger.run().asend(None)
+        assert expected_event == actual_event
+
+    def test_mapped_terminal_job_statuses_are_mapped_correctly(self, dataflow_job_messages_trigger):
+        """
+        Tests the DataflowJobMessagesTrigger does fire if there is an exception.
+        """
+        expected_job_status_values = [
+            JobState.JOB_STATE_DONE.value,
+            JobState.JOB_STATE_FAILED.value,
+            JobState.JOB_STATE_CANCELLED.value,
+            JobState.JOB_STATE_UPDATED.value,
+            JobState.JOB_STATE_DRAINED.value,
+        ]
+        actual_job_status_values = sorted(dataflow_job_messages_trigger.mapped_terminal_job_statuses)
+        assert expected_job_status_values == actual_job_status_values

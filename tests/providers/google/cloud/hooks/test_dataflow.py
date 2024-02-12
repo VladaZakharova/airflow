@@ -27,7 +27,8 @@ from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
-from google.cloud.dataflow_v1beta3 import GetJobRequest, JobView, ListJobsRequest
+from google.cloud.dataflow_v1beta3 import GetJobRequest, JobView, ListJobMessagesRequest, ListJobsRequest
+from google.cloud.dataflow_v1beta3.types import JobMessageImportance
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamHook, run_beam_command
@@ -1997,3 +1998,29 @@ class TestAsyncHook:
         )
         initialize_client_mock.assert_called_once()
         client.list_jobs.assert_called_once_with(request=request)
+
+    @pytest.mark.asyncio
+    @mock.patch(DATAFLOW_STRING.format("AsyncDataflowHook.initialize_client"))
+    async def test_list_job_messages(self, initialize_client_mock, hook, make_mock_awaitable):
+        client = initialize_client_mock.return_value
+        make_mock_awaitable(client.get_job, None)
+
+        await hook.list_job_messages(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            job_id=TEST_JOB_ID,
+        )
+        request = ListJobMessagesRequest(
+            {
+                "project_id": TEST_PROJECT_ID,
+                "job_id": TEST_JOB_ID,
+                "minimum_importance": JobMessageImportance.JOB_MESSAGE_BASIC,
+                "page_size": None,
+                "page_token": None,
+                "start_time": None,
+                "end_time": None,
+                "location": TEST_LOCATION,
+            }
+        )
+        initialize_client_mock.assert_called_once()
+        client.list_job_messages.assert_called_once_with(request=request)

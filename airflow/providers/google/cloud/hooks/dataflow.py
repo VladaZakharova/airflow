@@ -42,6 +42,7 @@ from google.cloud.dataflow_v1beta3 import (
 from google.cloud.dataflow_v1beta3.services.messages_v1_beta3.pagers import ListJobMessagesAsyncPager
 from google.cloud.dataflow_v1beta3.types import JobMessageImportance
 from google.cloud.dataflow_v1beta3.types.jobs import ListJobsRequest
+from google.protobuf.timestamp_pb2 import Timestamp
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -1365,14 +1366,36 @@ class AsyncDataflowHook(GoogleBaseAsyncHook):
 
     async def list_job_messages(
         self,
-        project_id: str,
         job_id: str,
+        project_id: str | None = PROVIDE_PROJECT_ID,
         minimum_importance: int = JobMessageImportance.JOB_MESSAGE_BASIC,
         page_size: int | None = None,
         page_token: str | None = None,
+        start_time: Timestamp | None = None,
+        end_time: Timestamp | None = None,
         location: str | None = DEFAULT_DATAFLOW_LOCATION,
     ) -> ListJobMessagesAsyncPager:
-        """Helper method."""
+        """
+        Helper method that wraps around a similar method of MessagesV1Beta3AsyncClient.
+
+        The method returns ListJobMessagesAsyncPager that can be iterated over to extract messages associated with a specific Job ID.
+
+        For more details see the MessagesV1Beta3AsyncClient method description at:
+        https://cloud.google.com/python/docs/reference/dataflow/latest/google.cloud.dataflow_v1beta3.services.messages_v1_beta3.MessagesV1Beta3AsyncClient
+
+        :param job_id: ID of the Dataflow job to get messages about.
+        :param project_id: Optional. The Google Cloud project ID in which to start a job.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :param page_size: Optional. If specified, determines the maximum number of messages to return.
+            If unspecified, the service may choose an appropriate default, or may return an arbitrarily large number of results.
+        :param page_token: Optional. If supplied, this should be the value of next_page_token returned by an earlier call.
+            This will cause the next page of results to be returned.
+        :param start_time: Optional. If specified, return only messages with timestamps >= start_time.
+            The default is the job creation time (i.e. beginning of messages).
+        :param end_time: Optional. If specified, return only messages with timestamps < end_time. The default is the current time.
+        :param location: Optional. The [regional endpoint] (https://cloud.google.com/dataflow/docs/concepts/regional-endpoints) that contains
+            the job specified by job_id.
+        """
         project_id = project_id or (await self.get_project_id())
         client = await self.initialize_client(MessagesV1Beta3AsyncClient)
         request = ListJobMessagesRequest(
@@ -1382,58 +1405,10 @@ class AsyncDataflowHook(GoogleBaseAsyncHook):
                 "minimum_importance": minimum_importance,
                 "page_size": page_size,
                 "page_token": page_token,
+                "start_time": start_time,
+                "end_time": end_time,
                 "location": location,
             }
         )
         page_results: ListJobMessagesAsyncPager = await client.list_job_messages(request=request)
         return page_results
-
-    # async def list_job_autoscaling_events(self, project_id: str, job_id: str, location: str) -> list[dict]:
-    #     """
-    #     Helper method to fetch the job autoscaling events with the specified Job ID.
-
-    #     :param job_id: Job ID to get.
-    #     :return: the list of AutoscalingEvents. See:
-    #         https://cloud.google.com/dataflow/docs/reference/rest/v1b3/ListJobMessagesResponse#autoscalingevent
-    #     """
-    #     client = await self.initialize_client(MessagesV1Beta3AsyncClient)
-    #     project_id = project_id or (await self.get_project_id())
-
-    #     autoscaling_events: list[dict] = []
-    #     page_result: dict
-    #     # job_messages = await self.list_job_messages(project_id=project_id, job_id=job_id, location=location)
-    #     # self.log.info(f"THIS IS JOB MESSAGES {list(job_messages)}")
-    #     async for page_result in client.list_job_messages(project_id=project_id, job_id=job_id, location=location):
-    #         self.log.info(f"THIS IS JOB MESSAGE {page_result}, type = {page_result}")
-    #         # autoscaling_events.extend(page_result.get("autoscalingEvents", []))
-    #     self.log.info(f"THESE are EVENTS {autoscaling_events}")
-
-        # return autoscaling_events
-
-    # def _fetch_list_job_messages_responses(self, job_id: str) -> Generator[dict, None, None]:
-    #     """
-    #     Helper method to fetch ListJobMessagesResponse with the specified Job ID.
-
-    #     :param job_id: Job ID to get.
-    #     :return: yields the ListJobMessagesResponse. See:
-    #         https://cloud.google.com/dataflow/docs/reference/rest/v1b3/ListJobMessagesResponse
-    #     """
-    #     request = (
-    #         self._dataflow.projects()
-    #         .locations()
-    #         .jobs()
-    #         .messages()
-    #         .list(projectId=self._project_number, location=self._job_location, jobId=job_id)
-    #     )
-
-    #     while request is not None:
-    #         response = request.execute(num_retries=self._num_retries)
-    #         yield response
-
-    #         request = (
-    #             self._dataflow.projects()
-    #             .locations()
-    #             .jobs()
-    #             .messages()
-    #             .list_next(previous_request=request, previous_response=response)
-    #         )
