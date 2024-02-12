@@ -208,7 +208,7 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:DataflowJobAutoScalingEventsSensor`
+        :ref:`howto/operator:DataflowJobMessagesSensor`
 
     :param job_id: ID of the Dataflow job to be checked.
     :param callback: a function that can accept a list of serialized job messages.

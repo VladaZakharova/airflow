@@ -306,13 +306,21 @@ When job is triggered asynchronously sensors may be used to run checks for speci
 
 :class:`~airflow.providers.google.cloud.sensors.dataflow.DataflowJobAutoScalingEventsSensor`.
 
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_native_python_async_deferrable.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_wait_for_job_message_deferrable]
+    :end-before: [END howto_sensor_wait_for_job_message_defferable]
+
+:class:`~airflow.providers.google.cloud.sensors.dataflow.DataflowJobAutoScalingEventsSensor`.
+
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_native_python_async.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_wait_for_job_autoscaling_event]
     :end-before: [END howto_sensor_wait_for_job_autoscaling_event]
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_native_python_async.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_native_python_async_deferrable.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_wait_for_job_autoscaling_event_deferrable]

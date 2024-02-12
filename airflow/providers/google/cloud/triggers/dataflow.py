@@ -191,7 +191,7 @@ class DataflowJobAutoScalingEventTrigger(BaseTrigger):
         self.fail_on_terminal_state = fail_on_terminal_state
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes class arguments and classpath."""
+        """Serialize class arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.dataflow.DataflowJobAutoScalingEventTrigger",
             {
@@ -263,12 +263,13 @@ class DataflowJobAutoScalingEventTrigger(BaseTrigger):
             cancel_timeout=self.cancel_timeout
         )
 
-    async def list_job_autoscaling_events(self, hook: AsyncDataflowHook) -> list[dict[str | dict]]:
+    async def list_job_autoscaling_events(self, hook: AsyncDataflowHook, **kwargs) -> list[dict[str | dict]]:
         """Wait for the Dataflow client response and then return it in a serialized list."""
         job_response: ListJobMessagesAsyncPager = await hook.list_job_messages(
             job_id=self.job_id,
             project_id=self.project_id,
             location=self.location,
+            **kwargs,
         )
         return self._get_autoscaling_events_from_job_response(job_response)
 

@@ -174,7 +174,6 @@ class TestTemplateJobStartTrigger:
         task.cancel()
 
 
-# LO!
 class TestDataflowJobAutoScalingEventTrigger:
 
     def test_serialize(self, dataflow_job_autoscaling_event_trigger):
@@ -417,8 +416,8 @@ class TestDataflowJobMessagesTrigger:
     async def test_run_yields_job_messages(self, mock_list_job_messages, mock_job_status, dataflow_job_messages_trigger):
         mock_job_status.return_value = JobState.JOB_STATE_DONE.value
         test_job_messages = [
-            {'id': '1707695235850', 'time': '2024-02-06T23:47:15.850Z', 'message_text': 'Dataflow Runner V2 auto-enabled.', 'message_importance': 5},
-            {'id': '1707695635401', 'time': '2024-02-06T23:53:55.401Z', 'message_text': 'Worker configuration: n1-standard-1 in europe-west1-d.', 'message_importance': 5},
+            {'id': '1707695235850', 'time': '2024-02-06T23:47:15.850Z', 'message_text': 'msg.', 'message_importance': 5},
+            {'id': '1707695635401', 'time': '2024-02-06T23:53:55.401Z', 'message_text': 'msg.', 'message_importance': 5},
         ]
         mock_list_job_messages.return_value = test_job_messages
         expected_event = TriggerEvent(
