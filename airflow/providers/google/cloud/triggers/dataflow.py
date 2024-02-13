@@ -263,7 +263,7 @@ class DataflowJobAutoScalingEventTrigger(BaseTrigger):
             cancel_timeout=self.cancel_timeout
         )
 
-    async def list_job_autoscaling_events(self, hook: AsyncDataflowHook, **kwargs) -> list[dict[str | dict]]:
+    async def list_job_autoscaling_events(self, hook: AsyncDataflowHook, **kwargs) -> list[dict[str, str | dict]]:
         """Wait for the Dataflow client response and then return it in a serialized list."""
         job_response: ListJobMessagesAsyncPager = await hook.list_job_messages(
             job_id=self.job_id,
@@ -273,7 +273,7 @@ class DataflowJobAutoScalingEventTrigger(BaseTrigger):
         )
         return self._get_autoscaling_events_from_job_response(job_response)
 
-    def _get_autoscaling_events_from_job_response(self, job_response: ListJobMessagesAsyncPager) -> list[dict[str | dict]]:
+    def _get_autoscaling_events_from_job_response(self, job_response: ListJobMessagesAsyncPager) -> list[dict[str, str | dict]]:
         """Return a list of serialized AutoscalingEvent objects."""
         return [AutoscalingEvent.to_dict(event) for event in job_response.autoscaling_events]
 
@@ -402,7 +402,7 @@ class DataflowJobMessagesTrigger(BaseTrigger):
             cancel_timeout=self.cancel_timeout
         )
 
-    async def list_job_messages(self, hook: AsyncDataflowHook, **kwargs) -> list[dict[str | dict]]:
+    async def list_job_messages(self, hook: AsyncDataflowHook, **kwargs) -> list[dict[str, str | dict]]:
         """Wait for the Dataflow client response and then return it in a serialized list."""
         job_response: ListJobMessagesAsyncPager = await hook.list_job_messages(
             job_id=self.job_id,
@@ -412,7 +412,7 @@ class DataflowJobMessagesTrigger(BaseTrigger):
         )
         return self._get_job_messages_from_job_response(job_response)
 
-    def _get_job_messages_from_job_response(self, job_response: ListJobMessagesAsyncPager) -> list[dict[str | dict]]:
+    def _get_job_messages_from_job_response(self, job_response: ListJobMessagesAsyncPager) -> list[dict[str, str | dict]]:
         """Return a list of serialized JobMessage objects."""
         return [JobMessage.to_dict(message) for message in job_response.job_messages]
 

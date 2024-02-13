@@ -317,7 +317,7 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
         """
         if event["status"] == "success":
             self.log.info(event["message"])
-            return self.callback(event["result"]) if self.callback else True
+            return True if self.callback is None else self.callback(event["result"])
         if self.soft_fail:
             raise AirflowSkipException(f"Sensor failed with the following message: {event['message']}.")
         raise AirflowException(f"Sensor failed with the following message: {event['message']}")
@@ -437,7 +437,7 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         """
         if event["status"] == "success":
             self.log.info(event["message"])
-            return self.callback(event["result"]) if self.callback else True
+            return True if self.callback is None else self.callback(event["result"])
         if self.soft_fail:
             raise AirflowSkipException(f"Sensor failed with the following message: {event['message']}.")
         raise AirflowException(f"Sensor failed with the following message: {event['message']}")
