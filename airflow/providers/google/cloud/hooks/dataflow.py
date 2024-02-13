@@ -39,10 +39,8 @@ from google.cloud.dataflow_v1beta3 import (
     ListJobMessagesRequest,
     MessagesV1Beta3AsyncClient,
 )
-from google.cloud.dataflow_v1beta3.services.messages_v1_beta3.pagers import ListJobMessagesAsyncPager
 from google.cloud.dataflow_v1beta3.types import JobMessageImportance
 from google.cloud.dataflow_v1beta3.types.jobs import ListJobsRequest
-from google.protobuf.timestamp_pb2 import Timestamp
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -57,6 +55,8 @@ from airflow.utils.timeout import timeout
 
 if TYPE_CHECKING:
     from google.cloud.dataflow_v1beta3.services.jobs_v1_beta3.pagers import ListJobsAsyncPager
+    from google.cloud.dataflow_v1beta3.services.messages_v1_beta3.pagers import ListJobMessagesAsyncPager
+    from google.protobuf.timestamp_pb2 import Timestamp
 
 
 # This is the default location
@@ -1376,9 +1376,10 @@ class AsyncDataflowHook(GoogleBaseAsyncHook):
         location: str | None = DEFAULT_DATAFLOW_LOCATION,
     ) -> ListJobMessagesAsyncPager:
         """
-        Helper method that wraps around a similar method of MessagesV1Beta3AsyncClient.
+        Return ListJobMessagesAsyncPager object from MessagesV1Beta3AsyncClient.
 
-        The method returns ListJobMessagesAsyncPager that can be iterated over to extract messages associated with a specific Job ID.
+        This method wraps around a similar method of MessagesV1Beta3AsyncClient. ListJobMessagesAsyncPager can be iterated
+        over to extract messages associated with a specific Job ID.
 
         For more details see the MessagesV1Beta3AsyncClient method description at:
         https://cloud.google.com/python/docs/reference/dataflow/latest/google.cloud.dataflow_v1beta3.services.messages_v1_beta3.MessagesV1Beta3AsyncClient

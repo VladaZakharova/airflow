@@ -20,7 +20,6 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from google.cloud.dataflow_v1beta3 import JobState
 
 from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
 from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
@@ -192,7 +191,8 @@ class TestDataflowJobMessagesSensor:
         callback.assert_called_once_with(mock_fetch_job_messages_by_id.return_value)
 
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+        "soft_fail, expected_exception",
+        ((False, AirflowException), (True, AirflowSkipException)),
     )
     @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowHook")
     def test_poke_raise_exception(self, mock_hook, soft_fail, expected_exception):
@@ -248,8 +248,7 @@ class TestDataflowJobMessagesSensor:
         with pytest.raises(TaskDeferred) as exc:
             task.execute(None)
         assert isinstance(
-            exc.value.trigger,
-            DataflowJobMessagesTrigger
+            exc.value.trigger, DataflowJobMessagesTrigger
         ), "Trigger is not a DataflowJobMessagesTrigger"
 
     def test_execute_complete_success_without_callback_function(self):
@@ -272,15 +271,25 @@ class TestDataflowJobMessagesSensor:
                 "status": "success",
                 "message": f"Detected 2 job messages for job '{TEST_JOB_ID}'",
                 "result": [],
-            }
+            },
         )
         assert actual_message == expected_result
 
     def test_execute_complete_success_with_callback_function(self):
         """Tests that the trigger event contains expected values if the callback function is provided."""
         expected_result = [
-            {'id': '1707695235850', 'time': '2024-02-06T23:47:15.850Z', 'message_text': 'msg.', 'message_importance': 5},
-            {'id': '1707695635401', 'time': '2024-02-06T23:53:55.401Z', 'message_text': 'msg.', 'message_importance': 5},
+            {
+                "id": "1707695235850",
+                "time": "2024-02-06T23:47:15.850Z",
+                "message_text": "msg.",
+                "message_importance": 5,
+            },
+            {
+                "id": "1707695635401",
+                "time": "2024-02-06T23:53:55.401Z",
+                "message_text": "msg.",
+                "message_importance": 5,
+            },
         ]
         task = DataflowJobMessagesSensor(
             task_id=TEST_TASK_ID,
@@ -299,13 +308,16 @@ class TestDataflowJobMessagesSensor:
                 "status": "success",
                 "message": f"Detected 2 job messages for job '{TEST_JOB_ID}'",
                 "result": expected_result,
-            }
+            },
         )
         assert actual_result == expected_result
 
     @pytest.mark.parametrize(
         "expected_exception, soft_fail",
-        ((AirflowException, False), (AirflowSkipException, True),),
+        (
+            (AirflowException, False),
+            (AirflowSkipException, True),
+        ),
     )
     def test_execute_complete_not_success_status_raises_exception(self, expected_exception, soft_fail):
         """Tests that AirflowException or AirflowSkipException is raised if the trigger event contains an error."""
@@ -323,8 +335,7 @@ class TestDataflowJobMessagesSensor:
         )
         with pytest.raises(expected_exception):
             task.execute_complete(
-                context=None,
-                event={"status": "error", "message": "test error message", "result": None}
+                context=None, event={"status": "error", "message": "test error message", "result": None}
             )
 
 
@@ -369,7 +380,11 @@ class TestDataflowJobAutoScalingEventsSensor:
         callback.assert_called_once_with(mock_fetch_job_autoscaling_events_by_id.return_value)
 
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+        "soft_fail, expected_exception",
+        (
+            (False, AirflowException),
+            (True, AirflowSkipException),
+        ),
     )
     @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowHook")
     def test_poke_raise_exception_on_terminal_state(self, mock_hook, soft_fail, expected_exception):
@@ -425,8 +440,7 @@ class TestDataflowJobAutoScalingEventsSensor:
         with pytest.raises(TaskDeferred) as exc:
             task.execute(None)
         assert isinstance(
-            exc.value.trigger,
-            DataflowJobAutoScalingEventTrigger
+            exc.value.trigger, DataflowJobAutoScalingEventTrigger
         ), "Trigger is not a DataflowJobAutoScalingEventTrigger"
 
     def test_execute_complete_success_without_callback_function(self):
@@ -449,15 +463,23 @@ class TestDataflowJobAutoScalingEventsSensor:
                 "status": "success",
                 "message": f"Detected 2 autoscaling events for job '{TEST_JOB_ID}'",
                 "result": [],
-            }
+            },
         )
         assert actual_message == expected_result
 
     def test_execute_complete_success_with_callback_function(self):
         """Tests that the trigger event contains expected values if the callback function is provided."""
         expected_result = [
-            {'event_type': 2, 'description': {}, 'time': '2024-02-05T13:43:31.066611771Z',},
-            {'event_type': 1, 'description': {}, 'time': '2024-02-05T13:43:31.066611771Z',},
+            {
+                "event_type": 2,
+                "description": {},
+                "time": "2024-02-05T13:43:31.066611771Z",
+            },
+            {
+                "event_type": 1,
+                "description": {},
+                "time": "2024-02-05T13:43:31.066611771Z",
+            },
         ]
         task = DataflowJobAutoScalingEventsSensor(
             task_id=TEST_TASK_ID,
@@ -476,13 +498,16 @@ class TestDataflowJobAutoScalingEventsSensor:
                 "status": "success",
                 "message": f"Detected 2 autoscaling events for job '{TEST_JOB_ID}'",
                 "result": expected_result,
-            }
+            },
         )
         assert actual_result == expected_result
 
     @pytest.mark.parametrize(
         "expected_exception, soft_fail",
-        ((AirflowException, False), (AirflowSkipException, True),),
+        (
+            (AirflowException, False),
+            (AirflowSkipException, True),
+        ),
     )
     def test_execute_complete_not_success_status_raises_exception(self, expected_exception, soft_fail):
         """Tests that AirflowException or AirflowSkipException is raised if the trigger event contains an error."""
@@ -501,5 +526,5 @@ class TestDataflowJobAutoScalingEventsSensor:
         with pytest.raises(expected_exception):
             task.execute_complete(
                 context=None,
-                event={"status": "error", "message": "test error message", "result": None}
+                event={"status": "error", "message": "test error message", "result": None},
             )

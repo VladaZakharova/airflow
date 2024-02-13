@@ -175,7 +175,6 @@ class TestTemplateJobStartTrigger:
 
 
 class TestDataflowJobAutoScalingEventTrigger:
-
     def test_serialize(self, dataflow_job_autoscaling_event_trigger):
         expected_data = (
             "airflow.providers.google.cloud.triggers.dataflow.DataflowJobAutoScalingEventTrigger",
@@ -194,13 +193,13 @@ class TestDataflowJobAutoScalingEventTrigger:
         assert actual_data == expected_data
 
     @pytest.mark.parametrize(
-    "attr, expected",
-    [
-        ("gcp_conn_id", GCP_CONN_ID),
-        ("poll_sleep", POLL_SLEEP),
-        ("impersonation_chain", IMPERSONATION_CHAIN),
-        ("cancel_timeout", CANCEL_TIMEOUT),
-    ],
+        "attr, expected",
+        [
+            ("gcp_conn_id", GCP_CONN_ID),
+            ("poll_sleep", POLL_SLEEP),
+            ("impersonation_chain", IMPERSONATION_CHAIN),
+            ("cancel_timeout", CANCEL_TIMEOUT),
+        ],
     )
     def test_get_async_hook(self, dataflow_job_autoscaling_event_trigger, attr, expected):
         hook = dataflow_job_autoscaling_event_trigger._get_async_hook()
@@ -216,11 +215,13 @@ class TestDataflowJobAutoScalingEventTrigger:
             JobState.JOB_STATE_CANCELLED.value,
             JobState.JOB_STATE_UPDATED.value,
             JobState.JOB_STATE_DRAINED.value,
-        ]
+        ],
     )
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
-    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowJobAutoScalingEventTrigger.list_job_autoscaling_events")
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataflow.DataflowJobAutoScalingEventTrigger.list_job_autoscaling_events"
+    )
     async def test_run_yields_terminal_state_event_if_fail_on_terminal_state(
         self,
         mock_list_job_autoscaling_events,
@@ -243,7 +244,9 @@ class TestDataflowJobAutoScalingEventTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
-    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowJobAutoScalingEventTrigger.list_job_autoscaling_events")
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataflow.DataflowJobAutoScalingEventTrigger.list_job_autoscaling_events"
+    )
     async def test_run_loop_is_still_running_if_fail_on_terminal_state(
         self,
         mock_list_job_autoscaling_events,
@@ -264,24 +267,29 @@ class TestDataflowJobAutoScalingEventTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
-    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowJobAutoScalingEventTrigger.list_job_autoscaling_events")
-    async def test_run_yields_autoscaling_events(self, mock_list_job_autoscaling_events, mock_job_status, dataflow_job_autoscaling_event_trigger):
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataflow.DataflowJobAutoScalingEventTrigger.list_job_autoscaling_events"
+    )
+    async def test_run_yields_autoscaling_events(
+        self, mock_list_job_autoscaling_events, mock_job_status, dataflow_job_autoscaling_event_trigger
+    ):
         mock_job_status.return_value = JobState.JOB_STATE_DONE.value
         test_autoscaling_events = [
             {
-                'event_type': 2,
-                'description': {},
-                'time': '2024-02-05T13:43:31.066611771Z',
-                'worker_pool': 'Regular',
-                'current_num_workers': '0',
-                'target_num_workers': '0',
+                "event_type": 2,
+                "description": {},
+                "time": "2024-02-05T13:43:31.066611771Z",
+                "worker_pool": "Regular",
+                "current_num_workers": "0",
+                "target_num_workers": "0",
             },
             {
-                'target_num_workers': '1',
-                'event_type': 1, 'description': {},
-                'time': '2024-02-05T13:43:31.066611771Z',
-                'worker_pool': 'Regular',
-                'current_num_workers': '0',
+                "target_num_workers": "1",
+                "event_type": 1,
+                "description": {},
+                "time": "2024-02-05T13:43:31.066611771Z",
+                "worker_pool": "Regular",
+                "current_num_workers": "0",
             },
         ]
         mock_list_job_autoscaling_events.return_value = test_autoscaling_events
@@ -342,13 +350,13 @@ class TestDataflowJobMessagesTrigger:
         assert actual_data == expected_data
 
     @pytest.mark.parametrize(
-    "attr, expected",
-    [
-        ("gcp_conn_id", GCP_CONN_ID),
-        ("poll_sleep", POLL_SLEEP),
-        ("impersonation_chain", IMPERSONATION_CHAIN),
-        ("cancel_timeout", CANCEL_TIMEOUT),
-    ],
+        "attr, expected",
+        [
+            ("gcp_conn_id", GCP_CONN_ID),
+            ("poll_sleep", POLL_SLEEP),
+            ("impersonation_chain", IMPERSONATION_CHAIN),
+            ("cancel_timeout", CANCEL_TIMEOUT),
+        ],
     )
     def test_get_async_hook(self, dataflow_job_messages_trigger, attr, expected):
         hook = dataflow_job_messages_trigger._get_async_hook()
@@ -364,11 +372,13 @@ class TestDataflowJobMessagesTrigger:
             JobState.JOB_STATE_CANCELLED.value,
             JobState.JOB_STATE_UPDATED.value,
             JobState.JOB_STATE_DRAINED.value,
-        ]
+        ],
     )
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
-    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowJobMessagesTrigger.list_job_messages")
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataflow.DataflowJobMessagesTrigger.list_job_messages"
+    )
     async def test_run_yields_terminal_state_event_if_fail_on_terminal_state(
         self,
         mock_list_job_messages,
@@ -391,7 +401,9 @@ class TestDataflowJobMessagesTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
-    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowJobMessagesTrigger.list_job_messages")
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataflow.DataflowJobMessagesTrigger.list_job_messages"
+    )
     async def test_run_loop_is_still_running_if_fail_on_terminal_state(
         self,
         mock_list_job_messages,
@@ -412,12 +424,26 @@ class TestDataflowJobMessagesTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
-    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.DataflowJobMessagesTrigger.list_job_messages")
-    async def test_run_yields_job_messages(self, mock_list_job_messages, mock_job_status, dataflow_job_messages_trigger):
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.dataflow.DataflowJobMessagesTrigger.list_job_messages"
+    )
+    async def test_run_yields_job_messages(
+        self, mock_list_job_messages, mock_job_status, dataflow_job_messages_trigger
+    ):
         mock_job_status.return_value = JobState.JOB_STATE_DONE.value
         test_job_messages = [
-            {'id': '1707695235850', 'time': '2024-02-06T23:47:15.850Z', 'message_text': 'msg.', 'message_importance': 5},
-            {'id': '1707695635401', 'time': '2024-02-06T23:53:55.401Z', 'message_text': 'msg.', 'message_importance': 5},
+            {
+                "id": "1707695235850",
+                "time": "2024-02-06T23:47:15.850Z",
+                "message_text": "msg.",
+                "message_importance": 5,
+            },
+            {
+                "id": "1707695635401",
+                "time": "2024-02-06T23:53:55.401Z",
+                "message_text": "msg.",
+                "message_importance": 5,
+            },
         ]
         mock_list_job_messages.return_value = test_job_messages
         expected_event = TriggerEvent(

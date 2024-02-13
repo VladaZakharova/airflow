@@ -22,19 +22,14 @@ from __future__ import annotations
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Callable
 
-from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
 from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
 from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
-from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.sensors.dataflow import (
     DataflowJobAutoScalingEventsSensor,
     DataflowJobMessagesSensor,
-    DataflowJobMetricsSensor,
-    DataflowJobStatusSensor,
 )
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule

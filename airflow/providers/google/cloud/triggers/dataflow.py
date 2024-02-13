@@ -18,14 +18,17 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from google.cloud.dataflow_v1beta3 import JobState
-from google.cloud.dataflow_v1beta3.services.messages_v1_beta3.pagers import ListJobMessagesAsyncPager
 from google.cloud.dataflow_v1beta3.types import AutoscalingEvent, JobMessage
 
 from airflow.providers.google.cloud.hooks.dataflow import AsyncDataflowHook, DataflowJobStatus
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from google.cloud.dataflow_v1beta3.services.messages_v1_beta3.pagers import ListJobMessagesAsyncPager
+
 
 DEFAULT_DATAFLOW_LOCATION = "us-central1"
 
@@ -178,7 +181,7 @@ class DataflowJobAutoScalingEventTrigger(BaseTrigger):
         poll_sleep: int = 10,
         impersonation_chain: str | Sequence[str] | None = None,
         cancel_timeout: int | None = 5 * 60,
-        fail_on_terminal_state: bool = True
+        fail_on_terminal_state: bool = True,
     ):
         super().__init__()
         self.project_id = project_id
@@ -260,10 +263,12 @@ class DataflowJobAutoScalingEventTrigger(BaseTrigger):
             gcp_conn_id=self.gcp_conn_id,
             poll_sleep=self.poll_sleep,
             impersonation_chain=self.impersonation_chain,
-            cancel_timeout=self.cancel_timeout
+            cancel_timeout=self.cancel_timeout,
         )
 
-    async def list_job_autoscaling_events(self, hook: AsyncDataflowHook, **kwargs) -> list[dict[str, str | dict]]:
+    async def list_job_autoscaling_events(
+        self, hook: AsyncDataflowHook, **kwargs
+    ) -> list[dict[str, str | dict]]:
         """Wait for the Dataflow client response and then return it in a serialized list."""
         job_response: ListJobMessagesAsyncPager = await hook.list_job_messages(
             job_id=self.job_id,
@@ -273,15 +278,15 @@ class DataflowJobAutoScalingEventTrigger(BaseTrigger):
         )
         return self._get_autoscaling_events_from_job_response(job_response)
 
-    def _get_autoscaling_events_from_job_response(self, job_response: ListJobMessagesAsyncPager) -> list[dict[str, str | dict]]:
+    def _get_autoscaling_events_from_job_response(
+        self, job_response: ListJobMessagesAsyncPager
+    ) -> list[dict[str, str | dict]]:
         """Return a list of serialized AutoscalingEvent objects."""
         return [AutoscalingEvent.to_dict(event) for event in job_response.autoscaling_events]
 
     @property
     def mapped_terminal_job_statuses(self) -> list[int]:
         return [getattr(JobState, state).value for state in DataflowJobStatus.TERMINAL_STATES]
-
-
 
 
 class DataflowJobMessagesTrigger(BaseTrigger):
@@ -317,7 +322,7 @@ class DataflowJobMessagesTrigger(BaseTrigger):
         poll_sleep: int = 10,
         impersonation_chain: str | Sequence[str] | None = None,
         cancel_timeout: int | None = 5 * 60,
-        fail_on_terminal_state: bool = True
+        fail_on_terminal_state: bool = True,
     ):
         super().__init__()
         self.project_id = project_id
@@ -399,7 +404,7 @@ class DataflowJobMessagesTrigger(BaseTrigger):
             gcp_conn_id=self.gcp_conn_id,
             poll_sleep=self.poll_sleep,
             impersonation_chain=self.impersonation_chain,
-            cancel_timeout=self.cancel_timeout
+            cancel_timeout=self.cancel_timeout,
         )
 
     async def list_job_messages(self, hook: AsyncDataflowHook, **kwargs) -> list[dict[str, str | dict]]:
@@ -412,7 +417,9 @@ class DataflowJobMessagesTrigger(BaseTrigger):
         )
         return self._get_job_messages_from_job_response(job_response)
 
-    def _get_job_messages_from_job_response(self, job_response: ListJobMessagesAsyncPager) -> list[dict[str, str | dict]]:
+    def _get_job_messages_from_job_response(
+        self, job_response: ListJobMessagesAsyncPager
+    ) -> list[dict[str, str | dict]]:
         """Return a list of serialized JobMessage objects."""
         return [JobMessage.to_dict(message) for message in job_response.job_messages]
 

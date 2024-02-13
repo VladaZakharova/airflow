@@ -166,16 +166,6 @@ with DAG(
     )
     # [END howto_sensor_wait_for_job_autoscaling_event]
 
-    # [START howto_sensor_wait_for_job_autoscaling_event_deferrable]
-    wait_for_python_job_async_autoscaling_event_defferable = DataflowJobAutoScalingEventsSensor(
-        task_id="wait_for_python_job_async_autoscaling_event",
-        job_id="{{task_instance.xcom_pull('start_python_job_async')['dataflow_job_id']}}",
-        location=LOCATION,
-        fail_on_terminal_state=False,
-        deferrable=True,
-    )
-    # [END howto_sensor_wait_for_job_autoscaling_event_deferrable]
-
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
@@ -191,7 +181,6 @@ with DAG(
             wait_for_python_job_async_metric,
             wait_for_python_job_async_message,
             wait_for_python_job_async_autoscaling_event,
-            wait_for_python_job_async_autoscaling_event_defferable,
         ]
         # TEST TEARDOWN
         >> delete_bucket

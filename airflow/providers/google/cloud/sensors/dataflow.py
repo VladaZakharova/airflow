@@ -308,7 +308,7 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
 
     def execute_complete(self, context: Context, event: dict[str, str | list]) -> Any:
         """
-        Method that is called when the task resumes its execution on the worker after deferral.
+        Execute this method when the task resumes its execution on the worker after deferral.
 
         If the trigger returns an event with success status - passes the event result to the callback function.
         Returns True if no callback function is provided.
@@ -428,7 +428,7 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
 
     def execute_complete(self, context: Context, event: dict[str, str | list]) -> Any:
         """
-        Method that is called when the task resumes its execution on the worker after deferral.
+        Execute this method when the task resumes its execution on the worker after deferral.
 
         If the trigger returns an event with success status - passes the event result to the callback function.
         Returns True if no callback function is provided.
