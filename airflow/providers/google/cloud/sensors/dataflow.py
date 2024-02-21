@@ -286,7 +286,7 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
             location=self.location,
         )
 
-        return self.callback(result)
+        return result if self.callback is None else self.callback(result)
 
     def execute(self, context: Context) -> Any:
         """Airflow runs this method on the worker and defers using the trigger."""
@@ -407,7 +407,7 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
             location=self.location,
         )
 
-        return self.callback(result)
+        return result if self.callback is None else self.callback(result)
 
     def execute(self, context: Context) -> Any:
         """Airflow runs this method on the worker and defers using the trigger."""
