@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import asyncio
 from unittest import mock
-from unittest.mock import patch
 
 import pytest
 from google.cloud.aiplatform_v1 import JobState, PipelineState, types
@@ -82,7 +81,7 @@ class TestCreateHyperparameterTuningJobTrigger:
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
 
-    @patch(VERTEX_AI_TRIGGER_PATH.format("HyperparameterTuningJobAsyncHook"))
+    @mock.patch(VERTEX_AI_TRIGGER_PATH.format("HyperparameterTuningJobAsyncHook"))
     def test_get_async_hook(self, mock_async_hook, create_hyperparameter_tuning_job_trigger):
         hook_expected = mock_async_hook.return_value
 
@@ -103,7 +102,7 @@ class TestCreateHyperparameterTuningJobTrigger:
             (JobState.JOB_STATE_SUCCEEDED, "success"),
         ],
     )
-    @patch(VERTEX_AI_TRIGGER_PATH.format("HyperparameterTuningJobAsyncHook"))
+    @mock.patch(VERTEX_AI_TRIGGER_PATH.format("HyperparameterTuningJobAsyncHook"))
     @mock.patch("google.cloud.aiplatform_v1.types.HyperparameterTuningJob")
     async def test_run(
         self, mock_hpt_job, mock_async_hook, state, status, create_hyperparameter_tuning_job_trigger
@@ -138,7 +137,7 @@ class TestCreateHyperparameterTuningJobTrigger:
         )
 
     @pytest.mark.asyncio
-    @patch(VERTEX_AI_TRIGGER_PATH.format("HyperparameterTuningJobAsyncHook"))
+    @mock.patch(VERTEX_AI_TRIGGER_PATH.format("HyperparameterTuningJobAsyncHook"))
     async def test_run_exception(self, mock_async_hook, create_hyperparameter_tuning_job_trigger):
         mock_async_hook.return_value.wait_hyperparameter_tuning_job.side_effect = AirflowException(
             "test error"
