@@ -23,7 +23,7 @@ import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.api_core.retry import Retry
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     CreateAutoMLForecastingTrainingJobOperator,
     CreateAutoMLImageTrainingJobOperator,
@@ -84,6 +84,7 @@ from airflow.providers.google.cloud.operators.vertex_ai.pipeline_job import (
     ListPipelineJobOperator,
     RunPipelineJobOperator,
 )
+from airflow.providers.google.cloud.triggers.vertex_ai import RunPipelineJobTrigger
 
 VERTEX_AI_PATH = "airflow.providers.google.cloud.operators.vertex_ai.{}"
 TIMEOUT = 120
@@ -1842,9 +1843,9 @@ class TestVertexAIDeleteModelVersionOperator:
 
 
 class TestVertexAIRunPipelineJobOperator:
-    @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJob.to_dict"))
     @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJobHook"))
-    def test_execute(self, mock_hook, to_dict_mock):
+    @mock.patch("google.cloud.aiplatform_v1.types.PipelineJob.to_dict")
+    def test_execute(self, to_dict_mock, mock_hook):
         op = RunPipelineJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -1864,7 +1865,7 @@ class TestVertexAIRunPipelineJobOperator:
             service_account="",
             network="",
             create_request_timeout=None,
-            experiment=None,
+            sync=True,
         )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
@@ -1884,12 +1885,101 @@ class TestVertexAIRunPipelineJobOperator:
             service_account="",
             network="",
             create_request_timeout=None,
-            experiment=None,
+            sync=True,
         )
+
+    @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJobHook"))
+    def test_execute_enters_deferred_state(self, mock_hook):
+        task = RunPipelineJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            display_name=DISPLAY_NAME,
+            template_path=TEST_TEMPLATE_PATH,
+            job_id=TEST_PIPELINE_JOB_ID,
+            sync=False,
+            deferrable=True,
+        )
+        mock_hook.return_value.exists.return_value = False
+        with pytest.raises(TaskDeferred) as exc:
+            task.execute(context={"ti": mock.MagicMock()})
+        assert isinstance(exc.value.trigger, RunPipelineJobTrigger), "Trigger is not a RunPipelineJobTrigger"
+
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.vertex_ai.pipeline_job.RunPipelineJobOperator.xcom_push"
+    )
+    def test_execute_complete_success(self, mock_xcom_push):
+        task = RunPipelineJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            display_name=DISPLAY_NAME,
+            template_path=TEST_TEMPLATE_PATH,
+            job_id=TEST_PIPELINE_JOB_ID,
+            sync=False,
+            deferrable=True,
+        )
+        expected_pipeline_job = expected_result = {
+            "name": f"projects/{GCP_PROJECT}/locations/{GCP_LOCATION}/pipelineJobs/{TEST_PIPELINE_JOB_ID}",
+        }
+        mock_xcom_push.return_value = None
+        actual_result = task.execute_complete(
+            context=None, event={"status": "success", "message": "", "job": expected_pipeline_job}
+        )
+        assert actual_result == expected_result
+
+    def test_execute_complete_error_status_raises_exception(self):
+        task = RunPipelineJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            display_name=DISPLAY_NAME,
+            template_path=TEST_TEMPLATE_PATH,
+            job_id=TEST_PIPELINE_JOB_ID,
+            sync=False,
+            deferrable=True,
+        )
+        with pytest.raises(AirflowException):
+            task.execute_complete(
+                context=None, event={"status": "error", "message": "test message", "job": None}
+            )
+
+    @pytest.mark.parametrize(
+        "sync_value, deferrable_value",
+        (
+            (True, True),
+            (False, True),
+            (True, False),
+        ),
+    )
+    def test_validate_parameters_raises_exception(self, sync_value, deferrable_value):
+        task = RunPipelineJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            display_name=DISPLAY_NAME,
+            template_path=TEST_TEMPLATE_PATH,
+            job_id=TEST_PIPELINE_JOB_ID,
+            sync=sync_value,
+            deferrable=deferrable_value,
+        )
+        if all((sync_value, deferrable_value)):
+            with pytest.raises(AirflowException):
+                task.validate_sync_parameter()
+        else:
+            assert task.validate_sync_parameter() is None
 
 
 class TestVertexAIGetPipelineJobOperator:
-    @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJob.to_dict"))
+    @mock.patch("google.cloud.aiplatform_v1.types.PipelineJob.to_dict")
     @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJobHook"))
     def test_execute(self, mock_hook, to_dict_mock):
         op = GetPipelineJobOperator(

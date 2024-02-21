@@ -28,16 +28,21 @@ from typing import TYPE_CHECKING, Any, Sequence
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform import PipelineJob
-from google.cloud.aiplatform_v1 import PipelineServiceClient
+from google.cloud.aiplatform_v1 import (
+    GetPipelineJobRequest,
+    PipelineServiceAsyncClient,
+    PipelineServiceClient,
+    types,
+)
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
-    from google.api_core.retry import Retry
-    from google.cloud.aiplatform.metadata import experiment_resources
+    from google.api_core.retry import AsyncRetry, Retry
+    from google.auth.credentials import Credentials
     from google.cloud.aiplatform_v1.services.pipeline_service.pagers import ListPipelineJobsPager
 
 
@@ -101,11 +106,6 @@ class PipelineJobHook(GoogleBaseHook):
             failure_policy=failure_policy,
         )
 
-    @staticmethod
-    def extract_pipeline_job_id(obj: dict) -> str:
-        """Return unique id of the pipeline_job."""
-        return obj["name"].rpartition("/")[-1]
-
     def wait_for_operation(self, operation: Operation, timeout: float | None = None):
         """Wait for long-lasting operation to complete."""
         try:
@@ -129,7 +129,7 @@ class PipelineJobHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
-    ) -> PipelineJob:
+    ) -> types.PipelineJob:
         """
         Create a PipelineJob. A PipelineJob will run immediately when created.
 
@@ -178,11 +178,17 @@ class PipelineJobHook(GoogleBaseHook):
         service_account: str | None = None,
         network: str | None = None,
         create_request_timeout: float | None = None,
-        experiment: str | experiment_resources.Experiment | None = None,
         # END: run param
+        sync=True,
     ) -> PipelineJob:
         """
-        Run PipelineJob and monitor the job until completion.
+        Create and run a PipelineJob.
+
+        If sync is True the method will keep running until the job's completion.
+        If sync is False the method will exit after setting required resources.
+
+        For more info please see:
+        https://cloud.google.com/python/docs/reference/aiplatform/latest/google.cloud.aiplatform.PipelineJob#google_cloud_aiplatform_PipelineJob_run
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -224,10 +230,9 @@ class PipelineJobHook(GoogleBaseHook):
             Private services access must already be configured for the network. If left unspecified, the
             network set in aiplatform.init will be used. Otherwise, the job is not peered with any network.
         :param create_request_timeout: Optional. The timeout for the create request in seconds.
-        :param experiment: Optional. The Vertex AI experiment name or instance to associate to this
-            PipelineJob. Metrics produced by the PipelineJob as system.Metric Artifacts will be associated as
-            metrics to the current Experiment Run. Pipeline parameters will be associated as parameters to
-            the current Experiment Run.
+        :param sync: Whether to execute this method synchronously.
+            If False, this method will unblock, and it will be executed in a concurrent Future.
+            The default is True.
         """
         self._pipeline_job = self.get_pipeline_job_object(
             display_name=display_name,
@@ -243,15 +248,18 @@ class PipelineJobHook(GoogleBaseHook):
             location=region,
             failure_policy=failure_policy,
         )
-
-        self._pipeline_job.submit(
+        self._pipeline_job.run(
             service_account=service_account,
             network=network,
             create_request_timeout=create_request_timeout,
-            experiment=experiment,
+            sync=sync,
         )
 
-        self._pipeline_job.wait()
+        if sync:
+            self._pipeline_job.wait()
+        else:
+            self._pipeline_job._wait_for_resource_creation()
+
         return self._pipeline_job
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -263,7 +271,7 @@ class PipelineJobHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
-    ) -> PipelineJob:
+    ) -> types.PipelineJob:
         """
         Get a PipelineJob.
 
@@ -407,3 +415,81 @@ class PipelineJobHook(GoogleBaseHook):
             metadata=metadata,
         )
         return result
+
+
+class PipelineJobAsyncHook(GoogleBaseAsyncHook):
+    """Asynchronous hook for Google Cloud Vertex AI Pipeline Job APIs."""
+
+    sync_hook_class = PipelineJobHook
+
+    def __init__(
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            impersonation_chain=impersonation_chain,
+        )
+
+    async def get_credentials(self) -> Credentials:
+        credentials = (await self.get_sync_hook()).get_credentials()
+        return credentials
+
+    async def get_project_id(self) -> str:
+        sync_hook = await self.get_sync_hook()
+        return sync_hook.project_id
+
+    async def get_project_location(self) -> str:
+        sync_hook = await self.get_sync_hook()
+        return sync_hook.location
+
+    async def get_pipeline_service_client(
+        self,
+        region: str | None = None,
+    ) -> PipelineServiceAsyncClient:
+        """Return PipelineServiceAsyncClient object."""
+        if region and region != "global":
+            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
+        else:
+            client_options = ClientOptions()
+        return PipelineServiceAsyncClient(
+            credentials=await self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=client_options,
+        )
+
+    async def get_pipeline_job(
+        self,
+        project_id: str,
+        location: str,
+        job_id: str,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
+        timeout: float | _MethodDefault | None = DEFAULT,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> types.PipelineJob:
+        """
+        Get a PipelineJob message from PipelineServiceAsyncClient.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param location: Required. The ID of the Google Cloud region that the service belongs to.
+        :param job_id: Required. The ID of the PipelineJob resource.
+        :param retry: Designation of what errors, if any, should be retried.
+        :param timeout: The timeout for this request.
+        :param metadata: Strings which should be sent along with the request as metadata.
+        """
+        client = await self.get_pipeline_service_client(region=location)
+        request = self.get_pipeline_job_request(project=project_id, location=location, job=job_id)
+        response: types.PipelineJob = await client.get_pipeline_job(
+            request=request,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return response
+
+    @staticmethod
+    def get_pipeline_job_request(project: str, location: str, job: str) -> GetPipelineJobRequest:
+        name = f"projects/{project}/locations/{location}/pipelineJobs/{job}"
+        return GetPipelineJobRequest(name=name)

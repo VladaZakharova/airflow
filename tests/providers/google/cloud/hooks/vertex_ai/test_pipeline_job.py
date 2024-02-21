@@ -19,9 +19,12 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
+from google.cloud.aiplatform_v1 import GetPipelineJobRequest
 
 from airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job import (
+    PipelineJobAsyncHook,
     PipelineJobHook,
 )
 from tests.providers.google.cloud.utils.base_gcp_mock import (
@@ -30,6 +33,10 @@ from tests.providers.google.cloud.utils.base_gcp_mock import (
 )
 
 TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
+TEST_IMPERSONATION_CHAIN = [
+    "IMPERSONATE",
+    "THIS",
+]
 TEST_REGION: str = "test-region"
 TEST_PROJECT_ID: str = "test-project-id"
 TEST_PIPELINE_JOB: dict = {}
@@ -37,6 +44,14 @@ TEST_PIPELINE_JOB_ID = "test_pipeline_job_id"
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 PIPELINE_JOB_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job.{}"
+
+
+@pytest.fixture
+def test_async_hook():
+    return PipelineJobAsyncHook(
+        gcp_conn_id=TEST_PROJECT_ID,
+        impersonation_chain=TEST_IMPERSONATION_CHAIN,
+    )
 
 
 class TestPipelineJobWithDefaultProjectIdHook:
@@ -217,3 +232,31 @@ class TestPipelineJobWithoutDefaultProjectIdHook:
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+
+    class TestPipelineJobAsyncHook:
+        @pytest.mark.asyncio
+        @mock.patch(PIPELINE_JOB_STRING.format("PipelineJobAsyncHook.get_pipeline_service_client"))
+        async def test_get_pipeline_job(self, mock_get_pipeline_service_client, test_async_hook):
+            await test_async_hook.get_pipeline_job(
+                project_id=TEST_PROJECT_ID, location=TEST_REGION, job_id=TEST_PIPELINE_JOB_ID
+            )
+            mock_get_pipeline_service_client.assert_called_once_with(region=TEST_REGION)
+            mock_get_pipeline_service_client.return_value.get_pipeline_job.assert_called_once_with(
+                request=GetPipelineJobRequest(
+                    name=f"projects/{TEST_PROJECT_ID}/locations/{TEST_REGION}/pipelineJobs/{TEST_PIPELINE_JOB_ID}",
+                ),
+                retry=DEFAULT,
+                timeout=DEFAULT,
+                metadata=(),
+            )
+
+        def test_get_pipeline_job_request(self, test_async_hook):
+            expected_request = GetPipelineJobRequest(
+                name=f"projects/{TEST_PROJECT_ID}/locations/{TEST_REGION}/pipelineJobs/{TEST_PIPELINE_JOB_ID}",
+            )
+            actual_request = test_async_hook.get_pipeline_job_request(
+                project=TEST_PROJECT_ID,
+                location=TEST_REGION,
+                job=TEST_PIPELINE_JOB_ID,
+            )
+            assert actual_request == expected_request

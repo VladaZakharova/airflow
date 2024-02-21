@@ -22,18 +22,21 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.aiplatform_v1.types import PipelineJob
+from google.cloud.aiplatform_v1 import types
 
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job import PipelineJobHook
 from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIPipelineJobLink,
     VertexAIPipelineJobListLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.cloud.triggers.vertex_ai import RunPipelineJobTrigger
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
-    from google.cloud.aiplatform.metadata import experiment_resources
+    from google.cloud.aiplatform import PipelineJob
 
     from airflow.utils.context import Context
 
@@ -82,11 +85,9 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         Private services access must already be configured for the network. If left unspecified, the
         network set in aiplatform.init will be used. Otherwise, the job is not peered with any network.
     :param create_request_timeout: Optional. The timeout for the create request in seconds.
-    :param experiment: Optional. The Vertex AI experiment name or instance to associate to this
-        PipelineJob. Metrics produced by the PipelineJob as system.Metric Artifacts will be associated as
-        metrics to the current Experiment Run. Pipeline parameters will be associated as parameters to
-        the current Experiment Run.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param sync: Whether to execute this method synchronously. If False, this method will unblock, and it
+        will be executed in a concurrent Future. The default is True.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -95,6 +96,10 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable:  If True, run the task in the deferrable mode.
+        Note that it requires calling the operator with `sync=False` parameter.
+    :param poll_interval: Time (seconds) to wait between two consecutive calls to check the job.
+        The default is 300 seconds.
     """
 
     template_fields = [
@@ -123,9 +128,11 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         service_account: str | None = None,
         network: str | None = None,
         create_request_timeout: float | None = None,
-        experiment: str | experiment_resources.Experiment | None = None,
         gcp_conn_id: str = "google_cloud_default",
+        sync: bool = True,
         impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        poll_interval: int = 5 * 60,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -144,48 +151,105 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         self.service_account = service_account
         self.network = network
         self.create_request_timeout = create_request_timeout
-        self.experiment = experiment
         self.gcp_conn_id = gcp_conn_id
+        self.sync = sync
         self.impersonation_chain = impersonation_chain
+        self.deferrable = deferrable
+        self.poll_interval = poll_interval
         self.hook: PipelineJobHook | None = None
 
     def execute(self, context: Context):
+        self.validate_sync_parameter()
         self.log.info("Running Pipeline job")
         self.hook = PipelineJobHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        result = self.hook.run_pipeline_job(
-            project_id=self.project_id,
-            region=self.region,
-            display_name=self.display_name,
-            template_path=self.template_path,
-            job_id=self.job_id,
-            pipeline_root=self.pipeline_root,
-            parameter_values=self.parameter_values,
-            input_artifacts=self.input_artifacts,
-            enable_caching=self.enable_caching,
-            encryption_spec_key_name=self.encryption_spec_key_name,
-            labels=self.labels,
-            failure_policy=self.failure_policy,
-            service_account=self.service_account,
-            network=self.network,
-            create_request_timeout=self.create_request_timeout,
-            experiment=self.experiment,
-        )
+        if self.deferrable:
+            pipeline_job_obj: PipelineJob = self.hook.run_pipeline_job(
+                project_id=self.project_id,
+                region=self.region,
+                display_name=self.display_name,
+                template_path=self.template_path,
+                job_id=self.job_id,
+                pipeline_root=self.pipeline_root,
+                parameter_values=self.parameter_values,
+                input_artifacts=self.input_artifacts,
+                enable_caching=self.enable_caching,
+                encryption_spec_key_name=self.encryption_spec_key_name,
+                labels=self.labels,
+                failure_policy=self.failure_policy,
+                service_account=self.service_account,
+                network=self.network,
+                create_request_timeout=self.create_request_timeout,
+                sync=self.sync,
+            )
+            self.log.info("Pipeline job was created. Job id: %s", pipeline_job_obj.job_id)
+            self.defer(
+                trigger=RunPipelineJobTrigger(
+                    conn_id=self.gcp_conn_id,
+                    project_id=self.project_id,
+                    location=pipeline_job_obj.location,
+                    job_id=pipeline_job_obj.job_id,
+                    poll_interval=self.poll_interval,
+                    impersonation_chain=self.impersonation_chain,
+                ),
+                method_name="execute_complete",
+            )
+        else:
+            result = self.hook.run_pipeline_job(
+                project_id=self.project_id,
+                region=self.region,
+                display_name=self.display_name,
+                template_path=self.template_path,
+                job_id=self.job_id,
+                pipeline_root=self.pipeline_root,
+                parameter_values=self.parameter_values,
+                input_artifacts=self.input_artifacts,
+                enable_caching=self.enable_caching,
+                encryption_spec_key_name=self.encryption_spec_key_name,
+                labels=self.labels,
+                failure_policy=self.failure_policy,
+                service_account=self.service_account,
+                network=self.network,
+                create_request_timeout=self.create_request_timeout,
+                sync=self.sync,
+            )
 
         pipeline_job = result.to_dict()
-        pipeline_job_id = self.hook.extract_pipeline_job_id(pipeline_job)
+        pipeline_job_id = self.extract_pipeline_job_id(pipeline_job)
         self.log.info("Pipeline job was created. Job id: %s", pipeline_job_id)
-
         self.xcom_push(context, key="pipeline_job_id", value=pipeline_job_id)
         VertexAIPipelineJobLink.persist(context=context, task_instance=self, pipeline_id=pipeline_job_id)
         return pipeline_job
 
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
+        job_id = self.extract_pipeline_job_id(event["job"])
+        self.xcom_push(context, key="pipeline_job_id", value=job_id)
+        VertexAIPipelineJobLink.persist(context=context, task_instance=self, pipeline_id=job_id)
+        return event["job"]
+
     def on_kill(self) -> None:
         """Act as a callback called when the operator is killed; cancel any running job."""
+        self.log.warning("This is hook on kill: %s", self.hook)
         if self.hook:
             self.hook.cancel_pipeline_job()
+
+    def validate_sync_parameter(self) -> None:
+        if self.deferrable and self.sync:
+            raise AirflowException(
+                "Deferrable mode can be used only with sync=False option. "
+                "If you are willing to run the operator in deferrable mode, please, set sync=False. "
+                "Otherwise, disable deferrable mode `deferrable=False`."
+            )
+        return
+
+    @staticmethod
+    def extract_pipeline_job_id(obj: dict) -> str:
+        """Return unique id of a pipeline job from its name."""
+        return obj["name"].rpartition("/")[-1]
 
 
 class GetPipelineJobOperator(GoogleCloudBaseOperator):
@@ -261,7 +325,7 @@ class GetPipelineJobOperator(GoogleCloudBaseOperator):
                 context=context, task_instance=self, pipeline_id=self.pipeline_job_id
             )
             self.log.info("Pipeline job was gotten.")
-            return PipelineJob.to_dict(result)
+            return types.PipelineJob.to_dict(result)
         except NotFound:
             self.log.info("The Pipeline job %s does not exist.", self.pipeline_job_id)
 
@@ -389,7 +453,7 @@ class ListPipelineJobOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         VertexAIPipelineJobListLink.persist(context=context, task_instance=self)
-        return [PipelineJob.to_dict(result) for result in results]
+        return [types.PipelineJob.to_dict(result) for result in results]
 
 
 class DeletePipelineJobOperator(GoogleCloudBaseOperator):
