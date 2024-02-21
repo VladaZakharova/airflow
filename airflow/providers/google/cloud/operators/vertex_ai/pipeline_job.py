@@ -165,25 +165,25 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
+        pipeline_job_obj: PipelineJob = self.hook.run_pipeline_job(
+            project_id=self.project_id,
+            region=self.region,
+            display_name=self.display_name,
+            template_path=self.template_path,
+            job_id=self.job_id,
+            pipeline_root=self.pipeline_root,
+            parameter_values=self.parameter_values,
+            input_artifacts=self.input_artifacts,
+            enable_caching=self.enable_caching,
+            encryption_spec_key_name=self.encryption_spec_key_name,
+            labels=self.labels,
+            failure_policy=self.failure_policy,
+            service_account=self.service_account,
+            network=self.network,
+            create_request_timeout=self.create_request_timeout,
+            sync=self.sync,
+        )
         if self.deferrable:
-            pipeline_job_obj: PipelineJob = self.hook.run_pipeline_job(
-                project_id=self.project_id,
-                region=self.region,
-                display_name=self.display_name,
-                template_path=self.template_path,
-                job_id=self.job_id,
-                pipeline_root=self.pipeline_root,
-                parameter_values=self.parameter_values,
-                input_artifacts=self.input_artifacts,
-                enable_caching=self.enable_caching,
-                encryption_spec_key_name=self.encryption_spec_key_name,
-                labels=self.labels,
-                failure_policy=self.failure_policy,
-                service_account=self.service_account,
-                network=self.network,
-                create_request_timeout=self.create_request_timeout,
-                sync=self.sync,
-            )
             self.log.info("Pipeline job was created. Job id: %s", pipeline_job_obj.job_id)
             self.defer(
                 trigger=RunPipelineJobTrigger(
@@ -196,27 +196,7 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
                 ),
                 method_name="execute_complete",
             )
-        else:
-            result = self.hook.run_pipeline_job(
-                project_id=self.project_id,
-                region=self.region,
-                display_name=self.display_name,
-                template_path=self.template_path,
-                job_id=self.job_id,
-                pipeline_root=self.pipeline_root,
-                parameter_values=self.parameter_values,
-                input_artifacts=self.input_artifacts,
-                enable_caching=self.enable_caching,
-                encryption_spec_key_name=self.encryption_spec_key_name,
-                labels=self.labels,
-                failure_policy=self.failure_policy,
-                service_account=self.service_account,
-                network=self.network,
-                create_request_timeout=self.create_request_timeout,
-                sync=self.sync,
-            )
-
-        pipeline_job = result.to_dict()
+        pipeline_job = pipeline_job_obj.to_dict()
         pipeline_job_id = self.extract_pipeline_job_id(pipeline_job)
         self.log.info("Pipeline job was created. Job id: %s", pipeline_job_id)
         self.xcom_push(context, key="pipeline_job_id", value=pipeline_job_id)
