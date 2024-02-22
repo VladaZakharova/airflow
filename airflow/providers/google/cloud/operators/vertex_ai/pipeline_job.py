@@ -18,6 +18,7 @@
 """This module contains Google Vertex AI operators."""
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.exceptions import NotFound
@@ -37,13 +38,14 @@ from airflow.providers.google.cloud.triggers.vertex_ai import RunPipelineJobTrig
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from google.cloud.aiplatform import PipelineJob
+    from google.cloud.aiplatform.metadata import experiment_resources
 
     from airflow.utils.context import Context
 
 
 class RunPipelineJobOperator(GoogleCloudBaseOperator):
     """
-    Run Pipeline job.
+    Create and run a Pipeline job.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -85,6 +87,10 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         Private services access must already be configured for the network. If left unspecified, the
         network set in aiplatform.init will be used. Otherwise, the job is not peered with any network.
     :param create_request_timeout: Optional. The timeout for the create request in seconds.
+    :param experiment: Optional. The Vertex AI experiment name or instance to associate to this PipelineJob.
+        Metrics produced by the PipelineJob as system.Metric Artifacts will be associated as metrics
+        to the current Experiment Run. Pipeline parameters will be associated as parameters to
+        the current Experiment Run.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param sync: Whether to execute this method synchronously. If False, this method will unblock, and it
         will be executed in a concurrent Future. The default is True.
@@ -128,8 +134,8 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         service_account: str | None = None,
         network: str | None = None,
         create_request_timeout: float | None = None,
+        experiment: str | experiment_resources.Experiment | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        sync: bool = True,
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: int = 5 * 60,
@@ -151,21 +157,15 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         self.service_account = service_account
         self.network = network
         self.create_request_timeout = create_request_timeout
+        self.experiment = experiment
         self.gcp_conn_id = gcp_conn_id
-        self.sync = sync
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
         self.poll_interval = poll_interval
-        self.hook: PipelineJobHook | None = None
 
     def execute(self, context: Context):
-        self.validate_sync_parameter()
         self.log.info("Running Pipeline job")
-        self.hook = PipelineJobHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-        pipeline_job_obj: PipelineJob = self.hook.run_pipeline_job(
+        pipeline_job_obj: PipelineJob = self.hook.submit_pipeline_job(
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
@@ -181,7 +181,7 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
             service_account=self.service_account,
             network=self.network,
             create_request_timeout=self.create_request_timeout,
-            sync=self.sync,
+            experiment=self.experiment,
         )
         if self.deferrable:
             self.log.info("Pipeline job was created. Job id: %s", pipeline_job_obj.job_id)
@@ -196,8 +196,9 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
                 ),
                 method_name="execute_complete",
             )
+        pipeline_job_obj.wait()
         pipeline_job = pipeline_job_obj.to_dict()
-        pipeline_job_id = self.extract_pipeline_job_id(pipeline_job)
+        pipeline_job_id = pipeline_job_obj.job_id
         self.log.info("Pipeline job was created. Job id: %s", pipeline_job_id)
         self.xcom_push(context, key="pipeline_job_id", value=pipeline_job_id)
         VertexAIPipelineJobLink.persist(context=context, task_instance=self, pipeline_id=pipeline_job_id)
@@ -206,7 +207,7 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
         if event["status"] == "error":
             raise AirflowException(event["message"])
-        job_id = self.extract_pipeline_job_id(event["job"])
+        job_id = self.hook.extract_pipeline_job_id(event["job"])
         self.xcom_push(context, key="pipeline_job_id", value=job_id)
         VertexAIPipelineJobLink.persist(context=context, task_instance=self, pipeline_id=job_id)
         return event["job"]
@@ -217,19 +218,12 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         if self.hook:
             self.hook.cancel_pipeline_job()
 
-    def validate_sync_parameter(self) -> None:
-        if self.deferrable and self.sync:
-            raise AirflowException(
-                "Deferrable mode can be used only with sync=False option. "
-                "If you are willing to run the operator in deferrable mode, please, set sync=False. "
-                "Otherwise, disable deferrable mode `deferrable=False`."
-            )
-        return
-
-    @staticmethod
-    def extract_pipeline_job_id(obj: dict) -> str:
-        """Return unique id of a pipeline job from its name."""
-        return obj["name"].rpartition("/")[-1]
+    @cached_property
+    def hook(self) -> PipelineJobHook:
+        return PipelineJobHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
 
 
 class GetPipelineJobOperator(GoogleCloudBaseOperator):

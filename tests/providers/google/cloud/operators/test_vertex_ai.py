@@ -1950,33 +1950,6 @@ class TestVertexAIRunPipelineJobOperator:
                 context=None, event={"status": "error", "message": "test message", "job": None}
             )
 
-    @pytest.mark.parametrize(
-        "sync_value, deferrable_value",
-        (
-            (True, True),
-            (False, True),
-            (True, False),
-        ),
-    )
-    def test_validate_parameters_raises_exception(self, sync_value, deferrable_value):
-        task = RunPipelineJobOperator(
-            task_id=TASK_ID,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-            region=GCP_LOCATION,
-            project_id=GCP_PROJECT,
-            display_name=DISPLAY_NAME,
-            template_path=TEST_TEMPLATE_PATH,
-            job_id=TEST_PIPELINE_JOB_ID,
-            sync=sync_value,
-            deferrable=deferrable_value,
-        )
-        if all((sync_value, deferrable_value)):
-            with pytest.raises(AirflowException):
-                task.validate_sync_parameter()
-        else:
-            assert task.validate_sync_parameter() is None
-
 
 class TestVertexAIGetPipelineJobOperator:
     @mock.patch("google.cloud.aiplatform_v1.types.PipelineJob.to_dict")

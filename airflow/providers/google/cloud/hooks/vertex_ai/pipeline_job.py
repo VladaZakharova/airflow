@@ -43,6 +43,7 @@ if TYPE_CHECKING:
     from google.api_core.operation import Operation
     from google.api_core.retry import AsyncRetry, Retry
     from google.auth.credentials import Credentials
+    from google.cloud.aiplatform.metadata import experiment_resources
     from google.cloud.aiplatform_v1.services.pipeline_service.pagers import ListPipelineJobsPager
 
 
@@ -178,16 +179,13 @@ class PipelineJobHook(GoogleBaseHook):
         service_account: str | None = None,
         network: str | None = None,
         create_request_timeout: float | None = None,
+        experiment: str | experiment_resources.Experiment | None = None,
         # END: run param
-        sync=True,
     ) -> PipelineJob:
         """
-        Create and run a PipelineJob.
+        Create and run a PipelineJob until its completion.
 
-        If sync is True the method will keep running until the job's completion.
-        If sync is False the method will exit after setting required resources.
-
-        For more info please see:
+        For more info about the client method please see:
         https://cloud.google.com/python/docs/reference/aiplatform/latest/google.cloud.aiplatform.PipelineJob#google_cloud_aiplatform_PipelineJob_run
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
@@ -230,9 +228,10 @@ class PipelineJobHook(GoogleBaseHook):
             Private services access must already be configured for the network. If left unspecified, the
             network set in aiplatform.init will be used. Otherwise, the job is not peered with any network.
         :param create_request_timeout: Optional. The timeout for the create request in seconds.
-        :param sync: Whether to execute this method synchronously.
-            If False, this method will unblock, and it will be executed in a concurrent Future.
-            The default is True.
+        :param experiment: Optional. The Vertex AI experiment name or instance to associate to this
+            PipelineJob. Metrics produced by the PipelineJob as system.Metric Artifacts will be associated as
+            metrics to the current Experiment Run. Pipeline parameters will be associated as parameters to
+            the current Experiment Run.
         """
         self._pipeline_job = self.get_pipeline_job_object(
             display_name=display_name,
@@ -248,17 +247,109 @@ class PipelineJobHook(GoogleBaseHook):
             location=region,
             failure_policy=failure_policy,
         )
-        self._pipeline_job.run(
+        self._pipeline_job.submit(
             service_account=service_account,
             network=network,
             create_request_timeout=create_request_timeout,
-            sync=sync,
+            experiment=experiment,
         )
+        self._pipeline_job.wait()
 
-        if sync:
-            self._pipeline_job.wait()
-        else:
-            self._pipeline_job._wait_for_resource_creation()
+        return self._pipeline_job
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def submit_pipeline_job(
+        self,
+        project_id: str,
+        region: str,
+        display_name: str,
+        template_path: str,
+        job_id: str | None = None,
+        pipeline_root: str | None = None,
+        parameter_values: dict[str, Any] | None = None,
+        input_artifacts: dict[str, str] | None = None,
+        enable_caching: bool | None = None,
+        encryption_spec_key_name: str | None = None,
+        labels: dict[str, str] | None = None,
+        failure_policy: str | None = None,
+        # START: run param
+        service_account: str | None = None,
+        network: str | None = None,
+        create_request_timeout: float | None = None,
+        experiment: str | experiment_resources.Experiment | None = None,
+        # END: run param
+    ) -> PipelineJob:
+        """
+        Create and start a PipelineJob run.
+
+        For more info about the client method please see:
+        https://cloud.google.com/python/docs/reference/aiplatform/latest/google.cloud.aiplatform.PipelineJob#google_cloud_aiplatform_PipelineJob_submit
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param region: Required. The ID of the Google Cloud region that the service belongs to.
+        :param display_name: Required. The user-defined name of this Pipeline.
+        :param template_path: Required. The path of PipelineJob or PipelineSpec JSON or YAML file. It can be
+            a local path, a Google Cloud Storage URI (e.g. "gs://project.name"), an Artifact Registry URI
+            (e.g. "https://us-central1-kfp.pkg.dev/proj/repo/pack/latest"), or an HTTPS URI.
+        :param job_id: Optional. The unique ID of the job run. If not specified, pipeline name + timestamp
+            will be used.
+        :param pipeline_root: Optional. The root of the pipeline outputs. If not set, the staging bucket set
+            in aiplatform.init will be used. If that's not set a pipeline-specific artifacts bucket will be
+            used.
+        :param parameter_values: Optional. The mapping from runtime parameter names to its values that
+            control the pipeline run.
+        :param input_artifacts: Optional. The mapping from the runtime parameter name for this artifact to
+            its resource id. For example: "vertex_model":"456". Note: full resource name
+            ("projects/123/locations/us-central1/metadataStores/default/artifacts/456") cannot be used.
+        :param enable_caching: Optional. Whether to turn on caching for the run.
+            If this is not set, defaults to the compile time settings, which are True for all tasks by
+            default, while users may specify different caching options for individual tasks.
+            If this is set, the setting applies to all tasks in the pipeline. Overrides the compile time
+            settings.
+        :param encryption_spec_key_name: Optional. The Cloud KMS resource identifier of the customer managed
+            encryption key used to protect the job. Has the form:
+            ``projects/my-project/locations/my-region/keyRings/my-kr/cryptoKeys/my-key``.
+            The key needs to be in the same region as where the compute resource is created. If this is set,
+            then all resources created by the PipelineJob will be encrypted with the provided encryption key.
+            Overrides encryption_spec_key_name set in aiplatform.init.
+        :param labels: Optional. The user defined metadata to organize PipelineJob.
+        :param failure_policy: Optional. The failure policy - "slow" or "fast". Currently, the default of a
+            pipeline is that the pipeline will continue to run until no more tasks can be executed, also
+            known as PIPELINE_FAILURE_POLICY_FAIL_SLOW (corresponds to "slow"). However, if a pipeline is set
+            to PIPELINE_FAILURE_POLICY_FAIL_FAST (corresponds to "fast"), it will stop scheduling any new
+            tasks when a task has failed. Any scheduled tasks will continue to completion.
+        :param service_account: Optional. Specifies the service account for workload run-as account. Users
+            submitting jobs must have act-as permission on this run-as account.
+        :param network: Optional. The full name of the Compute Engine network to which the job should be
+            peered. For example, projects/12345/global/networks/myVPC.
+            Private services access must already be configured for the network. If left unspecified, the
+            network set in aiplatform.init will be used. Otherwise, the job is not peered with any network.
+        :param create_request_timeout: Optional. The timeout for the create request in seconds.
+        :param experiment: Optional. The Vertex AI experiment name or instance to associate to this PipelineJob.
+            Metrics produced by the PipelineJob as system.Metric Artifacts will be associated as metrics
+            to the current Experiment Run. Pipeline parameters will be associated as parameters to
+            the current Experiment Run.
+        """
+        self._pipeline_job = self.get_pipeline_job_object(
+            display_name=display_name,
+            template_path=template_path,
+            job_id=job_id,
+            pipeline_root=pipeline_root,
+            parameter_values=parameter_values,
+            input_artifacts=input_artifacts,
+            enable_caching=enable_caching,
+            encryption_spec_key_name=encryption_spec_key_name,
+            labels=labels,
+            project=project_id,
+            location=region,
+            failure_policy=failure_policy,
+        )
+        self._pipeline_job.submit(
+            service_account=service_account,
+            network=network,
+            create_request_timeout=create_request_timeout,
+            experiment=experiment,
+        )
 
         return self._pipeline_job
 
@@ -415,6 +506,11 @@ class PipelineJobHook(GoogleBaseHook):
             metadata=metadata,
         )
         return result
+
+    @staticmethod
+    def extract_pipeline_job_id(obj: dict) -> str:
+        """Return unique id of a pipeline job from its name."""
+        return obj["name"].rpartition("/")[-1]
 
 
 class PipelineJobAsyncHook(GoogleBaseAsyncHook):
