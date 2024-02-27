@@ -1865,11 +1865,11 @@ class TestVertexAIRunPipelineJobOperator:
             service_account="",
             network="",
             create_request_timeout=None,
-            sync=True,
+            experiment=None,
         )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
-        mock_hook.return_value.run_pipeline_job.assert_called_once_with(
+        mock_hook.return_value.submit_pipeline_job.assert_called_once_with(
             project_id=GCP_PROJECT,
             region=GCP_LOCATION,
             display_name=DISPLAY_NAME,
@@ -1885,7 +1885,7 @@ class TestVertexAIRunPipelineJobOperator:
             service_account="",
             network="",
             create_request_timeout=None,
-            sync=True,
+            experiment=None,
         )
 
     @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJobHook"))
@@ -1899,7 +1899,6 @@ class TestVertexAIRunPipelineJobOperator:
             display_name=DISPLAY_NAME,
             template_path=TEST_TEMPLATE_PATH,
             job_id=TEST_PIPELINE_JOB_ID,
-            sync=False,
             deferrable=True,
         )
         mock_hook.return_value.exists.return_value = False
@@ -1910,7 +1909,8 @@ class TestVertexAIRunPipelineJobOperator:
     @mock.patch(
         "airflow.providers.google.cloud.operators.vertex_ai.pipeline_job.RunPipelineJobOperator.xcom_push"
     )
-    def test_execute_complete_success(self, mock_xcom_push):
+    @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJobHook"))
+    def test_execute_complete_success(self, mock_hook, mock_xcom_push):
         task = RunPipelineJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -1920,12 +1920,12 @@ class TestVertexAIRunPipelineJobOperator:
             display_name=DISPLAY_NAME,
             template_path=TEST_TEMPLATE_PATH,
             job_id=TEST_PIPELINE_JOB_ID,
-            sync=False,
             deferrable=True,
         )
         expected_pipeline_job = expected_result = {
             "name": f"projects/{GCP_PROJECT}/locations/{GCP_LOCATION}/pipelineJobs/{TEST_PIPELINE_JOB_ID}",
         }
+        mock_hook.return_value.exists.return_value = False
         mock_xcom_push.return_value = None
         actual_result = task.execute_complete(
             context=None, event={"status": "success", "message": "", "job": expected_pipeline_job}
@@ -1942,7 +1942,6 @@ class TestVertexAIRunPipelineJobOperator:
             display_name=DISPLAY_NAME,
             template_path=TEST_TEMPLATE_PATH,
             job_id=TEST_PIPELINE_JOB_ID,
-            sync=False,
             deferrable=True,
         )
         with pytest.raises(AirflowException):
