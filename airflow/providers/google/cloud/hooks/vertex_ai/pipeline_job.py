@@ -185,9 +185,6 @@ class PipelineJobHook(GoogleBaseHook):
         """
         Create and run a PipelineJob until its completion.
 
-        For more info about the client method please see:
-        https://cloud.google.com/python/docs/reference/aiplatform/latest/google.cloud.aiplatform.PipelineJob#google_cloud_aiplatform_PipelineJob_run
-
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
         :param display_name: Required. The user-defined name of this Pipeline.
