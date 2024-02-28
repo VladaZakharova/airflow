@@ -104,10 +104,14 @@ class CreateHyperparameterTuningJobTrigger(BaseTrigger):
 class RunPipelineJobTrigger(BaseTrigger):
     """A trigger that makes async calls to Vertex AI to check the state of a running pipeline job."""
 
-    SUCCESSFUL_PIPELINE_STATES = (PipelineState.PIPELINE_STATE_SUCCEEDED,)
-    FAILED_PIPELINE_STATES = (
+    PIPELINE_ERROR_STATES = (
         PipelineState.PIPELINE_STATE_FAILED,
         PipelineState.PIPELINE_STATE_CANCELLED,
+    )
+    PIPELINE_COMPLETE_STATES = (
+        PipelineState.PIPELINE_STATE_SUCCEEDED,
+        PipelineState.PIPELINE_STATE_PAUSED,
+        *PIPELINE_ERROR_STATES,
     )
 
     def __init__(
@@ -142,6 +146,7 @@ class RunPipelineJobTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         hook: PipelineJobAsyncHook = await self._get_async_hook()
+        status = "error"
         while True:
             try:
                 pipeline_job_message: types.PipelineJob = await hook.get_pipeline_job(
@@ -150,31 +155,23 @@ class RunPipelineJobTrigger(BaseTrigger):
                     job_id=self.job_id,
                 )
                 pipeline_job_state: PipelineState = pipeline_job_message.state
-                if pipeline_job_state in self.SUCCESSFUL_PIPELINE_STATES:
+                if pipeline_job_state in self.PIPELINE_COMPLETE_STATES:
+                    status = "success" if pipeline_job_state not in self.PIPELINE_ERROR_STATES else status
                     yield TriggerEvent(
                         {
-                            "status": "success",
-                            "message": f"Pipeline job '{self.job_id}' has completed successfully.",
+                            "status": status,
+                            "message": f"Pipeline job '{self.job_id}' has completed with status {pipeline_job_state.name}.",
                             "job": types.PipelineJob.to_dict(pipeline_job_message),
                         }
                     )
                     return
-                if pipeline_job_state in self.FAILED_PIPELINE_STATES:
-                    yield TriggerEvent(
-                        {
-                            "status": "error",
-                            "message": f"Pipeline job '{self.job_id}' completed with status {PipelineState(pipeline_job_state).name}.",
-                            "job": types.PipelineJob.to_dict(pipeline_job_message),
-                        }
-                    )
-                    return
-                self.log.info("Current pipeline job state: %s.", PipelineState(pipeline_job_state).name)
+                self.log.info("Current pipeline job state: %s.", pipeline_job_state.name)
                 self.log.info("Sleeping for %s seconds...", self.poll_interval)
                 await asyncio.sleep(self.poll_interval)
             except Exception as exc:
                 yield TriggerEvent(
                     {
-                        "status": "error",
+                        "status": status,
                         "message": f"Exception occurred when trying to run pipeline job {self.job_id}: {str(exc)}",
                         "job": None,
                     }

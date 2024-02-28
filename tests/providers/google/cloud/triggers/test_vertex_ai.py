@@ -177,20 +177,31 @@ class TestRunPipelineJobTrigger:
         actual_imp_chain = hook._hook_kwargs.get("impersonation_chain")
         assert (actual_conn_id, actual_imp_chain) == (TEST_CONN_ID, TEST_IMPERSONATION_CHAIN)
 
+    @pytest.mark.parametrize(
+        "pipeline_state_value",
+        [
+            PipelineState.PIPELINE_STATE_SUCCEEDED,
+            PipelineState.PIPELINE_STATE_PAUSED,
+        ],
+    )
     @pytest.mark.asyncio
     @mock.patch("google.cloud.aiplatform_v1.types.PipelineJob.to_dict")
     @mock.patch(
         "airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job.PipelineJobAsyncHook.get_pipeline_job"
     )
     async def test_run_yields_success_event_on_successful_pipeline_state(
-        self, mock_get_pipeline_job, mock_pipeline_job_dict, run_pipeline_job_trigger
+        self,
+        mock_get_pipeline_job,
+        mock_pipeline_job_dict,
+        run_pipeline_job_trigger,
+        pipeline_state_value,
     ):
-        mock_get_pipeline_job.return_value = types.PipelineJob(state=PipelineState.PIPELINE_STATE_SUCCEEDED)
+        mock_get_pipeline_job.return_value = types.PipelineJob(state=pipeline_state_value)
         mock_pipeline_job_dict.return_value = {}
         expected_event = TriggerEvent(
             {
                 "status": "success",
-                "message": f"Pipeline job '{TEST_HPT_JOB_ID}' has completed successfully.",
+                "message": f"Pipeline job '{TEST_HPT_JOB_ID}' has completed with status {pipeline_state_value.name}.",
                 "job": {},
             }
         )
@@ -217,7 +228,7 @@ class TestRunPipelineJobTrigger:
         expected_event = TriggerEvent(
             {
                 "status": "error",
-                "message": f"Pipeline job '{TEST_HPT_JOB_ID}' completed with status {PipelineState(pipeline_state_value).name}.",
+                "message": f"Pipeline job '{TEST_HPT_JOB_ID}' has completed with status {pipeline_state_value.name}.",
                 "job": {},
             }
         )
@@ -228,7 +239,6 @@ class TestRunPipelineJobTrigger:
         "pipeline_state_value",
         [
             PipelineState.PIPELINE_STATE_CANCELLING,
-            PipelineState.PIPELINE_STATE_PAUSED,
             PipelineState.PIPELINE_STATE_PENDING,
             PipelineState.PIPELINE_STATE_QUEUED,
             PipelineState.PIPELINE_STATE_RUNNING,
