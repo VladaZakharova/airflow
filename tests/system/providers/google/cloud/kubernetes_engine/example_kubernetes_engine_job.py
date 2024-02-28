@@ -27,6 +27,7 @@ from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKECreateClusterOperator,
     GKEDeleteClusterOperator,
+    GKEDeleteJobOperator,
     GKEStartJobOperator,
 )
 
@@ -37,6 +38,9 @@ GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 GCP_LOCATION = "europe-north1-a"
 CLUSTER_NAME = f"cluster-name-test-build-{ENV_ID}"
 CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1}
+
+JOB_NAME = "test-pi"
+JOB_NAMESPACE = "default"
 
 with DAG(
     DAG_ID,
@@ -58,12 +62,23 @@ with DAG(
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
         cluster_name=CLUSTER_NAME,
-        namespace="default",
+        namespace=JOB_NAMESPACE,
         image="perl:5.34.0",
         cmds=["perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"],
-        name="test-pi",
+        name=JOB_NAME,
     )
     # [END howto_operator_gke_start_job]
+
+    # [START howto_operator_gke_delete_job]
+    delete_job = GKEDeleteJobOperator(
+        task_id="delete_job",
+        project_id=GCP_PROJECT_ID,
+        location=GCP_LOCATION,
+        cluster_name=CLUSTER_NAME,
+        name=JOB_NAME,
+        namespace=JOB_NAMESPACE,
+    )
+    # [END howto_operator_gke_delete_job]
 
     delete_cluster = GKEDeleteClusterOperator(
         task_id="delete_cluster",
@@ -72,7 +87,7 @@ with DAG(
         location=GCP_LOCATION,
     )
 
-    create_cluster >> job_task >> delete_cluster
+    create_cluster >> job_task >> delete_job >> delete_cluster
 
     from tests.system.utils.watcher import watcher
 
