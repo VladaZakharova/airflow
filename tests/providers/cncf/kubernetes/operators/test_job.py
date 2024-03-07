@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import re
+from unittest import mock
 from unittest.mock import patch
 
 import pendulum
@@ -30,7 +31,9 @@ from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
-HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.job.KubernetesHook"
+JOB_OPERATORS_PATH = "airflow.providers.cncf.kubernetes.operators.job.{}"
+HOOK_CLASS = JOB_OPERATORS_PATH.format("KubernetesHook")
+POLL_INTERVAL = 100
 
 
 def create_context(task, persist_to_db=False, map_index=None):
@@ -450,3 +453,54 @@ class TestKubernetesJobOperator:
         )
         job = k.build_job_request_obj({})
         assert re.match(r"job-a-very-reasonable-task-name-[a-z0-9-]+", job.metadata.name) is not None
+
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
+    @patch(HOOK_CLASS)
+    def test_execute(self, mock_hook, mock_create_job, mock_build_job_request_obj):
+        mock_job_request_obj = mock_build_job_request_obj.return_value
+        mock_job_expected = mock_create_job.return_value
+        mock_ti = mock.MagicMock()
+        context = dict(ti=mock_ti)
+
+        op = KubernetesJobOperator(
+            task_id="test_task_id",
+        )
+        execute_result = op.execute(context=context)
+
+        mock_build_job_request_obj.assert_called_once_with(context)
+        mock_create_job.assert_called_once_with(job_request_obj=mock_job_request_obj)
+        mock_ti.xcom_push.assert_has_calls(
+            [
+                mock.call(key="job_name", value=mock_job_expected.metadata.name),
+                mock.call(key="job_namespace", value=mock_job_expected.metadata.namespace),
+            ]
+        )
+
+        assert op.job_request_obj == mock_job_request_obj
+        assert op.job == mock_job_expected
+        assert not op.wait_job_until_complete
+        assert execute_result is None
+        assert not mock_hook.wait_job_until_complete.called
+
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
+    @patch(f"{HOOK_CLASS}.wait_job_until_complete")
+    def test_wait_job_until_complete(
+        self, mock_wait_job_until_complete, mock_create_job, mock_build_job_request_obj
+    ):
+        mock_job_expected = mock_create_job.return_value
+        mock_ti = mock.MagicMock()
+
+        op = KubernetesJobOperator(
+            task_id="test_task_id", wait_job_until_complete=True, job_poll_interval=POLL_INTERVAL
+        )
+        op.execute(context=dict(ti=mock_ti))
+
+        assert op.wait_job_until_complete
+        assert op.job_poll_interval == POLL_INTERVAL
+        mock_wait_job_until_complete.assert_called_once_with(
+            job_name=mock_job_expected.metadata.name,
+            namespace=mock_job_expected.metadata.namespace,
+            job_poll_interval=POLL_INTERVAL,
+        )

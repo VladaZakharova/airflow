@@ -65,6 +65,9 @@ class KubernetesJobOperator(KubernetesPodOperator):
     :param selector: The selector of this V1JobSpec.
     :param suspend: Suspend specifies whether the Job controller should create Pods or not.
     :param ttl_seconds_after_finished: ttlSecondsAfterFinished limits the lifetime of a Job that has finished execution (either Complete or Failed).
+    :param wait_until_job_complete: Whether to wait until started job is complete. Default is False.
+    :param job_poll_interval: Interval in seconds between polling the job status. Default is 10.
+        Used if the parameter `wait_until_job_complete` set True.
     """
 
     template_fields: Sequence[str] = tuple({"job_template_file"} | set(KubernetesPodOperator.template_fields))
@@ -82,6 +85,8 @@ class KubernetesJobOperator(KubernetesPodOperator):
         selector: k8s.V1LabelSelector | None = None,
         suspend: bool | None = None,
         ttl_seconds_after_finished: int | None = None,
+        wait_job_until_complete: bool = False,
+        job_poll_interval: float = 10,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -97,6 +102,8 @@ class KubernetesJobOperator(KubernetesPodOperator):
         self.selector = selector
         self.suspend = suspend
         self.ttl_seconds_after_finished = ttl_seconds_after_finished
+        self.wait_job_until_complete = wait_job_until_complete
+        self.job_poll_interval = job_poll_interval
 
     @cached_property
     def _incluster_namespace(self):
@@ -134,6 +141,13 @@ class KubernetesJobOperator(KubernetesPodOperator):
         ti = context["ti"]
         ti.xcom_push(key="job_name", value=self.job.metadata.name)
         ti.xcom_push(key="job_namespace", value=self.job.metadata.namespace)
+
+        if self.wait_job_until_complete:
+            self.hook.wait_job_until_complete(
+                job_name=self.job.metadata.name,
+                namespace=self.job.metadata.namespace,
+                job_poll_interval=self.job_poll_interval,
+            )
 
     @staticmethod
     def deserialize_job_template_file(path: str) -> k8s.V1Job:

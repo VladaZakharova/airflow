@@ -20,6 +20,7 @@ import contextlib
 import json
 import tempfile
 from functools import cached_property
+from time import sleep
 from typing import TYPE_CHECKING, Any, Generator
 
 import aiofiles
@@ -511,6 +512,36 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         :return: Job object
         """
         return self.batch_v1_client.read_namespaced_job(name=job_name, namespace=namespace, pretty=True)
+
+    def get_job_status(self, job_name: str, namespace: str) -> V1Job:
+        """Get job with status of specified name from Google Cloud.
+
+        :param job_name: Name of Job to fetch.
+        :param namespace: Namespace of the Job.
+        :return: Job object
+        """
+        return self.batch_v1_client.read_namespaced_job_status(
+            name=job_name, namespace=namespace, pretty=True
+        )
+
+    def wait_job_until_complete(self, job_name: str, namespace: str, job_poll_interval: float = 10) -> V1Job:
+        """Block job of specified name from Google Cloud until it is complete.
+
+        :param job_name: Name of Job to fetch.
+        :param namespace: Namespace of the Job.
+        :param job_poll_interval: Interval in seconds between polling the job status
+        :return: Job object
+        """
+        while True:
+            self.log.info("Requesting status for the job '%s' ", job_name)
+            job: V1Job = self.get_job_status(job_name=job_name, namespace=namespace)
+            if conditions := job.status.conditions:
+                if condition_complete := next((c for c in conditions if c.type == "Complete"), None):
+                    if condition_complete.status:
+                        self.log.info("The job '%s' is complete.", job_name)
+                        return job
+            self.log.info("The job '%s' is incomplete. Sleeping for %i sec.", job_name, job_poll_interval)
+            sleep(job_poll_interval)
 
     def list_jobs_all_namespaces(self) -> V1JobList:
         """Get list of Jobs from all namespaces.
