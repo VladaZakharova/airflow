@@ -20,6 +20,7 @@ from __future__ import annotations
 import copy
 import logging
 import os
+from copy import deepcopy
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
@@ -34,6 +35,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 )
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, merge_objects
+from airflow.providers.cncf.kubernetes.utils.jobs import OnJobFinishAction
 from airflow.utils import yaml
 
 if TYPE_CHECKING:
@@ -67,9 +69,16 @@ class KubernetesJobOperator(KubernetesPodOperator):
     :param suspend: Suspend specifies whether the Job controller should create Pods or not.
     :param ttl_seconds_after_finished: ttlSecondsAfterFinished limits the lifetime of a Job that has finished execution (either Complete or Failed).
     :param wait_until_job_complete: Whether to wait until started job finished execution (either Complete or
-        Failed). Default is False.
+        Failed). Note that if the `on_finish_action` parameter isn't set to `keep_job` value, the operator
+        will be blocked until the job is completed regardless of the `wait_until_job_complete` value.
     :param job_poll_interval: Interval in seconds between polling the job status. Default is 10.
         Used if the parameter `wait_until_job_complete` set True.
+    :param on_finish_action: What to do when the job reaches its final state, or the execution is interrupted.
+        If "delete_job", the job will be deleted regardless its state;
+        if "delete_succeeded_job", only succeeded pod will be deleted;
+        if "delete_failed_job", only failed pod will be deleted;
+        if "keep_job", the job will remain regardless its state.
+        Default value is "delete_job".
     """
 
     template_fields: Sequence[str] = tuple({"job_template_file"} | set(KubernetesPodOperator.template_fields))
@@ -87,8 +96,9 @@ class KubernetesJobOperator(KubernetesPodOperator):
         selector: k8s.V1LabelSelector | None = None,
         suspend: bool | None = None,
         ttl_seconds_after_finished: int | None = None,
-        wait_until_job_complete: bool = False,
+        wait_job_until_complete: bool = False,
         job_poll_interval: float = 10,
+        on_finish_action: str = "delete_job",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -104,8 +114,9 @@ class KubernetesJobOperator(KubernetesPodOperator):
         self.selector = selector
         self.suspend = suspend
         self.ttl_seconds_after_finished = ttl_seconds_after_finished
-        self.wait_until_job_complete = wait_until_job_complete
+        self.wait_job_until_complete = wait_job_until_complete
         self.job_poll_interval = job_poll_interval
+        self.on_finish_action = on_finish_action
 
     @cached_property
     def _incluster_namespace(self):
@@ -144,8 +155,8 @@ class KubernetesJobOperator(KubernetesPodOperator):
         ti.xcom_push(key="job_name", value=self.job.metadata.name)
         ti.xcom_push(key="job_namespace", value=self.job.metadata.namespace)
 
-        if self.wait_until_job_complete:
-            self.job = self.hook.wait_until_job_complete(
+        if self.wait_job_until_complete or self.on_finish_action != OnJobFinishAction.KEEP_JOB:
+            self.job = self.hook.wait_job_until_complete(
                 job_name=self.job.metadata.name,
                 namespace=self.job.metadata.namespace,
                 job_poll_interval=self.job_poll_interval,
@@ -153,8 +164,12 @@ class KubernetesJobOperator(KubernetesPodOperator):
         ti.xcom_push(
             key="job", value=self.hook.batch_v1_client.api_client.sanitize_for_serialization(self.job)
         )
-        if self.hook.is_job_failed(job=self.job):
-            raise AirflowException(f"Kubernetes job '{self.job.metadata.name}' is failed")
+
+        self.handle_on_finish_action(job=self.job)
+
+        if self.wait_job_until_complete:
+            if self.hook.is_job_failed(job=self.job):
+                raise AirflowException(f"Kubernetes job '{self.job.metadata.name}' is failed")
 
     @staticmethod
     def deserialize_job_template_file(path: str) -> k8s.V1Job:
@@ -305,3 +320,36 @@ class KubernetesJobOperator(KubernetesPodOperator):
             return merge_objects(base_spec, client_spec)
 
         return None
+
+    def handle_on_finish_action(self, job: k8s.V1Job) -> None:
+        """Decides whether to delete or not the given job."""
+        if not job.status:
+            return
+        delete_decision = True
+        if self.on_finish_action == OnJobFinishAction.KEEP_JOB:
+            delete_decision = False
+        elif self.on_finish_action == OnJobFinishAction.DELETE_SUCCEEDED_JOB:
+            delete_decision = self.hook.is_job_succeeded(job=job)
+        elif self.on_finish_action == OnJobFinishAction.DELETE_FAILED_JOB:
+            delete_decision = self.hook.is_job_failed(job=job)
+
+        message_action = "The job '%s' is being deleted." if delete_decision else "The job '%s' remains."
+        message = "The parameter 'on_finish_action' is set to '%s'. " + message_action
+
+        self.log.info(message, self.on_finish_action, job.metadata.name)
+        if delete_decision:
+            self.delete_job(name=job.metadata.name, namespace=job.metadata.namespace)
+
+    def delete_job(self, name: str, namespace: str) -> None:
+        """Delete an existing Kubernetes job with a given name and namespace.
+
+        :param name: The name of the job to delete.
+        :param namespace: The namespace of the job to delete.
+        """
+        kwargs = {
+            "name": name,
+            "namespace": namespace,
+        }
+        if self.termination_grace_period is not None:
+            kwargs.update(grace_period_seconds=self.termination_grace_period)
+        self.client.delete_namespaced_job(**kwargs)

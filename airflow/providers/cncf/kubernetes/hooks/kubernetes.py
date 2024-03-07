@@ -21,7 +21,7 @@ import json
 import tempfile
 from functools import cached_property
 from time import sleep
-from typing import TYPE_CHECKING, Any, Generator
+from typing import TYPE_CHECKING, Any, Generator, Sequence
 
 import aiofiles
 from asgiref.sync import sync_to_async
@@ -39,7 +39,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import PodOperatorHookP
 from airflow.utils import yaml
 
 if TYPE_CHECKING:
-    from kubernetes.client import V1JobList
+    from kubernetes.client import V1JobList, V1JobCondition
     from kubernetes.client.models import V1Deployment, V1Job, V1Pod
 
 LOADING_KUBE_CONFIG_FILE_RESOURCE = "Loading Kubernetes configuration file kube_config from {}..."
@@ -575,14 +575,28 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 return True
         return False
 
-    @staticmethod
-    def is_job_failed(job: V1Job) -> bool:
+    def is_job_failed(self, job: V1Job) -> bool:
         """Check whether the given job is failed.
 
         :return: Boolean indicating that the given job is failed.
         """
-        conditions = job.status.conditions or []
-        return bool(next((c for c in conditions if c.type == "Failed" and c.status), None))
+        conditions = self._get_job_status_conditions(job=job, condition_type="Failed")
+        return bool(next((c for c in conditions if c.status), None))
+
+    def is_job_succeeded(self, job: V1Job) -> bool:
+        """Check whether the given job is succeeded.
+
+        :return: Boolean indicating that the given job is succeeded.
+        """
+        conditions = self._get_job_status_conditions(job=job, condition_type="Complete")
+        return bool(next((c for c in conditions if c.status), None))
+
+    @staticmethod
+    def _get_job_status_conditions(job: V1Job, condition_type: str) -> Sequence[V1JobCondition]:
+        if status := job.status:
+            conditions = status.conditions or []
+            return [c for c in conditions if c.type == condition_type]
+        return []
 
 
 def _get_bool(val) -> bool | None:

@@ -17,9 +17,20 @@
 """Launches JOBs."""
 from __future__ import annotations
 
+import enum
+
 JOB_FINAL_STATUS_CONDITION_TYPES = {
     "Complete",
     "Failed",
 }
 
 JOB_STATUS_CONDITION_TYPES = JOB_FINAL_STATUS_CONDITION_TYPES | {"Suspended"}
+
+
+class OnJobFinishAction(str, enum.Enum):
+    """Action to take when the job finishes."""
+
+    KEEP_JOB = "keep_job"
+    DELETE_JOB = "delete_job"
+    DELETE_SUCCEEDED_JOB = "delete_succeeded_job"
+    DELETE_FAILED_JOB = "delete_failed_job"

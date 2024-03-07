@@ -481,9 +481,9 @@ class TestKubernetesJobOperator:
 
         assert op.job_request_obj == mock_job_request_obj
         assert op.job == mock_job_expected
-        assert not op.wait_until_job_complete
+        assert not op.wait_job_until_complete
         assert execute_result is None
-        assert not mock_hook.wait_until_job_complete.called
+        assert not mock_hook.wait_job_until_complete.called
 
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
@@ -500,21 +500,21 @@ class TestKubernetesJobOperator:
 
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
-    @patch(f"{HOOK_CLASS}.wait_until_job_complete")
-    def test_wait_until_job_complete(
-        self, mock_wait_until_job_complete, mock_create_job, mock_build_job_request_obj
+    @patch(f"{HOOK_CLASS}.wait_job_until_complete")
+    def test_wait_job_until_complete(
+        self, mock_wait_job_until_complete, mock_create_job, mock_build_job_request_obj
     ):
         mock_job_expected = mock_create_job.return_value
         mock_ti = mock.MagicMock()
 
         op = KubernetesJobOperator(
-            task_id="test_task_id", wait_until_job_complete=True, job_poll_interval=POLL_INTERVAL
+            task_id="test_task_id", wait_job_until_complete=True, job_poll_interval=POLL_INTERVAL
         )
         op.execute(context=dict(ti=mock_ti))
 
-        assert op.wait_until_job_complete
+        assert op.wait_job_until_complete
         assert op.job_poll_interval == POLL_INTERVAL
-        mock_wait_until_job_complete.assert_called_once_with(
+        mock_wait_job_until_complete.assert_called_once_with(
             job_name=mock_job_expected.metadata.name,
             namespace=mock_job_expected.metadata.namespace,
             job_poll_interval=POLL_INTERVAL,
