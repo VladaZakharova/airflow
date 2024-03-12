@@ -628,3 +628,18 @@ Instead of ``template`` parameter for Pod creating this operator uses :class:`~a
 It means that user can use all parameters from :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator` in :class:`~airflow.providers.cncf.kubernetes.operators.job.KubernetesJobOperator`.
 
 More information about the Jobs here: `Kubernetes Job Documentation <https://kubernetes.io/docs/concepts/workloads/controllers/job/>`__
+
+
+.. _howto/operator:KubernetesPatchJobOperator:
+
+KubernetesPatchJobOperator
+==========================
+
+The :class:`~airflow.providers.cncf.kubernetes.operators.job.KubernetesPatchJobOperator` allows
+you to update Jobs on a Kubernetes cluster.
+
+.. exampleinclude:: /../../tests/system/providers/cncf/kubernetes/example_kubernetes_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_update_job]
+    :end-before: [END howto_operator_update_job]
