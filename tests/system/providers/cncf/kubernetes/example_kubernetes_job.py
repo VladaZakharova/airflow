@@ -45,6 +45,18 @@ with DAG(
     )
     # [END howto_operator_k8s_job]
 
+    # [START howto_operator_k8s_job_deferrable]
+    k8s_job_def = KubernetesJobOperator(
+        task_id="job-task-def",
+        namespace="default",
+        image="perl:5.34.0",
+        cmds=["perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"],
+        name="test-pi",
+        wait_until_job_complete=True,
+        deferrable=True,
+    )
+    # [END howto_operator_k8s_job_deferrable]
+
     from tests.system.utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure
