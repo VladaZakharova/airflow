@@ -32,7 +32,7 @@ from airflow.operators.subdag import SkippedStatePropagationOptions, SubDagOpera
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from tests.test_utils.db import clear_db_runs
 
 pytestmark = pytest.mark.db_test
@@ -168,6 +168,7 @@ class TestSubDagOperator:
             conf=None,
             state=State.RUNNING,
             external_trigger=True,
+            triggered_by=DagRunTriggeredByType.OPERATOR,
         )
 
         assert 3 == subdag_task._get_dagrun.call_count
@@ -205,6 +206,7 @@ class TestSubDagOperator:
             conf=conf,
             state=State.RUNNING,
             external_trigger=True,
+            triggered_by=DagRunTriggeredByType.OPERATOR,
         )
 
         assert 3 == subdag_task._get_dagrun.call_count

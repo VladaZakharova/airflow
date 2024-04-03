@@ -19,9 +19,13 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from urllib.parse import urljoin
 
 from airflow.api.client import api_client
+
+if TYPE_CHECKING:
+    from airflow.utils.types import DagRunTriggeredByType
 
 
 class Client(api_client.Client):
@@ -55,7 +59,15 @@ class Client(api_client.Client):
             raise OSError(data.get("error", "Server error"))
         return resp.json()
 
-    def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None, replace_microseconds=True):
+    def trigger_dag(
+        self,
+        dag_id,
+        run_id=None,
+        conf=None,
+        execution_date=None,
+        replace_microseconds=True,
+        triggered_by: DagRunTriggeredByType | None = None,
+    ):
         """Trigger a DAG run.
 
         :param dag_id: The ID of the DAG to trigger.
@@ -63,6 +75,7 @@ class Client(api_client.Client):
         :param conf: A dictionary containing configuration data to pass to the DAG run.
         :param execution_date: The execution date for the DAG run, in the format "YYYY-MM-DDTHH:MM:SS".
         :param replace_microseconds: Whether to replace microseconds in the execution date with zeros.
+        :param triggered_by: The entity which triggers the DAG run.
         :return: A message indicating the status of the DAG run trigger.
         """
         endpoint = f"/api/experimental/dags/{dag_id}/dag_runs"
@@ -72,6 +85,7 @@ class Client(api_client.Client):
             "conf": conf,
             "execution_date": execution_date,
             "replace_microseconds": replace_microseconds,
+            "triggered_by": triggered_by,
         }
         return self._request(url, method="POST", json=data)["message"]
 

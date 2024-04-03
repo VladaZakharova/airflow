@@ -845,6 +845,8 @@ def dag_maker(request):
                 else:
                     data_interval = dag.infer_automated_data_interval(logical_date)
                 kwargs["data_interval"] = data_interval
+            if "triggered_by" not in kwargs:
+                kwargs["triggered_by"] = "test"
 
             self.dag_run = dag.create_dagrun(**kwargs)
             for ti in self.dag_run.task_instances:

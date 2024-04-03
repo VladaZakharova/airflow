@@ -36,7 +36,7 @@ from airflow.models.pool import Pool
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from tests.test_utils.db import clear_db_pools
 
 pytestmark = pytest.mark.db_test
@@ -89,6 +89,7 @@ class TestLocalClient:
                 external_trigger=True,
                 dag_hash=expected_dag_hash,
                 data_interval=expected_data_interval,
+                triggered_by=None,
             )
             mock.reset_mock()
 
@@ -102,6 +103,7 @@ class TestLocalClient:
                 external_trigger=True,
                 dag_hash=expected_dag_hash,
                 data_interval=expected_data_interval,
+                triggered_by=None,
             )
             mock.reset_mock()
 
@@ -116,6 +118,7 @@ class TestLocalClient:
                 external_trigger=True,
                 dag_hash=expected_dag_hash,
                 data_interval=expected_data_interval,
+                triggered_by=None,
             )
             mock.reset_mock()
 
@@ -130,8 +133,24 @@ class TestLocalClient:
                 external_trigger=True,
                 dag_hash=expected_dag_hash,
                 data_interval=expected_data_interval,
+                triggered_by=None,
             )
             mock.reset_mock()
+
+            # test triggered_by
+            for triggered_by in DagRunTriggeredByType:
+                self.client.trigger_dag(dag_id=test_dag_id, triggered_by=triggered_by.value)
+                mock.assert_called_once_with(
+                    run_id=run_id,
+                    execution_date=EXECDATE_NOFRACTIONS,
+                    state=DagRunState.QUEUED,
+                    conf=None,
+                    external_trigger=True,
+                    dag_hash=expected_dag_hash,
+                    data_interval=expected_data_interval,
+                    triggered_by=triggered_by,
+                )
+                mock.reset_mock()
 
             # test output
             queued_at = pendulum.now()
@@ -145,6 +164,7 @@ class TestLocalClient:
                 conf={},
                 run_type=DagRunType.MANUAL,
                 data_interval=(EXECDATE, EXECDATE + pendulum.duration(hours=1)),
+                triggered_by=DagRunTriggeredByType.TEST,
             )
             expected_dag_run = {
                 "conf": {},
@@ -159,6 +179,7 @@ class TestLocalClient:
                 "run_type": DagRunType.MANUAL,
                 "start_date": None,
                 "state": DagRunState.QUEUED,
+                "triggered_by": "test",
             }
             dag_run = self.client.trigger_dag(dag_id=test_dag_id)
             assert expected_dag_run == dag_run

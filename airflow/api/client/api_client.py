@@ -19,7 +19,12 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import httpx
+
+if TYPE_CHECKING:
+    from airflow.utils.types import DagRunTriggeredByType
 
 
 class Client:
@@ -31,7 +36,15 @@ class Client:
         if auth:
             self._session.auth = auth
 
-    def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None, replace_microseconds=True):
+    def trigger_dag(
+        self,
+        dag_id,
+        run_id=None,
+        conf=None,
+        execution_date=None,
+        replace_microseconds=True,
+        triggered_by: DagRunTriggeredByType | None = None,
+    ):
         """Create a dag run for the specified dag.
 
         :param dag_id:
@@ -39,6 +52,7 @@ class Client:
         :param conf:
         :param execution_date:
         :param replace_microseconds:
+        :param triggered_by:
         :return:
         """
         raise NotImplementedError()

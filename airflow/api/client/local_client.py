@@ -19,18 +19,29 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from airflow.api.client import api_client
 from airflow.api.common import delete_dag, trigger_dag
 from airflow.api.common.experimental.get_lineage import get_lineage as get_lineage_api
 from airflow.exceptions import AirflowBadRequest, PoolNotFound
 from airflow.models.pool import Pool
 
+if TYPE_CHECKING:
+    from airflow.utils.types import DagRunTriggeredByType
+
 
 class Client(api_client.Client):
     """Local API client implementation."""
 
     def trigger_dag(
-        self, dag_id, run_id=None, conf=None, execution_date=None, replace_microseconds=True
+        self,
+        dag_id,
+        run_id=None,
+        conf=None,
+        execution_date=None,
+        replace_microseconds=True,
+        triggered_by: DagRunTriggeredByType | None = None,
     ) -> dict | None:
         dag_run = trigger_dag.trigger_dag(
             dag_id=dag_id,
@@ -38,6 +49,7 @@ class Client(api_client.Client):
             conf=conf,
             execution_date=execution_date,
             replace_microseconds=replace_microseconds,
+            triggered_by=triggered_by,
         )
         if dag_run:
             return {
@@ -53,6 +65,7 @@ class Client(api_client.Client):
                 "run_type": dag_run.run_type,
                 "start_date": dag_run.start_date,
                 "state": dag_run.state,
+                "triggered_by": dag_run.triggered_by,
             }
         return dag_run
 

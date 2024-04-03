@@ -33,7 +33,7 @@ from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_roles, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
@@ -146,6 +146,7 @@ class TestDagRunEndpoint:
                 start_date=timezone.parse(self.default_time),
                 external_trigger=True,
                 state=state,
+                triggered_by=DagRunTriggeredByType.TEST,
             )
             dagrun_model.updated_at = timezone.parse(self.default_time)
             dag_runs.append(dagrun_model)
@@ -225,6 +226,7 @@ class TestGetDagRun(TestDagRunEndpoint):
             start_date=timezone.parse(self.default_time),
             external_trigger=True,
             state="running",
+            triggered_by=DagRunTriggeredByType.TEST,
         )
         session.add(dagrun_model)
         session.commit()
@@ -249,6 +251,7 @@ class TestGetDagRun(TestDagRunEndpoint):
             "last_scheduling_decision": None,
             "run_type": "manual",
             "note": None,
+            "triggered_by": "test",
         }
 
     def test_should_respond_404(self):
@@ -360,6 +363,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
                     "last_scheduling_decision": None,
                     "run_type": "manual",
                     "note": None,
+                    "triggered_by": "test",
                 },
                 {
                     "dag_id": "TEST_DAG_ID",
@@ -376,6 +380,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
                     "last_scheduling_decision": None,
                     "run_type": "manual",
                     "note": None,
+                    "triggered_by": "test",
                 },
             ],
             "total_entries": 2,
@@ -432,6 +437,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
                     "last_scheduling_decision": None,
                     "run_type": "manual",
                     "note": None,
+                    "triggered_by": "test",
                 },
                 {
                     "dag_id": "TEST_DAG_ID",
@@ -448,6 +454,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
                     "last_scheduling_decision": None,
                     "run_type": "manual",
                     "note": None,
+                    "triggered_by": "test",
                 },
             ],
             "total_entries": 2,
@@ -752,6 +759,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     "last_scheduling_decision": None,
                     "run_type": "manual",
                     "note": None,
+                    "triggered_by": "test",
                 },
                 {
                     "dag_id": "TEST_DAG_ID",
@@ -768,6 +776,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     "last_scheduling_decision": None,
                     "run_type": "manual",
                     "note": None,
+                    "triggered_by": "test",
                 },
             ],
             "total_entries": 2,
@@ -826,6 +835,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     "last_scheduling_decision": None,
                     "run_type": "manual",
                     "note": None,
+                    "triggered_by": "test",
                 },
                 {
                     "dag_id": "TEST_DAG_ID",
@@ -842,6 +852,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     "last_scheduling_decision": None,
                     "run_type": "manual",
                     "note": None,
+                    "triggered_by": "test",
                 },
             ],
             "total_entries": 2,
@@ -883,6 +894,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     "last_scheduling_decision": None,
                     "run_type": "manual",
                     "note": None,
+                    "triggered_by": "test",
                 },
                 {
                     "dag_id": "TEST_DAG_ID",
@@ -899,6 +911,7 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                     "last_scheduling_decision": None,
                     "run_type": "manual",
                     "note": None,
+                    "triggered_by": "test",
                 },
             ],
             "total_entries": 2,
@@ -1243,6 +1256,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             "last_scheduling_decision": None,
             "run_type": "manual",
             "note": note,
+            "triggered_by": "rest_api",
         }
         _check_last_log(session, dag_id="TEST_DAG_ID", event="api.post_dag_run", execution_date=None)
 
@@ -1341,6 +1355,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             "last_scheduling_decision": None,
             "run_type": "manual",
             "note": None,
+            "triggered_by": "rest_api",
         }
 
     def test_should_response_400_for_conflicting_execution_date_logical_date(self):
@@ -1610,6 +1625,7 @@ class TestPatchDagRunState(TestDagRunEndpoint):
             "last_scheduling_decision": None,
             "run_type": run_type,
             "note": None,
+            "triggered_by": "test",
         }
 
     def test_schema_validation_error_raises(self, dag_maker, session):
@@ -1727,6 +1743,7 @@ class TestClearDagRun(TestDagRunEndpoint):
             "last_scheduling_decision": None,
             "run_type": dr.run_type,
             "note": None,
+            "triggered_by": "test",
         }
 
         ti.refresh_from_db()
@@ -1948,6 +1965,7 @@ class TestSetDagRunNote(TestDagRunEndpoint):
             "last_scheduling_decision": None,
             "run_type": dr.run_type,
             "note": new_note_value,
+            "triggered_by": "test",
         }
         assert dr.dag_run_note.user_id is not None
         # Update the note again
@@ -1974,6 +1992,7 @@ class TestSetDagRunNote(TestDagRunEndpoint):
             "last_scheduling_decision": None,
             "run_type": dr.run_type,
             "note": new_note_value,
+            "triggered_by": "test",
         }
         assert dr.dag_run_note.user_id is not None
         _check_last_log(

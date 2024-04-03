@@ -28,7 +28,7 @@ from airflow.api_connexion.schemas.dag_run_schema import (
 from airflow.models import DagRun
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from tests.test_utils.db import clear_db_runs
 
 DEFAULT_TIME = "2020-06-09T13:59:56.336000+00:00"
@@ -59,6 +59,7 @@ class TestDAGRunSchema(TestDAGRunBase):
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
             conf='{"start": "stop"}',
+            triggered_by=DagRunTriggeredByType.TEST,
         )
         session.add(dagrun_model)
         session.commit()
@@ -80,6 +81,7 @@ class TestDAGRunSchema(TestDAGRunBase):
             "last_scheduling_decision": None,
             "run_type": "manual",
             "note": None,
+            "triggered_by": "test",
         }
 
     @pytest.mark.parametrize(
@@ -143,6 +145,7 @@ class TestDagRunCollection(TestDAGRunBase):
             run_type=DagRunType.MANUAL.value,
             start_date=timezone.parse(self.default_time),
             conf='{"start": "stop"}',
+            triggered_by=DagRunTriggeredByType.REST_API,
         )
         dagrun_model_2 = DagRun(
             dag_id="my-dag-run",
@@ -151,6 +154,7 @@ class TestDagRunCollection(TestDAGRunBase):
             execution_date=timezone.parse(self.second_time),
             start_date=timezone.parse(self.default_time),
             run_type=DagRunType.MANUAL.value,
+            triggered_by=DagRunTriggeredByType.UI,
         )
         dagruns = [dagrun_model_1, dagrun_model_2]
         session.add_all(dagruns)
@@ -174,6 +178,7 @@ class TestDagRunCollection(TestDAGRunBase):
                     "last_scheduling_decision": None,
                     "run_type": "manual",
                     "note": None,
+                    "triggered_by": "rest_api",
                 },
                 {
                     "dag_id": "my-dag-run",
@@ -190,6 +195,7 @@ class TestDagRunCollection(TestDAGRunBase):
                     "last_scheduling_decision": None,
                     "run_type": "manual",
                     "note": None,
+                    "triggered_by": "ui",
                 },
             ],
             "total_entries": 2,
