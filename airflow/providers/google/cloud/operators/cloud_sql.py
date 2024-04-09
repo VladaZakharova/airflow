@@ -1196,8 +1196,8 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
          'sslrootcert': ''}
 
         Overrides the connection fields ``sslcert``, ``sslkey``, ``sslrootcert``.
-        Note that according to the Secret Magaer requirements, the mentioned dict should be saved as a string,
-        and encoded with base64.
+        Note that according to the Secret Manager requirements, the mentioned dict should be saved as a
+        string, and encoded with base64.
         Note that this parameter is incompatible with parameters ``ssl_cert``, ``ssl_key``, ``ssl_root_cert``.
     """
 

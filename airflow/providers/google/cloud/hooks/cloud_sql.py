@@ -15,14 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains a Google Cloud SQL Hook.
-
-.. spelling:word-list::
-
-    sslcert
-    sslkey
-    sslrootcert
-"""
+"""This module contains a Google Cloud SQL Hook."""
 
 from __future__ import annotations
 
@@ -394,7 +387,7 @@ class CloudSQLHook(GoogleBaseHook):
         """
         Create SSL certificate for a Cloud SQL instance.
 
-        :param instance: Cloud SQL instance ID. This does not include the project ID..
+        :param instance: Cloud SQL instance ID. This does not include the project ID.
         :param body: The request body, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1/sslCerts/insert#SslCertsInsertRequest
         :param project_id: Project ID of the project that contains the instance. If set
