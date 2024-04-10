@@ -882,22 +882,23 @@ class CloudSQLDatabaseHook(BaseHook):
         return None
 
     def _get_cert_from_secret(self, cert_name: str) -> str | None:
-        if self.ssl_secret_id:
-            secret_hook = GoogleCloudSecretManagerHook(
-                gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        if not self.ssl_secret_id:
+            return None
+
+        secret_hook = GoogleCloudSecretManagerHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
+        secret: AccessSecretVersionResponse = secret_hook.access_secret(
+            project_id=self.project_id,
+            secret_id=self.ssl_secret_id,
+        )
+        secret_data = json.loads(base64.b64decode(secret.payload.data))
+        if cert_name in secret_data:
+            return secret_data[cert_name]
+        else:
+            raise AirflowException(
+                "Invalid secret format. Expected dictionary with keys: `sslcert`, `sslkey`, `sslrootcert`"
             )
-            secret: AccessSecretVersionResponse = secret_hook.access_secret(
-                project_id=self.project_id,
-                secret_id=self.ssl_secret_id,
-            )
-            secret_data = json.loads(base64.b64decode(secret.payload.data))
-            if cert_name in secret_data:
-                return secret_data[cert_name]
-            else:
-                raise AirflowException(
-                    "Invalid secret format. Expected dictionary with keys: `sslcert`, `sslkey`, `sslrootcert`"
-                )
-        return None
 
     def _set_temporary_ssl_file(
         self, cert_name: str, cert_path: str | None = None, cert_value: str | None = None
@@ -920,21 +921,20 @@ class CloudSQLDatabaseHook(BaseHook):
             raise AirflowException(
                 "Both parameters were specified: `cert_path`, `cert_value`. Please use only one of them."
             )
-        if any([cert_path, cert_value]):
-            _temp_file = NamedTemporaryFile(mode="w+b", prefix="/tmp/certs/")
-            if cert_path:
-                with open(cert_path, "rb") as cert_file:
-                    _temp_file.write(cert_file.read())
-            elif cert_value:
-                _temp_file.write(cert_value.encode("ascii"))
-            _temp_file.flush()
-            self._ssl_cert_temp_files[cert_name] = _temp_file
-            self.log.info(
-                "Copied the certificate '%s' into a temporary file '%s'", cert_name, _temp_file.name
-            )
-            return _temp_file.name
-        self.log.info("Neither cert path and cert value provided. Nothing to save.")
-        return None
+        if not any([cert_path, cert_value]):
+            self.log.info("Neither cert path and cert value provided. Nothing to save.")
+            return None
+
+        _temp_file = NamedTemporaryFile(mode="w+b", prefix="/tmp/certs/")
+        if cert_path:
+            with open(cert_path, "rb") as cert_file:
+                _temp_file.write(cert_file.read())
+        elif cert_value:
+            _temp_file.write(cert_value.encode("ascii"))
+        _temp_file.flush()
+        self._ssl_cert_temp_files[cert_name] = _temp_file
+        self.log.info("Copied the certificate '%s' into a temporary file '%s'", cert_name, _temp_file.name)
+        return _temp_file.name
 
     @staticmethod
     def _get_bool(val: Any) -> bool:
