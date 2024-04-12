@@ -138,3 +138,4 @@ class TestTemplateJobStartTrigger:
         assert not task.done()
         assert f"Current job status is: {JobState.JOB_STATE_RUNNING}"
         assert f"Sleeping for {POLL_SLEEP} seconds."
+        task.cancel()
