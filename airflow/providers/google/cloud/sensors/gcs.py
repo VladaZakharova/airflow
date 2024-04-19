@@ -107,11 +107,9 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         else:
             return hook.exists(self.bucket, self.object, self.retry)
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: Context):
         """Airflow runs this method on the worker and defers using the trigger."""
-        if not self.deferrable:
-            super().execute(context)
-        else:
+        if self.deferrable:
             if not self.poke(context=context):
                 self.defer(
                     timeout=timedelta(seconds=self.timeout),
@@ -127,8 +125,11 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
                     ),
                     method_name="execute_complete",
                 )
+        else:
+            super().execute(context)
+        return bool(self._matches)
 
-    def execute_complete(self, context: Context, event: dict[str, str]) -> str:
+    def execute_complete(self, context: Context, event: dict[str, str]) -> bool:
         """
         Act as a callback for when the trigger fires - returns immediately.
 
@@ -140,7 +141,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
                 raise AirflowSkipException(event["message"])
             raise AirflowException(event["message"])
         self.log.info("File %s was found in bucket %s.", self.object, self.bucket)
-        return event["message"]
+        return True
 
 
 @deprecated(
