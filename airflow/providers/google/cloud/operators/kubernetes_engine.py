@@ -1305,6 +1305,8 @@ class GKEDeleteCustomResourceOperator(KubernetesDeleteResourceOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
+        print(f"===============hello from {self.__class__.__name__}")
+        kwargs["custom_resource_definition"] = True
         super().__init__(**kwargs)
         self.project_id = project_id
         self.location = location
@@ -1316,6 +1318,10 @@ class GKEDeleteCustomResourceOperator(KubernetesDeleteResourceOperator):
         self._ssl_ca_cert: str | None = None
         self._cluster_url: str | None = None
 
+    def validate_inputs(self) -> None:
+        print(f"===============hello from validation {self.__class__.__name__}")
+
+        super().validate_inputs()
         if self.gcp_conn_id is None:
             raise AirflowException(
                 "The gcp_conn_id parameter has become required. If you want to use Application Default "

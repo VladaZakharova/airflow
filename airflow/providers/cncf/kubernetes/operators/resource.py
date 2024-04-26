@@ -20,8 +20,9 @@ from __future__ import annotations
 
 import os
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Sequence, Any
 
+import jinja2
 import yaml
 from kubernetes.utils import create_from_yaml
 
@@ -30,6 +31,7 @@ from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.utils.delete_from import delete_from_yaml
 from airflow.providers.cncf.kubernetes.utils.k8s_resource_iterator import k8s_resource_iterator
+from airflow.utils.context import Context
 
 if TYPE_CHECKING:
     from kubernetes.client import ApiClient, CustomObjectsApi
@@ -68,6 +70,8 @@ class KubernetesResourceBaseOperator(BaseOperator):
         config_file: str | None = None,
         **kwargs,
     ) -> None:
+        print(f"===============hello from {self.__class__.__name__}")
+
         super().__init__(**kwargs)
         self._namespace = namespace
         self.kubernetes_conn_id = kubernetes_conn_id
@@ -76,6 +80,11 @@ class KubernetesResourceBaseOperator(BaseOperator):
         self.custom_resource_definition = custom_resource_definition
         self.namespaced = namespaced
         self.config_file = config_file
+
+        self.validate_inputs()
+
+    def validate_inputs(self):
+        print(f"===============hello from validation {self.__class__.__name__}")
 
         if not any([self.yaml_conf, self.yaml_conf_file]):
             raise AirflowException("One of `yaml_conf` or `yaml_conf_file` arguments must be provided")
@@ -147,17 +156,100 @@ class KubernetesCreateResourceOperator(KubernetesResourceBaseOperator):
 
 
 class KubernetesDeleteResourceOperator(KubernetesResourceBaseOperator):
-    """Delete a resource in a kubernetes."""
+    """Delete a resource in a kubernetes.
+
+    :param name: Optional. The name of the resource to delete.
+    """
+    def __init__(
+        self,
+        name: str | None = None,
+        kind: str | None = None,
+        namespace: str | None = None,
+        group: str | None = None,
+        version: str | None = None,
+        *args,
+        **kwargs
+    ) -> None:
+        print(f"===============hello from {self.__class__.__name__}")
+
+        super().__init__(*args, **kwargs)
+        self.name = name
+        self.kind = kind
+        self.namespace = namespace
+        self.group = group
+        self.version = version
+        self._delete_resource_by_name = False
+
+    def validate_inputs(self):
+        print(f"===============hello from validation {self.__class__.__name__}")
+
+        delete_by_config = bool(self.yaml_conf or self.yaml_conf_file)
+        delete_by_name = any([self.name, self.kind, self.namespace, self.group, self.version])
+
+        if delete_by_config and not delete_by_name:
+            super().validate_inputs()
+
+        if delete_by_config and delete_by_name:
+            raise AirflowException(
+                "Parameters `name`, `kind`, `namespace`, `group`, and `version` cannot be used with any of "
+                "`yaml_conf` and `yaml_conf_file` parameters at the same time. Please either provide all of "
+                "the parameters (`name`, `kind`, `namespace`, `group`, `version`) or use one of "
+                "`yaml_conf`, `yaml_conf_file`."
+            )
+
+        if not delete_by_config and not delete_by_name:
+            raise AirflowException(
+                "Required parameters are missing. Please either provide all of "
+                "the parameters (`name`, `kind`, `namespace`, `group`, `version`) or use one of "
+                "`yaml_conf`, `yaml_conf_file`."
+            )
+
+        if not delete_by_config and delete_by_name:
+            param_names = {
+                "name": self.name,
+                "kind": self.kind,
+                "namespace": self.namespace,
+                "group": self.group,
+                "version": self.version,
+            }
+            if missed_params := [_name for _name, _value in param_names.items() if not _value]:
+                raise AirflowException(
+                    f"Not all required parameters specified: {missed_params}. Please either provide all of "
+                    f"the parameters (`name`, `kind`, `namespace`, `group`, `version`) or use one of "
+                    "`yaml_conf`, `yaml_conf_file`."
+                )
+
+        self._delete_resource_by_name = delete_by_name
+
+    def get_crd_fields(self, body: dict) -> tuple[str, str, str, str]:
+        if self._delete_resource_by_name:
+            return self.group, self.version, self.namespace, self.kind + "s"
+        return super().get_crd_fields(body)
 
     def delete_custom_from_yaml_object(self, body: dict):
         name = body["metadata"]["name"]
         group, version, namespace, plural = self.get_crd_fields(body)
+        self.delete_custom_resource(
+            group=group, version=version, plural=plural, name=name, namespace=namespace
+        )
+
+    def delete_custom_resource(
+        self, group: str, version: str, plural: str, name: str, namespace: str | None = None
+    ):
         if self.namespaced:
             self.custom_object_client.delete_namespaced_custom_object(group, version, namespace, plural, name)
         else:
             self.custom_object_client.delete_cluster_custom_object(group, version, plural, name)
 
     def _delete_objects(self, objects):
+        # if self._delete_resource_by_name:
+        #     self.delete_custom_resource(
+        #        group=self.group,
+        #        version=self.version,
+        #        plural=self.kind + "s",
+        #        name=self.name,
+        #        namespace=self.namespace
+        #    )
         if not self.custom_resource_definition:
             delete_from_yaml(
                 k8s_client=self.client,
