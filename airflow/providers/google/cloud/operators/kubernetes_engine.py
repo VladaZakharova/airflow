@@ -533,7 +533,7 @@ class GKEStartKueueInsideClusterOperator(GoogleCloudBaseOperator):
     def deployment_hook(self) -> GKEKubernetesHook:
         if self._cluster_url is None or self._ssl_ca_cert is None:
             raise AttributeError(
-                "Cluster url and ssl_ca_cert should be defined before using self.hook method. "
+                "Cluster url and ssl_ca_cert should be defined before using self.deployment_hook method. "
                 "Try to use self.get_kube_creds method",
             )
         return GKEKubernetesHook(
@@ -547,7 +547,7 @@ class GKEStartKueueInsideClusterOperator(GoogleCloudBaseOperator):
     def pod_hook(self) -> GKEKubernetesHook:
         if self._cluster_url is None or self._ssl_ca_cert is None:
             raise AttributeError(
-                "Cluster url and ssl_ca_cert should be defined before using self.hook method. "
+                "Cluster url and ssl_ca_cert should be defined before using self.pod_hook method. "
                 "Try to use self.get_kube_creds method",
             )
 
