@@ -395,6 +395,9 @@
 - tests/providers/google/cloud/hooks/test_bigquery.py::TestTimePartitioningInRunJob::test_run_query_with_arg
 - tests/providers/google/cloud/hooks/test_bigquery.py::TestTimePartitioningInRunJob::test_run_with_auto_detect
 - tests/providers/google/cloud/hooks/test_cloud_sql.py::TestCloudSqlDatabaseHook::test_cloudsql_database_hook_get_database_hook
+- tests/providers/google/cloud/hooks/test_datapipeline.py::TestDataPipelineHook::test_get_conn
+- tests/providers/google/cloud/hooks/test_datapipeline.py::TestDataPipelineHook::test_create_data_pipeline
+- tests/providers/google/cloud/hooks/test_datapipeline.py::TestDataPipelineHook::test_run_data_pipeline
 - tests/providers/google/cloud/hooks/test_gcs.py::TestGCSHook::test_list__error_match_glob_and_invalid_delimiter
 - tests/providers/google/cloud/hooks/test_kubernetes_engine.py::TestGKECustomResourceHook::test_get_connection_update_hook_with_invalid_token
 - tests/providers/google/cloud/hooks/test_kubernetes_engine.py::TestGKECustomResourceHook::test_get_connection_update_hook_with_valid_token
@@ -456,6 +459,8 @@
 - tests/providers/google/cloud/operators/test_dataflow.py::TestDataflowCreateJavaJobOperatorWithLocal::test_init
 - tests/providers/google/cloud/operators/test_dataflow.py::TestDataflowCreatePythonJobOperator::test_exec
 - tests/providers/google/cloud/operators/test_dataflow.py::TestDataflowCreatePythonJobOperator::test_init
+- tests/providers/google/cloud/operators/test_datapipeline.py::TestCreateDataPipelineOperator::test_execute
+- tests/providers/google/cloud/operators/test_datapipeline.py::TestRunDataPipelineOperator::test_execute
 - tests/providers/google/cloud/operators/test_dataproc.py::TestDataProcHadoopOperator::test_execute
 - tests/providers/google/cloud/operators/test_dataproc.py::TestDataProcHiveOperator::test_builder
 - tests/providers/google/cloud/operators/test_dataproc.py::TestDataProcHiveOperator::test_execute
