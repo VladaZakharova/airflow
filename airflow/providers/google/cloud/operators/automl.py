@@ -676,9 +676,24 @@ class AutoMLImportDataOperator(GoogleCloudBaseOperator):
             )
 
 
+@deprecated(
+    reason=(
+        "Class `AutoMLTablesListColumnSpecsOperator` has been deprecated and will be removed after 31.12.2024. "
+        "AutoML platform no longer supports tabular datasets after its integration with Cloud Translation and Vertex AI. "
+        "Please refer to https://cloud.google.com/vertex-ai/docs/start/migrating-to-vertex-ai and "
+        "https://cloud.google.com/translate/docs/advanced/automl-upgrade for more info about available alternatives."
+    ),
+    category=AirflowProviderDeprecationWarning,
+    action="error",
+)
 class AutoMLTablesListColumnSpecsOperator(GoogleCloudBaseOperator):
     """
     Lists column specs in a table.
+
+    Class `AutoMLTablesListColumnSpecsOperator` has been deprecated and will be removed after 31.12.2024.
+    AutoML platform no longer supports tabular datasets after its integration with Cloud Translation and Vertex AI.
+    Please refer to https://cloud.google.com/vertex-ai/docs/start/migrating-to-vertex-ai and
+    "https://cloud.google.com/translate/docs/advanced/automl-upgrade for more info about available alternatives.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1182,9 +1197,24 @@ class AutoMLDeployModelOperator(GoogleCloudBaseOperator):
         self.log.info("Model was deployed successfully.")
 
 
+@deprecated(
+    reason=(
+        "Class `AutoMLTablesListTableSpecsOperator` has been deprecated and will be removed after 31.12.2024. "
+        "AutoML platform no longer supports tabular datasets after its integration with Cloud Translation and Vertex AI. "
+        "Please refer to https://cloud.google.com/vertex-ai/docs/start/migrating-to-vertex-ai and "
+        "https://cloud.google.com/translate/docs/advanced/automl-upgrade for more info about available alternatives."
+    ),
+    category=AirflowProviderDeprecationWarning,
+    action="error",
+)
 class AutoMLTablesListTableSpecsOperator(GoogleCloudBaseOperator):
     """
     Lists table specs in a dataset.
+
+    Class `AutoMLTablesListTableSpecsOperator` has been deprecated and will be removed after 31.12.2024.
+    AutoML platform no longer supports tabular datasets after its integration with Cloud Translation and Vertex AI.
+    Please refer to https://cloud.google.com/vertex-ai/docs/start/migrating-to-vertex-ai and
+    "https://cloud.google.com/translate/docs/advanced/automl-upgrade for more info about available alternatives.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
