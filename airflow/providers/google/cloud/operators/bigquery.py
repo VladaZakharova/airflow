@@ -149,7 +149,12 @@ class _BigQueryOperatorsEncryptionConfigurationMixin:
     # annotation of the `self`. Then you can inherit this class in the target operator.
     # e.g: BigQueryCheckOperator, BigQueryTableCheckOperator
     def include_encryption_configuration(  # type:ignore[misc]
-        self: BigQueryCheckOperator | BigQueryTableCheckOperator,
+        self: BigQueryCheckOperator
+        | BigQueryTableCheckOperator
+        | BigQueryValueCheckOperator
+        | BigQueryColumnCheckOperator
+        | BigQueryGetDataOperator
+        | BigQueryIntervalCheckOperator,
         configuration: dict,
         config_key: str,
     ) -> None:
@@ -326,7 +331,9 @@ class BigQueryCheckOperator(
         self.log.info("Success.")
 
 
-class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
+class BigQueryValueCheckOperator(
+    _BigQueryDbHookMixin, SQLValueCheckOperator, _BigQueryOperatorsEncryptionConfigurationMixin
+):
     """Perform a simple value check using sql code.
 
     .. seealso::
@@ -336,6 +343,13 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
     :param sql: SQL to execute.
     :param use_legacy_sql: Whether to use legacy SQL (true)
         or standard SQL (false).
+    :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+
+        .. code-block:: python
+
+            encryption_configuration = {
+                "kmsKeyName": "projects/PROJECT/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY",
+            }
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param location: The geographic location of the job. See details at:
         https://cloud.google.com/bigquery/docs/locations#specifying_your_location
@@ -370,6 +384,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
         sql: str,
         pass_value: Any,
         tolerance: Any = None,
+        encryption_configuration: dict | None = None,
         gcp_conn_id: str = "google_cloud_default",
         use_legacy_sql: bool = True,
         location: str | None = None,
@@ -383,6 +398,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
         self.location = location
         self.gcp_conn_id = gcp_conn_id
         self.use_legacy_sql = use_legacy_sql
+        self.encryption_configuration = encryption_configuration
         self.impersonation_chain = impersonation_chain
         self.labels = labels
         self.deferrable = deferrable
@@ -400,6 +416,8 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
                 "useLegacySql": self.use_legacy_sql,
             },
         }
+
+        self.include_encryption_configuration(configuration, "query")
 
         return hook.insert_job(
             configuration=configuration,
@@ -460,7 +478,9 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
         )
 
 
-class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperator):
+class BigQueryIntervalCheckOperator(
+    _BigQueryDbHookMixin, SQLIntervalCheckOperator, _BigQueryOperatorsEncryptionConfigurationMixin
+):
     """
     Check that the values of metrics given as SQL expressions are within a tolerance of the older ones.
 
@@ -481,6 +501,13 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         between the current day, and the prior days_back.
     :param use_legacy_sql: Whether to use legacy SQL (true)
         or standard SQL (false).
+    :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+
+        .. code-block:: python
+
+            encryption_configuration = {
+                "kmsKeyName": "projects/PROJECT/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY",
+            }
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param location: The geographic location of the job. See details at:
         https://cloud.google.com/bigquery/docs/locations#specifying_your_location
@@ -520,6 +547,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         gcp_conn_id: str = "google_cloud_default",
         use_legacy_sql: bool = True,
         location: str | None = None,
+        encryption_configuration: dict | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -538,6 +566,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         self.gcp_conn_id = gcp_conn_id
         self.use_legacy_sql = use_legacy_sql
         self.location = location
+        self.encryption_configuration = encryption_configuration
         self.impersonation_chain = impersonation_chain
         self.labels = labels
         self.project_id = project_id
@@ -552,6 +581,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
     ) -> BigQueryJob:
         """Submit a new job and get the job id for polling the status using Triggerer."""
         configuration = {"query": {"query": sql, "useLegacySql": self.use_legacy_sql}}
+        self.include_encryption_configuration(configuration, "query")
         return hook.insert_job(
             configuration=configuration,
             project_id=self.project_id or hook.project_id,
@@ -608,7 +638,9 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         )
 
 
-class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
+class BigQueryColumnCheckOperator(
+    _BigQueryDbHookMixin, SQLColumnCheckOperator, _BigQueryOperatorsEncryptionConfigurationMixin
+):
     """
     Subclasses the SQLColumnCheckOperator in order to provide a job id for OpenLineage to parse.
 
@@ -623,6 +655,13 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
     :param partition_clause: a string SQL statement added to a WHERE clause
         to partition data
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
+    :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+
+        .. code-block:: python
+
+            encryption_configuration = {
+                "kmsKeyName": "projects/PROJECT/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY",
+            }
     :param use_legacy_sql: Whether to use legacy SQL (true)
         or standard SQL (false).
     :param location: The geographic location of the job. See details at:
@@ -650,6 +689,7 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
         partition_clause: str | None = None,
         database: str | None = None,
         accept_none: bool = True,
+        encryption_configuration: dict | None = None,
         gcp_conn_id: str = "google_cloud_default",
         use_legacy_sql: bool = True,
         location: str | None = None,
@@ -671,6 +711,7 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
         self.database = database
         self.accept_none = accept_none
         self.gcp_conn_id = gcp_conn_id
+        self.encryption_configuration = encryption_configuration
         self.use_legacy_sql = use_legacy_sql
         self.location = location
         self.impersonation_chain = impersonation_chain
@@ -683,7 +724,7 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
     ) -> BigQueryJob:
         """Submit a new job and get the job id for polling the status using Trigger."""
         configuration = {"query": {"query": self.sql, "useLegacySql": self.use_legacy_sql}}
-
+        self.include_encryption_configuration(configuration, "query")
         return hook.insert_job(
             configuration=configuration,
             project_id=hook.project_id,
@@ -851,7 +892,7 @@ class BigQueryTableCheckOperator(
         self.log.info("All tests have passed")
 
 
-class BigQueryGetDataOperator(GoogleCloudBaseOperator):
+class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncryptionConfigurationMixin):
     """
     Fetch data and return it, either from a BigQuery table, or results of a query job.
 
@@ -920,6 +961,13 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         from the table. (templated)
     :param selected_fields: List of fields to return (comma-separated). If
         unspecified, all fields are returned.
+    :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+
+        .. code-block:: python
+
+            encryption_configuration = {
+                "kmsKeyName": "projects/PROJECT/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY",
+            }
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param location: The location used for the operation.
     :param impersonation_chain: Optional service account to impersonate using short-term
@@ -964,6 +1012,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         selected_fields: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         location: str | None = None,
+        encryption_configuration: dict | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: float = 4.0,
@@ -983,6 +1032,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.location = location
         self.impersonation_chain = impersonation_chain
+        self.encryption_configuration = encryption_configuration
         self.project_id = project_id
         self.deferrable = deferrable
         self.poll_interval = poll_interval
@@ -996,6 +1046,8 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
     ) -> BigQueryJob:
         get_query = self.generate_query(hook=hook)
         configuration = {"query": {"query": get_query, "useLegacySql": self.use_legacy_sql}}
+        self.include_encryption_configuration(configuration, "query")
+
         """Submit a new job and get the job id for polling the status using Triggerer."""
         return hook.insert_job(
             configuration=configuration,
