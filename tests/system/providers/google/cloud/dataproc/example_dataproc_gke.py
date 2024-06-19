@@ -42,11 +42,11 @@ from airflow.providers.google.cloud.operators.kubernetes_engine import (
 )
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "dataproc-gke"
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+DAG_ID = "dataproc_gke"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
-REGION = "us-central1"
+REGION = "europe-north1"
 CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "-")
 GKE_CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}-gke".replace("_", "-")
 WORKLOAD_POOL = f"{PROJECT_ID}.svc.id.goog"
@@ -57,6 +57,7 @@ GKE_CLUSTER_CONFIG = {
     },
     "initial_node_count": 1,
 }
+
 GKE_NAMESPACE = os.environ.get("GKE_NAMESPACE", f"{CLUSTER_NAME}")
 # [START how_to_cloud_dataproc_create_cluster_in_gke_config]
 

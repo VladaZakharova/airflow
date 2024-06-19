@@ -42,8 +42,8 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "-")
-REGION = "europe-west1"
-ZONE = "europe-west1-b"
+REGION = "us-east4"
+ZONE = "us-east4-a"
 INIT_FILE_SRC = str(Path(__file__).parent / "resources" / "pip-install.sh")
 
 # Cluster definition: Generating Cluster Config for DataprocCreateClusterOperator
