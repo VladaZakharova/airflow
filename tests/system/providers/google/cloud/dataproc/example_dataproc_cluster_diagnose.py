@@ -38,7 +38,7 @@ DAG_ID = "dataproc_diagnose_cluster"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "-")
-REGION = "europe-west1"
+REGION = "europe-north1"
 
 
 # Cluster definition
@@ -102,7 +102,7 @@ with DAG(
         # TEST SETUP
         create_cluster
         # TEST BODY
-        >> diagnose_cluster
+        >> [diagnose_cluster, diagnose_cluster_deferrable]
         # TEST TEARDOWN
         >> delete_cluster
     )

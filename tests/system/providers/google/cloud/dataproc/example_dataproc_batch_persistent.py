@@ -29,15 +29,16 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateBatchOperator,
     DataprocCreateClusterOperator,
     DataprocDeleteClusterOperator,
+    DataprocDeleteBatchOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "dataproc_batch_ps"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
-REGION = "europe-west1"
+REGION = "europe-north1"
 CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "-")
 BATCH_ID = f"batch-{ENV_ID}-{DAG_ID}".replace("_", "-")
 
@@ -98,6 +99,14 @@ with DAG(
     )
     # [END how_to_cloud_dataproc_create_batch_operator_with_persistent_history_server]
 
+    delete_batch = DataprocDeleteBatchOperator(
+        task_id="delete_batch",
+        project_id=PROJECT_ID,
+        region=REGION,
+        batch_id=BATCH_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
     delete_cluster = DataprocDeleteClusterOperator(
         task_id="delete_cluster",
         project_id=PROJECT_ID,
@@ -117,6 +126,7 @@ with DAG(
         # TEST BODY
         >> create_batch
         # TEST TEARDOWN
+        >> delete_batch
         >> delete_cluster
         >> delete_bucket
     )
