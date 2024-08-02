@@ -948,8 +948,7 @@ class DataflowHook(GoogleBaseHook):
         options: dict[str, Any] | None,
         project_id: str,
         location: str = DEFAULT_DATAFLOW_LOCATION,
-        on_new_job_callback: Callable[[dict], None] | None = None,
-    ) -> dict[str, Any]:
+    ) -> str:
         """
         Launch a Dataflow YAML job and run it until completion.
 
@@ -966,7 +965,7 @@ class DataflowHook(GoogleBaseHook):
         :param project_id: The ID of the GCP project that owns the job.
         :param location: Region ID of the job's regional endpoint. Defaults to 'us-central1'.
         :param on_new_job_callback: Callback function that passes the job to the operator once known.
-        :return: Dictionary containing the job's data.
+        :return: Job ID.
         """
         job_name = self.build_dataflow_job_name(job_name, append_job_name)
         cmd = self._build_yaml_gcloud_command(
@@ -978,78 +977,7 @@ class DataflowHook(GoogleBaseHook):
             jinja_variables=jinja_variables,
         )
         job_id = self._create_dataflow_job_with_gcloud(cmd=cmd)
-        jobs_controller = _DataflowJobsController(
-            dataflow=self.get_conn(),
-            project_number=project_id,
-            job_id=job_id,
-            location=location,
-            poll_sleep=self.poll_sleep,
-            num_retries=self.num_retries,
-            drain_pipeline=self.drain_pipeline,
-            wait_until_finished=self.wait_until_finished,
-            expected_terminal_state=self.expected_terminal_state,
-        )
-        job = jobs_controller.fetch_job_by_id(job_id=job_id)
-
-        if on_new_job_callback:
-            on_new_job_callback(job)
-
-        jobs_controller.wait_for_done()
-
-        return jobs_controller.fetch_job_by_id(job_id=job_id)
-
-    @GoogleBaseHook.fallback_to_default_project_id
-    def launch_beam_yaml_job_deferrable(
-        self,
-        *,
-        job_name: str,
-        yaml_pipeline_file: str,
-        append_job_name: bool,
-        jinja_variables: dict[str, str] | None,
-        options: dict[str, Any] | None,
-        project_id: str,
-        location: str = DEFAULT_DATAFLOW_LOCATION,
-    ) -> dict[str, Any]:
-        """
-        Launch a Dataflow YAML job and exit without waiting for its completion.
-
-        :param job_name: The unique name to assign to the Cloud Dataflow job.
-        :param yaml_pipeline_file: Path to a file defining the YAML pipeline to run.
-            Must be a local file or a URL beginning with 'gs://'.
-        :param append_job_name: Set to True if a unique suffix has to be appended to the `job_name`.
-        :param jinja_variables: A dictionary of Jinja2 variables to be used in reifying the yaml pipeline file.
-        :param options: Additional gcloud or Beam job parameters.
-            It must be a dictionary with the keys matching the optional flag names in gcloud.
-            The list of supported flags can be found at: `https://cloud.google.com/sdk/gcloud/reference/dataflow/yaml/run`.
-            Note that if a flag does not require a value, then its dictionary value must be either True or None.
-            For example, the `--log-http` flag can be passed as {'log-http': True}.
-        :param project_id: The ID of the GCP project that owns the job.
-        :param location: Region ID of the job's regional endpoint. Defaults to 'us-central1'.
-        :return: Dictionary containing the job's data.
-        """
-        job_name = self.build_dataflow_job_name(job_name=job_name, append_job_name=append_job_name)
-        cmd = self._build_yaml_gcloud_command(
-            job_name=job_name,
-            yaml_pipeline_file=yaml_pipeline_file,
-            project_id=project_id,
-            region=location,
-            jinja_variables=jinja_variables,
-            options=options,
-        )
-        job_id = self._create_dataflow_job_with_gcloud(cmd=cmd)
-        jobs_controller = _DataflowJobsController(
-            dataflow=self.get_conn(),
-            project_number=project_id,
-            job_id=job_id,
-            location=location,
-            poll_sleep=self.poll_sleep,
-            num_retries=self.num_retries,
-            drain_pipeline=self.drain_pipeline,
-            expected_terminal_state=self.expected_terminal_state,
-            cancel_timeout=self.cancel_timeout,
-        )
-
-        return jobs_controller.fetch_job_by_id(job_id=job_id)
+        return job_id
 
     def _build_yaml_gcloud_command(
         self,
