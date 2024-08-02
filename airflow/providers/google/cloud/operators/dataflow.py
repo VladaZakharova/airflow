@@ -1161,48 +1161,37 @@ class DataflowStartYamlJobOperator(GoogleCloudBaseOperator):
         self.job: dict[str, Any] | None = None
 
     def execute(self, context: Context) -> dict[str, Any]:
-        def set_current_job(current_job: dict[str, Any]):
-            self.job = current_job
-            DataflowJobLink.persist(self, context, self.project_id, self.region, self.job["id"])
-
-        if not self.deferrable:
-            job = self.hook.launch_beam_yaml_job(
-                job_name=self.job_name,
-                yaml_pipeline_file=self.yaml_pipeline_file,
-                append_job_name=self.append_job_name,
-                options=self.options,
-                jinja_variables=self.jinja_variables,
-                project_id=self.project_id,
-                location=self.region,
-                on_new_job_callback=set_current_job,
-            )
-            return job
-
-        self.job = self.hook.launch_beam_yaml_job_deferrable(
+        self.job = self.hook.launch_beam_yaml_job(
             job_name=self.job_name,
             yaml_pipeline_file=self.yaml_pipeline_file,
             append_job_name=self.append_job_name,
-            jinja_variables=self.jinja_variables,
             options=self.options,
+            jinja_variables=self.jinja_variables,
             project_id=self.project_id,
             location=self.region,
         )
 
         DataflowJobLink.persist(self, context, self.project_id, self.region, self.job["id"])
 
-        self.defer(
-            trigger=DataflowStartYamlJobTrigger(
-                job_id=self.job["id"],
-                project_id=self.project_id,
-                location=self.region,
-                gcp_conn_id=self.gcp_conn_id,
-                poll_sleep=self.poll_sleep,
-                cancel_timeout=self.cancel_timeout,
-                expected_terminal_state=self.expected_terminal_state,
-                impersonation_chain=self.impersonation_chain,
-            ),
-            method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
+        if self.deferrable:
+            self.defer(
+                trigger=DataflowStartYamlJobTrigger(
+                    job_id=self.job["id"],
+                    project_id=self.project_id,
+                    location=self.region,
+                    gcp_conn_id=self.gcp_conn_id,
+                    poll_sleep=self.poll_sleep,
+                    cancel_timeout=self.cancel_timeout,
+                    expected_terminal_state=self.expected_terminal_state,
+                    impersonation_chain=self.impersonation_chain,
+                ),
+                method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
+            )
+
+        self.hook.wait_for_done(
+            job_name=self.job_name, location=self.region, project_id=self.project_id, job_id=self.job["id"]
         )
+        return self.job
 
     def execute_complete(self, context: Context, event: dict) -> dict[str, Any]:
         """Execute after the trigger returns an event."""

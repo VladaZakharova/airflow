@@ -794,7 +794,6 @@ class TestDataflowStartYamlJobOperator:
             jinja_variables=None,
             project_id=TEST_PROJECT,
             location=TEST_LOCATION,
-            on_new_job_callback=mock.ANY,
         )
 
     @mock.patch(f"{DATAFLOW_PATH}.DataflowStartYamlJobOperator.defer")
@@ -808,15 +807,6 @@ class TestDataflowStartYamlJobOperator:
             cancel_timeout=deferrable_operator.cancel_timeout,
             expected_terminal_state=DataflowJobStatus.JOB_STATE_RUNNING,
             gcp_conn_id=GCP_CONN_ID,
-        )
-        mock_hook.return_value.launch_beam_yaml_job_deferrable.assert_called_once_with(
-            job_name=deferrable_operator.job_name,
-            yaml_pipeline_file=deferrable_operator.yaml_pipeline_file,
-            append_job_name=False,
-            options=None,
-            jinja_variables=None,
-            project_id=TEST_PROJECT,
-            location=TEST_LOCATION,
         )
         mock_defer_method.assert_called_once()
 
