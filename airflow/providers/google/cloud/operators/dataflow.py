@@ -22,7 +22,6 @@ from __future__ import annotations
 import copy
 import re
 import uuid
-import warnings
 from contextlib import ExitStack
 from enum import Enum
 from functools import cached_property
@@ -949,6 +948,11 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
             )
 
 
+@deprecated(
+    reason="DataflowStartSqlJobOperator is deprecated and will be removed after 31.01.2025. "
+    "Please use DataflowStartYamlJobOperator instead.",
+    category=AirflowProviderDeprecationWarning,
+)
 class DataflowStartSqlJobOperator(GoogleCloudBaseOperator):
     """
     Starts Dataflow SQL query.
@@ -1024,12 +1028,6 @@ class DataflowStartSqlJobOperator(GoogleCloudBaseOperator):
         self.hook: DataflowHook | None = None
 
     def execute(self, context: Context):
-        warnings.warn(
-            "DataflowStartSqlJobOperator is deprecated and will be removed after 31.01.2025. Please use DataflowStartYamlJobOperator instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-
         self.hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
             drain_pipeline=self.drain_pipeline,

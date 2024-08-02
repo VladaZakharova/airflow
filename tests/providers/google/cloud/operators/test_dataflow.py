@@ -716,15 +716,15 @@ class TestDataflowStartSqlJobOperator:
             "DataflowStartSqlJobOperator is deprecated and will be removed after 31.01.2025. "
             "Please use DataflowStartYamlJobOperator instead."
         )
-        start_sql = DataflowStartSqlJobOperator(
-            task_id="start_sql_query",
-            job_name=TEST_SQL_JOB_NAME,
-            query=TEST_SQL_QUERY,
-            options=deepcopy(TEST_SQL_OPTIONS),
-            location=TEST_LOCATION,
-            do_xcom_push=True,
-        )
         with pytest.warns(AirflowProviderDeprecationWarning, match=warning_msg):
+            start_sql = DataflowStartSqlJobOperator(
+                task_id="start_sql_query",
+                job_name=TEST_SQL_JOB_NAME,
+                query=TEST_SQL_QUERY,
+                options=deepcopy(TEST_SQL_OPTIONS),
+                location=TEST_LOCATION,
+                do_xcom_push=True,
+            )
             start_sql.execute(mock.MagicMock())
 
         mock_hook.assert_called_once_with(
