@@ -201,12 +201,12 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
 
     def prepare_template(self) -> None:
         # if no file is specified, skip
-        if not isinstance(self.build_raw, str):
+        if not isinstance(self.build, str):
             return
-        with open(self.build_raw) as file:
-            if self.build_raw.endswith((".yaml", ".yml")):
+        with open(self.build) as file:
+            if self.build.endswith((".yaml", ".yml")):
                 self.build = yaml.safe_load(file.read())
-            if self.build_raw.endswith(".json"):
+            elif self.build.endswith(".json"):
                 self.build = json.loads(file.read())
 
     def execute(self, context: Context):
@@ -214,6 +214,7 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
+        self.prepare_template()
         build = BuildProcessor(build=self.build).process_body()
 
         self.cloud_build_operation, self.id_ = hook.create_build_without_waiting_for_result(
