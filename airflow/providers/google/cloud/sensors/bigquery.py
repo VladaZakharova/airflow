@@ -273,12 +273,8 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
 
 
 @deprecated(
-    reason=(
-        "Class `BigQueryTableExistenceAsyncSensor` is deprecated and "
-        "will be removed in a future release. "
-        "Please use `BigQueryTableExistenceSensor` and "
-        "set `deferrable` attribute to `True` instead"
-    ),
+    reason="The BigQueryTableExistenceAsyncSensor is deprecated and will be removed after 01.11.2024. "
+    "Please use BigQueryTableExistenceSensor and set deferrable attribute to True instead.",
     category=AirflowProviderDeprecationWarning,
 )
 class BigQueryTableExistenceAsyncSensor(BigQueryTableExistenceSensor):
@@ -315,12 +311,9 @@ class BigQueryTableExistenceAsyncSensor(BigQueryTableExistenceSensor):
 
 
 @deprecated(
-    reason=(
-        "Class `BigQueryTableExistencePartitionAsyncSensor` is deprecated and "
-        "will be removed in a future release. "
-        "Please use `BigQueryTablePartitionExistenceSensor` and "
-        "set `deferrable` attribute to `True` instead"
-    ),
+    reason="The BigQueryTableExistencePartitionAsyncSensor is deprecated "
+    "and will be removed after 01.11.2024. "
+    "Please use BigQueryTablePartitionExistenceSensor class and set deferrable attribute to True instead.",
     category=AirflowProviderDeprecationWarning,
 )
 class BigQueryTableExistencePartitionAsyncSensor(BigQueryTablePartitionExistenceSensor):
