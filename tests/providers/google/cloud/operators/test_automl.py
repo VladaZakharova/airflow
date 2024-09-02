@@ -147,6 +147,7 @@ class TestAutoMLBatchPredictOperator:
         mock_hook.return_value.batch_predict.return_value.result.return_value = BatchPredictResult()
         mock_hook.return_value.extract_object_id = extract_object_id
         mock_hook.return_value.wait_for_operation.return_value = BatchPredictResult()
+        mock_hook.return_value.get_model.return_value = mock.MagicMock(**MODEL)
         mock_context = {"ti": mock.MagicMock()}
         op = AutoMLBatchPredictOperator(
             model_id=MODEL_ID,
@@ -174,6 +175,7 @@ class TestAutoMLBatchPredictOperator:
             task_instance=op,
             model_id=MODEL_ID,
             project_id=GCP_PROJECT_ID,
+            dataset_id=DATASET_ID,
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
@@ -241,6 +243,7 @@ class TestAutoMLPredictOperator:
     @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
     def test_execute(self, mock_hook, mock_link_persist):
         mock_hook.return_value.predict.return_value = PredictResponse()
+        mock_hook.return_value.get_model.return_value = mock.MagicMock(**MODEL)
         mock_context = {"ti": mock.MagicMock()}
         op = AutoMLPredictOperator(
             model_id=MODEL_ID,
@@ -266,6 +269,7 @@ class TestAutoMLPredictOperator:
             task_instance=op,
             model_id=MODEL_ID,
             project_id=GCP_PROJECT_ID,
+            dataset_id=DATASET_ID,
         )
 
     @pytest.mark.db_test
