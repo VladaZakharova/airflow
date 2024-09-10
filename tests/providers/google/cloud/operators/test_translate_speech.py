@@ -21,6 +21,8 @@ from unittest import mock
 
 import pytest
 from google.cloud.speech_v1 import (
+    RecognitionAudio,
+    RecognitionConfig,
     RecognizeResponse,
     SpeechRecognitionAlternative,
     SpeechRecognitionResult,
@@ -54,8 +56,8 @@ class TestCloudTranslateSpeech:
         ]
 
         op = CloudTranslateSpeechOperator(
-            audio={"uri": "gs://bucket/object"},
-            config={"encoding": "LINEAR16"},
+            audio=RecognitionAudio({"uri": "gs://bucket/object"}),
+            config=RecognitionConfig({"encoding": "LINEAR16"}),
             target_language="pl",
             format_="text",
             source_language=None,
@@ -77,8 +79,8 @@ class TestCloudTranslateSpeech:
         )
 
         mock_speech_hook.return_value.recognize_speech.assert_called_once_with(
-            audio={"uri": "gs://bucket/object"},
-            config={"encoding": "LINEAR16"},
+            audio=RecognitionAudio({"uri": "gs://bucket/object"}),
+            config=RecognitionConfig({"encoding": "LINEAR16"}),
         )
 
         mock_translate_hook.return_value.translate.assert_called_once_with(
@@ -104,8 +106,8 @@ class TestCloudTranslateSpeech:
             results=[SpeechRecognitionResult()]
         )
         op = CloudTranslateSpeechOperator(
-            audio={"uri": "gs://bucket/object"},
-            config={"encoding": "LINEAR16"},
+            audio=RecognitionAudio({"uri": "gs://bucket/object"}),
+            config=RecognitionConfig({"encoding": "LINEAR16"}),
             target_language="pl",
             format_="text",
             source_language=None,
@@ -128,8 +130,8 @@ class TestCloudTranslateSpeech:
         )
 
         mock_speech_hook.return_value.recognize_speech.assert_called_once_with(
-            audio={"uri": "gs://bucket/object"},
-            config={"encoding": "LINEAR16"},
+            audio=RecognitionAudio({"uri": "gs://bucket/object"}),
+            config=RecognitionConfig({"encoding": "LINEAR16"}),
         )
 
         mock_translate_hook.return_value.translate.assert_not_called()

@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from google.api_core.gapic_v1.method import DEFAULT
-from google.cloud.speech_v1 import RecognizeResponse
+from google.cloud.speech_v1 import RecognitionAudio, RecognitionConfig, RecognizeResponse
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.speech_to_text import CloudSpeechToTextRecognizeSpeechOperator
@@ -29,8 +29,8 @@ from airflow.providers.google.cloud.operators.speech_to_text import CloudSpeechT
 PROJECT_ID = "project-id"
 GCP_CONN_ID = "gcp-conn-id"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
-CONFIG = {"encoding": "LINEAR16"}
-AUDIO = {"uri": "gs://bucket/object"}
+CONFIG = RecognitionConfig({"encoding": "LINEAR16"})
+AUDIO = RecognitionAudio({"uri": "gs://bucket/object"})
 
 
 class TestCloudSpeechToTextRecognizeSpeechOperator:
