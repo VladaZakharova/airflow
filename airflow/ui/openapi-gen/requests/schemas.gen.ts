@@ -1341,7 +1341,15 @@ export const $TaskInstance = {
       nullable: true,
     },
     priority_weight: {
-      type: "integer",
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "number",
+          format: "float",
+        },
+      ],
       nullable: true,
     },
     operator: {
@@ -1869,7 +1877,15 @@ export const $Task = {
       readOnly: true,
     },
     priority_weight: {
-      type: "number",
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "number",
+          format: "float",
+        },
+      ],
       readOnly: true,
     },
     weight_rule: {
