@@ -37,7 +37,7 @@ TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
 TEST_REGION: str = "test-region"
 TEST_PROJECT_ID: str = "test-project-id"
 TEST_MODEL = None
-TEST_PARENT_MODEL = "test-parent-model"
+TEST_PARENT_MODEL = "projects/test-project-id/locations/test-region/models/test-parent-model"
 TEST_MODEL_NAME: str = "test_model_name"
 TEST_OUTPUT_CONFIG: dict = {}
 
