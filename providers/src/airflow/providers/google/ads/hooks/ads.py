@@ -32,9 +32,9 @@ from airflow.hooks.base import BaseHook
 from airflow.providers.google.common.hooks.base_google import get_field
 
 if TYPE_CHECKING:
-    from google.ads.googleads.v17.services.services.customer_service import CustomerServiceClient
-    from google.ads.googleads.v17.services.services.google_ads_service import GoogleAdsServiceClient
-    from google.ads.googleads.v17.services.types.google_ads_service import GoogleAdsRow
+    from google.ads.googleads.v18.services.services.customer_service import CustomerServiceClient
+    from google.ads.googleads.v18.services.services.google_ads_service import GoogleAdsServiceClient
+    from google.ads.googleads.v18.services.types.google_ads_service import GoogleAdsRow
     from google.api_core.page_iterator import GRPCIterator
 
 
@@ -101,7 +101,7 @@ class GoogleAdsHook(BaseHook):
     :param api_version: The Google Ads API version to use.
     """
 
-    default_api_version = "v17"
+    default_api_version = "v18"
 
     def __init__(
         self,
