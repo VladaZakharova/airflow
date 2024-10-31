@@ -65,10 +65,55 @@ Templating
     :start-after: [START translate_template_fields]
     :end-before: [END translate_template_fields]
 
-More information
-""""""""""""""""
 
-See `Google Cloud Translate documentation <https://cloud.google.com/translate/docs/translating-text>`_.
+TranslateTextOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Translate an array of one or more text (or html) items.
+Intended to use for moderate amount of text data, for large volumes please use the
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateTextBatchOperator`
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateTextOperator`
+
+Using the operator
+""""""""""""""""""
+
+Basic usage of the operator:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/translate/example_translate_text.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_translate_text_advanced]
+      :end-before: [END howto_operator_translate_text_advanced]
+
+
+TranslateTextBatchOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+Translate large amount of text data into up to 10 target languages in a single run.
+List of files and other options provided by input configuration.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateTextBatchOperator`
+
+
+Using the operator
+""""""""""""""""""
+
+Basic usage of the operator:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/translate/example_translate_text.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_batch_translate_text]
+      :end-before: [END howto_operator_batch_translate_text]
+
+More information
+""""""""""""""""""
+See:
+Base (V2) `Google Cloud Translate documentation <https://cloud.google.com/translate/docs/translating-text>`_.
+Advanced (V3) `Google Cloud Translate documentation <https://cloud.google.com/translate/docs/advanced/translating-text-v3>`_.
+
 
 Reference
 ^^^^^^^^^
