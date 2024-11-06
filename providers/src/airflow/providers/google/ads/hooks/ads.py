@@ -234,9 +234,8 @@ class GoogleAdsHook(BaseHook):
 
     def _determine_authentication_method(self) -> None:
         """Determine authentication method based on google_ads_config."""
-        if self.google_ads_config.get("json_key_file_path") and self.google_ads_config.get(
-            "impersonated_email"
-        ):
+        print(f"========================>>> Google Ads config: {self.google_ads_config}")
+        if self.google_ads_config.get("json_key_file_path"):
             self.authentication_method = "service_account"
         elif (
             self.google_ads_config.get("refresh_token")
@@ -258,6 +257,8 @@ class GoogleAdsHook(BaseHook):
         """
         extras = self.get_connection(self.gcp_conn_id).extra_dejson
         secret = get_field(extras, "keyfile_dict")
+        print(f"====================!>> extras = {extras}")
+        print(f"====================!>> keyfile_dict = {secret}")
         if not secret:
             raise KeyError("secret_conn.extra_dejson does not contain keyfile_dict")
         secrets_temp.write(secret)
