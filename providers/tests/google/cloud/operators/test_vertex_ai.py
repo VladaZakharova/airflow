@@ -32,7 +32,6 @@ from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     CreateAutoMLForecastingTrainingJobOperator,
     CreateAutoMLImageTrainingJobOperator,
     CreateAutoMLTabularTrainingJobOperator,
-    CreateAutoMLTextTrainingJobOperator,
     CreateAutoMLVideoTrainingJobOperator,
     DeleteAutoMLTrainingJobOperator,
     ListAutoMLTrainingJobOperator,
@@ -246,10 +245,7 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
             dataset_id=TEST_DATASET_ID,
             parent_model=TEST_PARENT_MODEL,
         )
-        with pytest.warns(
-            AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING.format("01.10.2024")
-        ):
-            op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_dataset.assert_called_once_with(name=TEST_DATASET_ID)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_custom_container_training_job.assert_called_once_with(
@@ -337,10 +333,7 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
             dataset_id=TEST_DATASET_ID,
             parent_model=VERSIONED_TEST_PARENT_MODEL,
         )
-        with pytest.warns(
-            AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING.format("01.10.2024")
-        ):
-            op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.return_value.create_custom_container_training_job.assert_called_once_with(
             staging_bucket=STAGING_BUCKET,
             display_name=DISPLAY_NAME,
@@ -421,10 +414,7 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
         )
         mock_hook.return_value.exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
-            with pytest.warns(
-                AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING.format("01.10.2024")
-            ):
-                task.execute(context={"ti": mock.MagicMock()})
+            task.execute(context={"ti": mock.MagicMock()})
         assert isinstance(
             exc.value.trigger, CustomContainerTrainingJobTrigger
         ), "Trigger is not a CustomContainerTrainingJobTrigger"
@@ -577,10 +567,7 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
             dataset_id=TEST_DATASET_ID,
             parent_model=TEST_PARENT_MODEL,
         )
-        with pytest.warns(
-            AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING.format("01.10.2024")
-        ):
-            op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_dataset.assert_called_once_with(name=TEST_DATASET_ID)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_custom_python_package_training_job.assert_called_once_with(
@@ -670,10 +657,7 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
             dataset_id=TEST_DATASET_ID,
             parent_model=VERSIONED_TEST_PARENT_MODEL,
         )
-        with pytest.warns(
-            AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING.format("01.10.2024")
-        ):
-            op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.return_value.create_custom_python_package_training_job.assert_called_once_with(
             staging_bucket=STAGING_BUCKET,
             display_name=DISPLAY_NAME,
@@ -756,10 +740,7 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
         )
         mock_hook.return_value.exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
-            with pytest.warns(
-                AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING.format("01.10.2024")
-            ):
-                task.execute(context={"ti": mock.MagicMock()})
+            task.execute(context={"ti": mock.MagicMock()})
         assert isinstance(
             exc.value.trigger, CustomPythonPackageTrainingJobTrigger
         ), "Trigger is not a CustomPythonPackageTrainingJobTrigger"
@@ -911,10 +892,7 @@ class TestVertexAICreateCustomTrainingJobOperator:
             dataset_id=TEST_DATASET_ID,
             parent_model=TEST_PARENT_MODEL,
         )
-        with pytest.warns(
-            AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING.format("01.10.2024")
-        ):
-            op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_dataset.assert_called_once_with(name=TEST_DATASET_ID)
         mock_hook.return_value.create_custom_training_job.assert_called_once_with(
@@ -997,10 +975,7 @@ class TestVertexAICreateCustomTrainingJobOperator:
             dataset_id=TEST_DATASET_ID,
             parent_model=VERSIONED_TEST_PARENT_MODEL,
         )
-        with pytest.warns(
-            AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING.format("01.10.2024")
-        ):
-            op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.return_value.create_custom_training_job.assert_called_once_with(
             staging_bucket=STAGING_BUCKET,
             display_name=DISPLAY_NAME,
@@ -1076,10 +1051,7 @@ class TestVertexAICreateCustomTrainingJobOperator:
         )
         mock_hook.return_value.exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
-            with pytest.warns(
-                AirflowProviderDeprecationWarning, match=SYNC_DEPRECATION_WARNING.format("01.10.2024")
-            ):
-                task.execute(context={"ti": mock.MagicMock()})
+            task.execute(context={"ti": mock.MagicMock()})
         assert isinstance(
             exc.value.trigger, CustomTrainingJobTrigger
         ), "Trigger is not a CustomTrainingJobTrigger"
@@ -1828,102 +1800,6 @@ class TestVertexAICreateAutoMLTabularTrainingJobOperator:
         )
 
 
-class TestVertexAICreateAutoMLTextTrainingJobOperator:
-    @mock.patch("google.cloud.aiplatform.datasets.TextDataset")
-    @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
-    def test_execute(self, mock_hook, mock_dataset):
-        mock_hook.return_value.create_auto_ml_text_training_job.return_value = (None, "training_id")
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            op = CreateAutoMLTextTrainingJobOperator(
-                task_id=TASK_ID,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-                display_name=DISPLAY_NAME,
-                dataset_id=TEST_DATASET_ID,
-                prediction_type=None,
-                multi_label=False,
-                sentiment_max=10,
-                sync=True,
-                region=GCP_LOCATION,
-                project_id=GCP_PROJECT,
-                parent_model=TEST_PARENT_MODEL,
-            )
-        op.execute(context={"ti": mock.MagicMock()})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
-        mock_dataset.assert_called_once_with(dataset_name=TEST_DATASET_ID)
-        mock_hook.return_value.create_auto_ml_text_training_job.assert_called_once_with(
-            project_id=GCP_PROJECT,
-            region=GCP_LOCATION,
-            display_name=DISPLAY_NAME,
-            dataset=mock_dataset.return_value,
-            parent_model=TEST_PARENT_MODEL,
-            prediction_type=None,
-            multi_label=False,
-            sentiment_max=10,
-            labels=None,
-            training_encryption_spec_key_name=None,
-            model_encryption_spec_key_name=None,
-            training_fraction_split=None,
-            validation_fraction_split=None,
-            test_fraction_split=None,
-            training_filter_split=None,
-            validation_filter_split=None,
-            test_filter_split=None,
-            model_display_name=None,
-            model_labels=None,
-            sync=True,
-            is_default_version=None,
-            model_version_aliases=None,
-            model_version_description=None,
-        )
-
-    @mock.patch("google.cloud.aiplatform.datasets.TextDataset")
-    @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
-    def test_execute__parent_model_version_index_is_removed(self, mock_hook, mock_dataset):
-        mock_hook.return_value.create_auto_ml_text_training_job.return_value = (None, "training_id")
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            op = CreateAutoMLTextTrainingJobOperator(
-                task_id=TASK_ID,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-                display_name=DISPLAY_NAME,
-                dataset_id=TEST_DATASET_ID,
-                prediction_type=None,
-                multi_label=False,
-                sentiment_max=10,
-                sync=True,
-                region=GCP_LOCATION,
-                project_id=GCP_PROJECT,
-                parent_model=VERSIONED_TEST_PARENT_MODEL,
-            )
-        op.execute(context={"ti": mock.MagicMock()})
-        mock_hook.return_value.create_auto_ml_text_training_job.assert_called_once_with(
-            project_id=GCP_PROJECT,
-            region=GCP_LOCATION,
-            display_name=DISPLAY_NAME,
-            dataset=mock_dataset.return_value,
-            parent_model=TEST_PARENT_MODEL,
-            prediction_type=None,
-            multi_label=False,
-            sentiment_max=10,
-            labels=None,
-            training_encryption_spec_key_name=None,
-            model_encryption_spec_key_name=None,
-            training_fraction_split=None,
-            validation_fraction_split=None,
-            test_fraction_split=None,
-            training_filter_split=None,
-            validation_filter_split=None,
-            test_filter_split=None,
-            model_display_name=None,
-            model_labels=None,
-            sync=True,
-            is_default_version=None,
-            model_version_aliases=None,
-            model_version_description=None,
-        )
-
-
 class TestVertexAICreateAutoMLVideoTrainingJobOperator:
     @mock.patch("google.cloud.aiplatform.datasets.VideoDataset")
     @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
@@ -2120,11 +1996,7 @@ class TestVertexAICreateBatchPredictionJobOperator:
             batch_size=TEST_BATCH_SIZE,
         )
         context = {"ti": mock.MagicMock()}
-        with pytest.warns(
-            AirflowProviderDeprecationWarning,
-            match=SYNC_DEPRECATION_WARNING.format("28.08.2024"),
-        ):
-            op.execute(context=context)
+        op.execute(context=context)
 
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.submit_batch_prediction_job.assert_called_once_with(
@@ -2504,17 +2376,12 @@ class TestVertexAICreateHyperparameterTuningJobOperator:
             staging_bucket=STAGING_BUCKET,
             display_name=DISPLAY_NAME,
             worker_pool_specs=[],
-            sync=False,
             parameter_spec={},
             metric_spec={},
             max_trial_count=15,
             parallel_trial_count=3,
         )
-        with pytest.warns(
-            AirflowProviderDeprecationWarning,
-            match=SYNC_DEPRECATION_WARNING.format("01.09.2024"),
-        ):
-            op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_hyperparameter_tuning_job.assert_called_once_with(
             project_id=GCP_PROJECT,
@@ -2558,46 +2425,14 @@ class TestVertexAICreateHyperparameterTuningJobOperator:
             staging_bucket=STAGING_BUCKET,
             display_name=DISPLAY_NAME,
             worker_pool_specs=[],
-            sync=False,
             parameter_spec={},
             metric_spec={},
             max_trial_count=15,
             parallel_trial_count=3,
             deferrable=True,
         )
-        with pytest.warns(
-            AirflowProviderDeprecationWarning,
-            match=SYNC_DEPRECATION_WARNING.format("01.09.2024"),
-        ):
-            op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"ti": mock.MagicMock()})
         mock_defer.assert_called_once()
-
-    @pytest.mark.db_test
-    def test_deferrable_sync_error(self):
-        op = CreateHyperparameterTuningJobOperator(
-            task_id=TASK_ID,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-            region=GCP_LOCATION,
-            project_id=GCP_PROJECT,
-            staging_bucket=STAGING_BUCKET,
-            display_name=DISPLAY_NAME,
-            worker_pool_specs=[],
-            sync=True,
-            parameter_spec={},
-            metric_spec={},
-            max_trial_count=15,
-            parallel_trial_count=3,
-            deferrable=True,
-        )
-        with (
-            pytest.raises(AirflowException),
-            pytest.warns(
-                AirflowProviderDeprecationWarning,
-                match=SYNC_DEPRECATION_WARNING.format("01.09.2024"),
-            ),
-        ):
-            op.execute(context={"ti": mock.MagicMock()})
 
     @mock.patch(VERTEX_AI_PATH.format("hyperparameter_tuning_job.HyperparameterTuningJobHook"))
     def test_execute_complete(self, mock_hook):
@@ -2620,7 +2455,6 @@ class TestVertexAICreateHyperparameterTuningJobOperator:
             staging_bucket=STAGING_BUCKET,
             display_name=DISPLAY_NAME,
             worker_pool_specs=[],
-            sync=False,
             parameter_spec={},
             metric_spec={},
             max_trial_count=15,
@@ -2646,7 +2480,6 @@ class TestVertexAICreateHyperparameterTuningJobOperator:
             staging_bucket=STAGING_BUCKET,
             display_name=DISPLAY_NAME,
             worker_pool_specs=[],
-            sync=False,
             parameter_spec={},
             metric_spec={},
             max_trial_count=15,
