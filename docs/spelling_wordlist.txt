@@ -966,6 +966,7 @@ LineItem
 lineterminator
 linter
 linux
+ListDatasetsPager
 ListGenerator
 ListInfoTypesResponse
 ListSecretsPager
