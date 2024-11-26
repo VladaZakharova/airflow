@@ -85,12 +85,13 @@ class TestAutoMLTrainModelOperator:
         mock_hook.return_value.create_model.return_value.result.return_value = Model(name=MODEL_PATH)
         mock_hook.return_value.extract_object_id = extract_object_id
         mock_hook.return_value.wait_for_operation.return_value = Model()
-        op = AutoMLTrainModelOperator(
-            model=MODEL,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            task_id=TASK_ID,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = AutoMLTrainModelOperator(
+                model=MODEL,
+                location=GCP_LOCATION,
+                project_id=GCP_PROJECT_ID,
+                task_id=TASK_ID,
+            )
         op.execute(context=mock.MagicMock())
         mock_hook.return_value.create_model.assert_called_once_with(
             model=MODEL,
@@ -101,34 +102,19 @@ class TestAutoMLTrainModelOperator:
             metadata=(),
         )
 
-    @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
-    def test_execute_deprecated(self, mock_hook):
-        op = AutoMLTrainModelOperator(
-            model=MODEL_DEPRECATED,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            task_id=TASK_ID,
-        )
-        expected_exception_str = (
-            "AutoMLTrainModelOperator for text, image, and video prediction has been "
-            "deprecated and no longer available"
-        )
-        with pytest.raises(AirflowException, match=expected_exception_str):
-            op.execute(context=mock.MagicMock())
-        mock_hook.assert_not_called()
-
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator, session):
-        ti = create_task_instance_of_operator(
-            AutoMLTrainModelOperator,
-            # Templated fields
-            model="{{ 'model' }}",
-            location="{{ 'location' }}",
-            impersonation_chain="{{ 'impersonation_chain' }}",
-            # Other parameters
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            ti = create_task_instance_of_operator(
+                AutoMLTrainModelOperator,
+                # Templated fields
+                model="{{ 'model' }}",
+                location="{{ 'location' }}",
+                impersonation_chain="{{ 'impersonation_chain' }}",
+                # Other parameters
+                dag_id="test_template_body_templating_dag",
+                task_id="test_template_body_templating_task",
+            )
         session.add(ti)
         session.commit()
         ti.render_templates()
@@ -176,38 +162,6 @@ class TestAutoMLBatchPredictOperator:
             project_id=GCP_PROJECT_ID,
             dataset_id=DATASET_ID,
         )
-
-    @mock.patch("airflow.providers.google.cloud.operators.automl.CloudAutoMLHook")
-    def test_execute_deprecated(self, mock_hook):
-        returned_model = mock.MagicMock()
-        del returned_model.translation_model_metadata
-        mock_hook.return_value.get_model.return_value = returned_model
-        mock_hook.return_value.extract_object_id = extract_object_id
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            op = AutoMLBatchPredictOperator(
-                model_id=MODEL_ID,
-                location=GCP_LOCATION,
-                project_id=GCP_PROJECT_ID,
-                input_config=INPUT_CONFIG,
-                output_config=OUTPUT_CONFIG,
-                task_id=TASK_ID,
-                prediction_params={},
-            )
-        expected_exception_str = (
-            "AutoMLBatchPredictOperator for text, image, and video prediction has been "
-            "deprecated and no longer available"
-        )
-        with pytest.raises(AirflowException, match=expected_exception_str):
-            op.execute(context=mock.MagicMock())
-        mock_hook.return_value.get_model.assert_called_once_with(
-            location=GCP_LOCATION,
-            model_id=MODEL_ID,
-            project_id=GCP_PROJECT_ID,
-            retry=DEFAULT,
-            timeout=None,
-            metadata=(),
-        )
-        mock_hook.return_value.batch_predict.assert_not_called()
 
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator, session):
