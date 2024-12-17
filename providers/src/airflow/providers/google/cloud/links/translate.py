@@ -56,6 +56,8 @@ TRANSLATION_NATIVE_MODEL_LINK = (
 )
 TRANSLATION_MODELS_LIST_LINK = TRANSLATION_BASE_LINK + "/models/list?project={project_id}"
 
+TRANSLATION_HUB_RESOURCES_LIST_LINK = TRANSLATION_BASE_LINK + "/hub/resources?project={project_id}"
+
 
 class TranslationLegacyDatasetLink(BaseGoogleLink):
     """
@@ -329,6 +331,32 @@ class TranslationModelsListLink(BaseGoogleLink):
         task_instance.xcom_push(
             context,
             key=TranslationModelsListLink.key,
+            value={
+                "project_id": project_id,
+            },
+        )
+
+
+class TranslationGlossariesListLink(BaseGoogleLink):
+    """
+    Helper class for constructing Translation Glossaries List link.
+
+    Link for the list of available glossaries.
+    """
+
+    name = "Translation Glossaries List"
+    key = "translation_glossaries_list"
+    format_str = TRANSLATION_HUB_RESOURCES_LIST_LINK
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance,
+        project_id: str,
+    ):
+        task_instance.xcom_push(
+            context,
+            key=TranslationGlossariesListLink.key,
             value={
                 "project_id": project_id,
             },
