@@ -1042,7 +1042,10 @@ def get_provider_info():
             },
             {
                 "integration-name": "Google",
-                "python-modules": ["airflow.providers.google.common.hooks.base_google"],
+                "python-modules": [
+                    "airflow.providers.google.common.hooks.base_google",
+                    "airflow.providers.google.common.hooks.operation_helpers",
+                ],
             },
             {
                 "integration-name": "Google Discovery API",
