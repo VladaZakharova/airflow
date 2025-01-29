@@ -576,6 +576,7 @@ encodable
 encryptor
 enqueue
 enqueued
+Entry
 EntryGroup
 EntryGroups
 entrypoint
