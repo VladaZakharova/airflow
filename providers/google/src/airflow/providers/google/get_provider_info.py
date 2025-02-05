@@ -1569,6 +1569,7 @@ def get_provider_info():
             "airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterLink",
             "airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaClusterListLink",
             "airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaTopicLink",
+            "airflow.providers.google.cloud.links.managed_kafka.ApacheKafkaConsumerGroupLink",
         ],
         "secrets-backends": [
             "airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend"
