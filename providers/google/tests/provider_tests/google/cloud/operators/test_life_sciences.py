@@ -21,6 +21,9 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.operators.life_sciences import LifeSciencesRunPipelineOperator
 
 TEST_BODY = {"pipeline": {"actions": [{}], "resources": {}, "environment": {}, "timeout": "3.5s"}}
@@ -44,7 +47,8 @@ class TestLifeSciencesRunPipelineOperator:
             task_id="task-id", body=TEST_BODY, location=TEST_LOCATION, project_id=TEST_PROJECT_ID
         )
         context = mock.MagicMock()
-        result = operator.execute(context=context)
+        with pytest.raises(AirflowProviderDeprecationWarning):
+            result = operator.execute(context=context)
 
         assert result == TEST_OPERATION
 
@@ -58,5 +62,6 @@ class TestLifeSciencesRunPipelineOperator:
             location=TEST_LOCATION,
         )
         context = mock.MagicMock()
-        result = operator.execute(context=context)
+        with pytest.raises(AirflowProviderDeprecationWarning):
+            result = operator.execute(context=context)
         assert result == TEST_OPERATION

@@ -19,12 +19,14 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.automl_v1beta1 import AutoMlClient
+from provider_tests.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.common.consts import CLIENT_INFO
-from provider_tests.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
 CREDENTIALS = "test-creds"
 TASK_ID = "test-automl-hook"
@@ -51,13 +53,18 @@ MASK = {"field": "mask"}
 
 
 class TestAutoMLHook:
-    def setup_method(self):
+    def _create_hook(self):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.automl.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
         ):
-            self.hook = CloudAutoMLHook()
-            self.hook.get_credentials = mock.MagicMock(return_value=CREDENTIALS)  # type: ignore
+            hook = CloudAutoMLHook()
+            hook.get_credentials = mock.MagicMock(return_value=CREDENTIALS)  # type: ignore
+            return hook
+
+    def setup_method(self):
+        with pytest.raises(AirflowProviderDeprecationWarning):
+            self.hook = self._create_hook()
 
     @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient")
     def test_get_conn(self, mock_automl_client):
