@@ -34,6 +34,7 @@ from google.api_core.exceptions import GoogleAPICallError
 # dynamic storage type in google.cloud needs to be type-ignored
 from google.cloud import exceptions, storage  # type: ignore[attr-defined]
 from google.cloud.storage.retry import DEFAULT_RETRY
+from provider_tests.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.compat.assets import Asset
@@ -42,7 +43,6 @@ from airflow.providers.google.cloud.hooks.gcs import _fallback_object_url_to_obj
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils import timezone
 from airflow.version import version
-from provider_tests.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
 
@@ -1070,7 +1070,6 @@ class TestGCSHook:
             self.gcs_hook.list(
                 bucket_name="test_bucket",
                 prefix="prefix",
-                delimiter=",",
                 match_glob="**/*.json",
             )
 

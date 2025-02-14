@@ -27,13 +27,11 @@ For more information about the service visit
 `Cloud Tasks product documentation <https://cloud.google.com/tasks/docs>`__
 
 Google Cloud Tasks Empty Sensor
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. warning::
+    This operator is deprecated and will be removed after August 12, 2025. Please use
+    :class:`~airflow.providers.google.cloud.operators.tasks.CloudTasksTasksListOperator`.
 
 To sense Queue being empty use
 :class:`~airflow.providers.google.cloud.sensor.tasks.TaskQueueEmptySensor`
-
-.. exampleinclude:: /../../providers/google/src/airflow/providers/google/cloud/example_dags/example_cloud_task.py
-    :language: python
-    :dedent: 4
-    :start-after: [START cloud_tasks_empty_sensor]
-    :end-before: [END cloud_tasks_empty_sensor]

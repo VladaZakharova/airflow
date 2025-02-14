@@ -1188,7 +1188,8 @@ class TestDataprocClusterScaleOperator(DataprocClusterTestBase):
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context=self.mock_context)
+        with pytest.raises(AirflowProviderDeprecationWarning):
+            op.execute(context=self.mock_context)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.update_cluster.assert_called_once_with(**update_cluster_args)
 

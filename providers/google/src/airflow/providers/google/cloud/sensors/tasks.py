@@ -22,7 +22,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.sensors.base import BaseSensorOperator
 
@@ -30,6 +32,11 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
+@deprecated(
+    planned_removal_date="August 12, 2025",
+    use_instead="airflow.providers.google.cloud.operators.tasks.CloudTasksTasksListOperator",
+    category=AirflowProviderDeprecationWarning,
+)
 class TaskQueueEmptySensor(BaseSensorOperator):
     """
     Pulls tasks count from a cloud task queue; waits for queue to return task count as 0.

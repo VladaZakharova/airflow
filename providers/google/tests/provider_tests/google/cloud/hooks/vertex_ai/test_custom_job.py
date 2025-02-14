@@ -22,11 +22,17 @@ from unittest import mock
 
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
+
 # For no Pydantic environment, we need to skip the tests
 pytest.importorskip("google.cloud.aiplatform_v1")
 
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.aiplatform_v1 import JobServiceAsyncClient, PipelineServiceAsyncClient
+from provider_tests.google.cloud.utils.base_gcp_mock import (
+    mock_base_gcp_hook_default_project_id,
+    mock_base_gcp_hook_no_default_project_id,
+)
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import (
@@ -35,10 +41,6 @@ from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import (
     JobState,
     PipelineState,
     types,
-)
-from provider_tests.google.cloud.utils.base_gcp_mock import (
-    mock_base_gcp_hook_default_project_id,
-    mock_base_gcp_hook_no_default_project_id,
 )
 
 TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
@@ -99,10 +101,11 @@ def test_custom_job_name(job_service_async_client):
 
 class TestCustomJobWithDefaultProjectIdHook:
     def setup_method(self):
-        with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
-        ):
-            self.hook = CustomJobHook(gcp_conn_id=TEST_GCP_CONN_ID)
+        with pytest.raises(AirflowProviderDeprecationWarning):
+            with mock.patch(
+                BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+            ):
+                self.hook = CustomJobHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
     @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_cancel_pipeline_job(self, mock_client) -> None:
@@ -309,10 +312,11 @@ class TestCustomJobWithDefaultProjectIdHook:
 
 class TestCustomJobWithoutDefaultProjectIdHook:
     def setup_method(self):
-        with mock.patch(
-            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_no_default_project_id
-        ):
-            self.hook = CustomJobHook(gcp_conn_id=TEST_GCP_CONN_ID)
+        with pytest.raises(AirflowProviderDeprecationWarning):
+            with mock.patch(
+                BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_no_default_project_id
+            ):
+                self.hook = CustomJobHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
     @mock.patch(CUSTOM_JOB_STRING.format("CustomJobHook.get_pipeline_service_client"))
     def test_cancel_pipeline_job(self, mock_client) -> None:

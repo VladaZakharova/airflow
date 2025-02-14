@@ -25,14 +25,16 @@ from unittest import mock
 from unittest.mock import PropertyMock
 
 import pytest
-
-from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.life_sciences import LifeSciencesHook
 from provider_tests.google.cloud.utils.base_gcp_mock import (
     GCP_PROJECT_ID_HOOK_UNIT_TEST,
     mock_base_gcp_hook_default_project_id,
     mock_base_gcp_hook_no_default_project_id,
 )
+
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.google.cloud.hooks.life_sciences import LifeSciencesHook
+
+pytestmark = pytest.mark.filterwarnings("error::airflow.exceptions.AirflowProviderDeprecationWarning")
 
 TEST_OPERATION = {
     "name": "operation-name",
@@ -50,11 +52,12 @@ TEST_LOCATION = "test-location"
 
 class TestLifeSciencesHookWithPassedProjectId:
     def setup_method(self):
-        with mock.patch(
-            "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
-            new=mock_base_gcp_hook_default_project_id,
-        ):
-            self.hook = LifeSciencesHook(gcp_conn_id="test")
+        with pytest.raises(AirflowProviderDeprecationWarning):
+            with mock.patch(
+                "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
+                new=mock_base_gcp_hook_default_project_id,
+            ):
+                self.hook = LifeSciencesHook(gcp_conn_id="test")
 
     def test_location_path(self):
         path = "projects/life-science-project-id/locations/test-location"
@@ -161,11 +164,12 @@ class TestLifeSciencesHookWithPassedProjectId:
 
 class TestLifeSciencesHookWithDefaultProjectIdFromConnection:
     def setup_method(self):
-        with mock.patch(
-            "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
-            new=mock_base_gcp_hook_default_project_id,
-        ):
-            self.hook = LifeSciencesHook(gcp_conn_id="test")
+        with pytest.raises(AirflowProviderDeprecationWarning):
+            with mock.patch(
+                "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
+                new=mock_base_gcp_hook_default_project_id,
+            ):
+                self.hook = LifeSciencesHook(gcp_conn_id="test")
 
     @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook._authorize")
     @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.build")
@@ -267,11 +271,12 @@ class TestLifeSciencesHookWithDefaultProjectIdFromConnection:
 
 class TestLifeSciencesHookWithoutProjectId:
     def setup_method(self):
-        with mock.patch(
-            "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
-            new=mock_base_gcp_hook_no_default_project_id,
-        ):
-            self.hook = LifeSciencesHook(gcp_conn_id="test")
+        with pytest.raises(AirflowProviderDeprecationWarning):
+            with mock.patch(
+                "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
+                new=mock_base_gcp_hook_no_default_project_id,
+            ):
+                self.hook = LifeSciencesHook(gcp_conn_id="test")
 
     @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.LifeSciencesHook._authorize")
     @mock.patch("airflow.providers.google.cloud.hooks.life_sciences.build")
