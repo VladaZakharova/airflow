@@ -33,7 +33,7 @@ from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
 from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
 from airflow.providers.common.compat.standard.operators import PythonOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.cloud.operators.mlengine import MLEngineStartBatchPredictionJobOperator
+from airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job import CreateBatchPredictionJobOperator
 
 if TYPE_CHECKING:
     from airflow import DAG
@@ -57,7 +57,7 @@ def create_evaluate_ops(
     version_name: str | None = None,
     dag: DAG | None = None,
     py_interpreter="python3",
-) -> tuple[MLEngineStartBatchPredictionJobOperator, BeamRunPythonPipelineOperator, PythonOperator]:
+) -> tuple[CreateBatchPredictionJobOperator, BeamRunPythonPipelineOperator, PythonOperator]:
     r"""
     Create Operators needed for model evaluation and returns.
 
@@ -221,7 +221,7 @@ def create_evaluate_ops(
         version_name = version_name or default_args.get("version_name")
         dataflow_options = dataflow_options or default_args.get("dataflow_default_options")
 
-    evaluate_prediction = MLEngineStartBatchPredictionJobOperator(
+    evaluate_prediction = CreateBatchPredictionJobOperator(
         task_id=(task_prefix + "-prediction"),
         project_id=project_id,
         job_id=batch_prediction_job_id,
