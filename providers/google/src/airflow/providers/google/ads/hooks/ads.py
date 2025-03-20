@@ -271,11 +271,9 @@ class GoogleAdsHook(BaseHook):
         """
         service = self._get_service
 
-        extra_req_params = {}
-
         iterators = []
         for client_id in client_ids:
-            iterator = service.search(request={"customer_id": client_id, "query": query, **extra_req_params})
+            iterator = service.search(request={"customer_id": client_id, "query": query})
             iterators.append(iterator)
 
         self.log.info("Fetched Google Ads Iterators")
