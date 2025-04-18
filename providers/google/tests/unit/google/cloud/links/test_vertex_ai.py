@@ -19,10 +19,14 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIRayClusterLink,
     VertexAIRayClusterListLink,
 )
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
 TEST_LOCATION = "test-location"
 TEST_CLUSTER_ID = "test-cluster-id"
@@ -44,19 +48,31 @@ class TestVertexAIRayClusterLink:
         assert VertexAIRayClusterLink.format_str == EXPECTED_VERTEX_AI_RAY_CLUSTER_LINK_FORMAT_STR
 
     def test_persist(self):
-        mock_context, mock_task_instance = (
-            mock.MagicMock(),
-            mock.MagicMock(location=TEST_LOCATION, project_id=TEST_PROJECT_ID),
-        )
+        mock_context = mock.MagicMock()
+        mock_context["ti"] = mock.MagicMock(location=TEST_LOCATION, project_id=TEST_PROJECT_ID)
 
-        VertexAIRayClusterLink.persist(
-            context=mock_context,
-            task_instance=mock_task_instance,
-            cluster_id=TEST_CLUSTER_ID,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            VertexAIRayClusterLink.persist(
+                context=mock_context,
+                location=TEST_LOCATION,
+                cluster_id=TEST_CLUSTER_ID,
+                project_id=TEST_PROJECT_ID,
+            )
+        else:
+            deprecation_warning = (
+                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
+                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
+                "to be removed after the Airflow 3 Migration completed!"
+            )
+            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+                VertexAIRayClusterLink.persist(
+                    context=mock_context,
+                    location=TEST_LOCATION,
+                    cluster_id=TEST_CLUSTER_ID,
+                    project_id=TEST_PROJECT_ID,
+                )
 
-        mock_task_instance.xcom_push.assert_called_once_with(
-            context=mock_context,
+        mock_context["ti"].xcom_push.assert_called_once_with(
             key=EXPECTED_VERTEX_AI_RAY_CLUSTER_LINK_KEY,
             value={
                 "location": TEST_LOCATION,
@@ -73,15 +89,27 @@ class TestVertexAIRayClusterListLink:
         assert VertexAIRayClusterListLink.format_str == EXPECTED_VERTEX_AI_RAY_CLUSTER_LIST_LINK_FORMAT_STR
 
     def test_persist(self):
-        mock_context, mock_task_instance = mock.MagicMock(), mock.MagicMock(project_id=TEST_PROJECT_ID)
+        mock_context = mock.MagicMock()
+        mock_context["ti"] = mock.MagicMock(project_id=TEST_PROJECT_ID)
 
-        VertexAIRayClusterListLink.persist(
-            context=mock_context,
-            task_instance=mock_task_instance,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            VertexAIRayClusterListLink.persist(
+                context=mock_context,
+                project_id=TEST_PROJECT_ID,
+            )
+        else:
+            deprecation_warning = (
+                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
+                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
+                "to be removed after the Airflow 3 Migration completed!"
+            )
+            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+                VertexAIRayClusterListLink.persist(
+                    context=mock_context,
+                    project_id=TEST_PROJECT_ID,
+                )
 
-        mock_task_instance.xcom_push.assert_called_once_with(
-            context=mock_context,
+        mock_context["ti"].xcom_push.assert_called_once_with(
             key=EXPECTED_VERTEX_AI_RAY_CLUSTER_LIST_LINK_KEY,
             value={
                 "project_id": TEST_PROJECT_ID,

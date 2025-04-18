@@ -21,6 +21,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.links.cloud_run import CloudRunJobLoggingLink
 from airflow.providers.google.cloud.operators.cloud_run import CloudRunExecuteJobOperator
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
@@ -37,20 +38,32 @@ class TestCloudRunJobLoggingLink:
     def test_class_attributes(self):
         assert CloudRunJobLoggingLink.key == "log_uri"
         assert CloudRunJobLoggingLink.name == "Cloud Run Job Logging"
+        assert CloudRunJobLoggingLink.format_str == "{log_uri}"
 
     def test_persist(self):
-        mock_context, mock_task_instance = mock.MagicMock(), mock.MagicMock()
+        mock_context = mock.MagicMock()
+        mock_context["ti"] = mock.MagicMock()
 
-        CloudRunJobLoggingLink.persist(
-            context=mock_context,
-            task_instance=mock_task_instance,
-            log_uri=TEST_LOG_URI,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            CloudRunJobLoggingLink.persist(
+                context=mock_context,
+                log_uri=TEST_LOG_URI,
+            )
+        else:
+            deprecation_warning = (
+                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
+                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
+                "to be removed after the Airflow 3 Migration completed!"
+            )
+            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+                CloudRunJobLoggingLink.persist(
+                    context=mock_context,
+                    log_uri=TEST_LOG_URI,
+                )
 
-        mock_task_instance.xcom_push.assert_called_once_with(
-            mock_context,
+        mock_context["ti"].xcom_push.assert_called_once_with(
             key=CloudRunJobLoggingLink.key,
-            value=TEST_LOG_URI,
+            value={"log_uri": TEST_LOG_URI},
         )
 
     @pytest.mark.db_test
@@ -66,11 +79,22 @@ class TestCloudRunJobLoggingLink:
         )
         session.add(ti)
         session.commit()
-        link.persist(context={"ti": ti}, task_instance=ti.task, log_uri=TEST_LOG_URI)
+
+        if AIRFLOW_V_3_0_PLUS:
+            link.persist(context={"ti": ti}, log_uri=TEST_LOG_URI)
+        else:
+            deprecation_warning = (
+                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
+                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
+                "to be removed after the Airflow 3 Migration completed!"
+            )
+            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+                link.persist(context={"ti": ti}, log_uri=TEST_LOG_URI)
+
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="key",
-                value=TEST_LOG_URI,
+                value={"log_uri": TEST_LOG_URI},
             )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == TEST_LOG_URI

@@ -79,6 +79,7 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryIntervalCheckTrigger,
     BigQueryValueCheckTrigger,
 )
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.timezone import datetime
 
@@ -141,7 +142,16 @@ class TestBigQueryCreateTableOperator:
             table_id=TEST_TABLE_ID,
             table_resource={},
         )
-        operator.execute(context=MagicMock())
+        if AIRFLOW_V_3_0_PLUS:
+            operator.execute(context=MagicMock())
+        else:
+            deprecation_warning = (
+                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
+                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
+                "to be removed after the Airflow 3 Migration completed!"
+            )
+            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+                operator.execute(context=MagicMock())
         mock_hook.return_value.create_table.assert_called_once_with(
             dataset_id=TEST_DATASET,
             project_id=TEST_GCP_PROJECT_ID,
@@ -170,7 +180,16 @@ class TestBigQueryCreateTableOperator:
             table_id=TEST_TABLE_ID,
             table_resource=body,
         )
-        operator.execute(context=MagicMock())
+        if AIRFLOW_V_3_0_PLUS:
+            operator.execute(context=MagicMock())
+        else:
+            deprecation_warning = (
+                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
+                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
+                "to be removed after the Airflow 3 Migration completed!"
+            )
+            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+                operator.execute(context=MagicMock())
         mock_hook.return_value.create_table.assert_called_once_with(
             dataset_id=TEST_DATASET,
             project_id=TEST_GCP_PROJECT_ID,
@@ -200,7 +219,16 @@ class TestBigQueryCreateTableOperator:
             table_resource=body,
         )
 
-        operator.execute(context=MagicMock())
+        if AIRFLOW_V_3_0_PLUS:
+            operator.execute(context=MagicMock())
+        else:
+            deprecation_warning = (
+                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
+                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
+                "to be removed after the Airflow 3 Migration completed!"
+            )
+            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+                operator.execute(context=MagicMock())
         mock_hook.return_value.create_table.assert_called_once_with(
             dataset_id=TEST_DATASET,
             project_id=TEST_GCP_PROJECT_ID,
@@ -239,7 +267,16 @@ class TestBigQueryCreateTableOperator:
             table_resource=body,
         )
 
-        operator.execute(context=MagicMock())
+        if AIRFLOW_V_3_0_PLUS:
+            operator.execute(context=MagicMock())
+        else:
+            deprecation_warning = (
+                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
+                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
+                "to be removed after the Airflow 3 Migration completed!"
+            )
+            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+                operator.execute(context=MagicMock())
         mock_hook.return_value.create_table.assert_called_once_with(
             dataset_id=TEST_DATASET,
             project_id=TEST_GCP_PROJECT_ID,
@@ -285,11 +322,32 @@ class TestBigQueryCreateTableOperator:
             mock_hook.return_value.create_table.side_effect = Conflict("any")
         else:
             mock_hook.return_value.create_table.side_effect = None
-        if expected_error is not None:
-            with pytest.raises(expected_error):
-                operator.execute(context=MagicMock())
-        else:
-            operator.execute(context=MagicMock())
+            if expected_error is not None:
+                if AIRFLOW_V_3_0_PLUS:
+                    with pytest.raises(expected_error):
+                        operator.execute(context=MagicMock())
+                else:
+                    deprecation_warning = (
+                        "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
+                        "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
+                        "to be removed after the Airflow 3 Migration completed!"
+                    )
+                    with [
+                        pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning),
+                        *expected_error,
+                    ]:
+                        operator.execute(context=MagicMock())
+            else:
+                if AIRFLOW_V_3_0_PLUS:
+                    operator.execute(context=MagicMock())
+                else:
+                    deprecation_warning = (
+                        "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
+                        "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
+                        "to be removed after the Airflow 3 Migration completed!"
+                    )
+                    with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+                        operator.execute(context=MagicMock())
         if log_msg is not None:
             assert log_msg in caplog.text
 
@@ -316,7 +374,16 @@ class TestBigQueryCreateTableOperator:
             table_id=TEST_TABLE_ID,
             table_resource=table_resource,
         )
-        operator.execute(context=MagicMock())
+        if AIRFLOW_V_3_0_PLUS:
+            operator.execute(context=MagicMock())
+        else:
+            deprecation_warning = (
+                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
+                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
+                "to be removed after the Airflow 3 Migration completed!"
+            )
+            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+                operator.execute(context=MagicMock())
 
         mock_hook.return_value.create_table.assert_called_once_with(
             dataset_id=TEST_DATASET,
@@ -367,7 +434,16 @@ class TestBigQueryCreateEmptyTableOperator:
                 project_id=TEST_GCP_PROJECT_ID,
                 table_id=TEST_TABLE_ID,
             )
-            operator.execute(context=MagicMock())
+            if AIRFLOW_V_3_0_PLUS:
+                operator.execute(context=MagicMock())
+            else:
+                deprecation_warning = (
+                    "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
+                    "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
+                    "to be removed after the Airflow 3 Migration completed!"
+                )
+                with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+                    operator.execute(context=MagicMock())
             mock_hook.return_value.create_empty_table.assert_called_once_with(
                 dataset_id=TEST_DATASET,
                 project_id=TEST_GCP_PROJECT_ID,
@@ -393,7 +469,16 @@ class TestBigQueryCreateEmptyTableOperator:
                 table_id=TEST_TABLE_ID,
                 view=VIEW_DEFINITION,
             )
-            operator.execute(context=MagicMock())
+            if AIRFLOW_V_3_0_PLUS:
+                operator.execute(context=MagicMock())
+            else:
+                deprecation_warning = (
+                    "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
+                    "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
+                    "to be removed after the Airflow 3 Migration completed!"
+                )
+                with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+                    operator.execute(context=MagicMock())
             mock_hook.return_value.create_empty_table.assert_called_once_with(
                 dataset_id=TEST_DATASET,
                 project_id=TEST_GCP_PROJECT_ID,
@@ -420,7 +505,16 @@ class TestBigQueryCreateEmptyTableOperator:
                 materialized_view=MATERIALIZED_VIEW_DEFINITION,
             )
 
-            operator.execute(context=MagicMock())
+            if AIRFLOW_V_3_0_PLUS:
+                operator.execute(context=MagicMock())
+            else:
+                deprecation_warning = (
+                    "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
+                    "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
+                    "to be removed after the Airflow 3 Migration completed!"
+                )
+                with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+                    operator.execute(context=MagicMock())
             mock_hook.return_value.create_empty_table.assert_called_once_with(
                 dataset_id=TEST_DATASET,
                 project_id=TEST_GCP_PROJECT_ID,
