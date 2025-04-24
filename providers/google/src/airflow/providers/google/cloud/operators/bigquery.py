@@ -1285,7 +1285,6 @@ class BigQueryCreateTableOperator(GoogleCloudBaseOperator):
             if self._table:
                 persist_kwargs = {
                     "context": context,
-                    "task_instance": self,
                     "project_id": self._table.to_api_repr()["tableReference"]["projectId"],
                     "dataset_id": self._table.to_api_repr()["tableReference"]["datasetId"],
                     "table_id": self._table.to_api_repr()["tableReference"]["tableId"],
@@ -1304,7 +1303,6 @@ class BigQueryCreateTableOperator(GoogleCloudBaseOperator):
                 self.log.info(error_msg)
                 persist_kwargs = {
                     "context": context,
-                    "task_instance": self,
                     "project_id": self.project_id or bq_hook.project_id,
                     "dataset_id": self.dataset_id,
                     "table_id": self.table_id,
@@ -1569,7 +1567,6 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
             if self._table:
                 persist_kwargs = {
                     "context": context,
-                    "task_instance": self,
                     "project_id": self._table.to_api_repr()["tableReference"]["projectId"],
                     "dataset_id": self._table.to_api_repr()["tableReference"]["datasetId"],
                     "table_id": self._table.to_api_repr()["tableReference"]["tableId"],
@@ -1588,7 +1585,6 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
                 self.log.info(error_msg)
                 persist_kwargs = {
                     "context": context,
-                    "task_instance": self,
                     "project_id": self.project_id or bq_hook.project_id,
                     "dataset_id": self.dataset_id,
                     "table_id": self.table_id,
@@ -1859,7 +1855,6 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             if self._table:
                 BigQueryTableLink.persist(
                     context=context,
-                    task_instance=self,
                     dataset_id=self._table.dataset_id,
                     project_id=self._table.project,
                     table_id=self._table.table_id,
@@ -1918,7 +1913,6 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
         if self._table:
             BigQueryTableLink.persist(
                 context=context,
-                task_instance=self,
                 dataset_id=self._table.dataset_id,
                 project_id=self._table.project,
                 table_id=self._table.table_id,
@@ -2116,7 +2110,6 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
             )
             persist_kwargs = {
                 "context": context,
-                "task_instance": self,
                 "project_id": dataset["datasetReference"]["projectId"],
                 "dataset_id": dataset["datasetReference"]["datasetId"],
             }
@@ -2128,7 +2121,6 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
             )
             persist_kwargs = {
                 "context": context,
-                "task_instance": self,
                 "project_id": project_id,
                 "dataset_id": dataset_id,
             }
@@ -2200,7 +2192,6 @@ class BigQueryGetDatasetOperator(GoogleCloudBaseOperator):
         dataset_api_repr = dataset.to_api_repr()
         BigQueryDatasetLink.persist(
             context=context,
-            task_instance=self,
             dataset_id=dataset_api_repr["datasetReference"]["datasetId"],
             project_id=dataset_api_repr["datasetReference"]["projectId"],
         )
@@ -2349,7 +2340,6 @@ class BigQueryUpdateTableOperator(GoogleCloudBaseOperator):
         if self._table:
             BigQueryTableLink.persist(
                 context=context,
-                task_instance=self,
                 dataset_id=self._table["tableReference"]["datasetId"],
                 project_id=self._table["tableReference"]["projectId"],
                 table_id=self._table["tableReference"]["tableId"],
@@ -2452,7 +2442,6 @@ class BigQueryUpdateDatasetOperator(GoogleCloudBaseOperator):
         dataset_api_repr = dataset.to_api_repr()
         BigQueryDatasetLink.persist(
             context=context,
-            task_instance=self,
             dataset_id=dataset_api_repr["datasetReference"]["datasetId"],
             project_id=dataset_api_repr["datasetReference"]["projectId"],
         )
@@ -2624,7 +2613,6 @@ class BigQueryUpsertTableOperator(GoogleCloudBaseOperator):
         if self._table:
             BigQueryTableLink.persist(
                 context=context,
-                task_instance=self,
                 dataset_id=self._table["tableReference"]["datasetId"],
                 project_id=self._table["tableReference"]["projectId"],
                 table_id=self._table["tableReference"]["tableId"],
@@ -2754,7 +2742,6 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
         if self._table:
             BigQueryTableLink.persist(
                 context=context,
-                task_instance=self,
                 dataset_id=self._table["tableReference"]["datasetId"],
                 project_id=self._table["tableReference"]["projectId"],
                 table_id=self._table["tableReference"]["tableId"],
@@ -3000,7 +2987,6 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
                             table = job_configuration[job_type][table_prop]
                             persist_kwargs = {
                                 "context": context,
-                                "task_instance": self,
                                 "project_id": self.project_id,
                                 "table_id": table,
                             }
@@ -3022,7 +3008,6 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
 
         persist_kwargs = {
             "context": context,
-            "task_instance": self,
             "project_id": self.project_id,
             "location": self.location,
             "job_id": self.job_id,
