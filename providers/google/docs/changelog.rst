@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+16.0.0
+......
+
+Misc
+~~~~
+
+* ``Remove operator TextGenerationModelPredictOperator use GenerativeModelGenerateContentOperator instead``
+* ``Remove GenerativeModelHook.get_text_generation_model use GenerativeModelHook.get_generative_model instead``
+* ``Remove GenerativeModelHook.text_generation_model_predict use GenerativeModelHook.generative_model_generate_content instead``
+* ``Remove AutoMLDatasetLink use TranslationLegacyDatasetLink instead``
+* ``Remove AutoMLDatasetListLink use TranslationDatasetListLink instead``
+* ``Remove AutoMLModelLink use TranslationLegacyModelLink instead``
+* ``Remove AutoMLModelTrainLink use TranslationLegacyModelTrainLink instead``
+* ``Remove AutoMLModelPredictLink use TranslationLegacyModelPredictLink``
+* ``Remove split_tablename function from airflow.providers.google.cloud.hooks.bigquery``
+  ``use airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.split_tablename instead``
+
 15.1.0
 ......
 
@@ -60,7 +77,7 @@ Misc
 Misc
 ~~~~
 
-* ``Deprecate Life Scrience service (#48862)``
+* ``Deprecate Life Science service (#48862)``
 
 Doc-only
 ~~~~~~~~
