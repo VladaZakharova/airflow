@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Any
+
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -78,4 +80,23 @@ def make_authenticated_rest_api_request(
         json=body,
     )
     response.raise_for_status()
-    return response.json()
+    if response.text != "":
+        return response.json()
+
+
+def create_connection_request(connection_id: str, connection: dict[str, Any]):
+    return make_authenticated_rest_api_request(
+        path="/api/v2/connections",
+        method="POST",
+        body={
+            "connection_id": connection_id,
+            **connection,
+        },
+    )
+
+
+def delete_connection_request(connection_id: str):
+    return make_authenticated_rest_api_request(
+        path=f"/api/v2/connections/{connection_id}",
+        method="DELETE",
+    )

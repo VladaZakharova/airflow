@@ -21,11 +21,15 @@ import json
 import logging
 import os
 from datetime import datetime
+from typing import Any
+
+from requests.exceptions import HTTPError
 
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.sheets_to_gcs import GoogleSheetsToGCSOperator
 from airflow.providers.google.suite.operators.sheets import GoogleSheetsCreateSpreadsheetOperator
@@ -33,6 +37,12 @@ from airflow.providers.google.suite.transfers.gcs_to_sheets import GCSToGoogleSh
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
+
+if AIRFLOW_V_3_0_PLUS:
+    from tests_common.test_utils.api_client_helpers import (
+        create_connection_request,
+        delete_connection_request,
+    )
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
@@ -62,25 +72,33 @@ with DAG(
 
     @task
     def create_connection(connection_id: str):
-        conn = Connection(
-            conn_id=connection_id,
-            conn_type="google_cloud_platform",
-        )
+        log.info("Removing connection %s if it exists", connection_id)
         conn_extra = {
             "scope": "https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/cloud-platform",
             "project": PROJECT_ID,
             "keyfile_dict": "",  # Override to match your needs
         }
         conn_extra_json = json.dumps(conn_extra)
-        conn.set_extra(conn_extra_json)
+        if AIRFLOW_V_3_0_PLUS:
+            try:
+                delete_connection_request(connection_id=connection_id)
+            except HTTPError:
+                log.info("Connection '%s' does not exist. A new one will be created:", connection_id)
+            connection: dict[str, Any] = {"conn_type": "google_cloud_platform", "extra": conn_extra_json}
+            create_connection_request(connection_id=connection_id, connection=connection)
+        else:
+            conn = Connection(
+                conn_id=connection_id,
+                conn_type="google_cloud_platform",
+            )
+            conn.set_extra(conn_extra_json)
 
-        session = Session()
-        log.info("Removing connection %s if it exists", connection_id)
-        query = session.query(Connection).filter(Connection.conn_id == connection_id)
-        query.delete()
+            session = Session()
+            query = session.query(Connection).filter(Connection.conn_id == connection_id)
+            query.delete()
 
-        session.add(conn)
-        session.commit()
+            session.add(conn)
+            session.commit()
         log.info("Connection %s created", connection_id)
 
     create_connection_task = create_connection(connection_id=CONNECTION_ID)
@@ -119,11 +137,14 @@ with DAG(
 
     @task(task_id="delete_connection")
     def delete_connection(connection_id: str) -> None:
-        session = Session()
         log.info("Removing connection %s", connection_id)
-        query = session.query(Connection).filter(Connection.conn_id == connection_id)
-        query.delete()
-        session.commit()
+        if AIRFLOW_V_3_0_PLUS:
+            delete_connection_request(connection_id=connection_id)
+        else:
+            session = Session()
+            query = session.query(Connection).filter(Connection.conn_id == connection_id)
+            query.delete()
+            session.commit()
 
     delete_connection_task = delete_connection(connection_id=CONNECTION_ID)
 

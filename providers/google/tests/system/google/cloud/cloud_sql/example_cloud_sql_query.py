@@ -21,6 +21,7 @@ Example Airflow DAG that performs query in a Cloud SQL instance.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from collections import namedtuple
@@ -31,11 +32,13 @@ from pathlib import Path
 from typing import Any
 
 from googleapiclient import discovery
+from requests.exceptions import HTTPError
 
 from airflow import settings
 from airflow.decorators import task, task_group
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLCreateInstanceDatabaseOperator,
     CloudSQLCreateInstanceOperator,
@@ -47,6 +50,12 @@ from airflow.utils.trigger_rule import TriggerRule
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 from system.openlineage.operator import OpenLineageTestOperator
+
+if AIRFLOW_V_3_0_PLUS:
+    from tests_common.test_utils.api_client_helpers import (
+        create_connection_request,
+        delete_connection_request,
+    )
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
@@ -454,19 +463,30 @@ with DAG(
             port: str,
             kwargs: dict[str, Any],
         ) -> str | None:
-            session = settings.Session()
             log.info("Removing connection %s if it exists", connection_id)
-            query = session.query(Connection).filter(Connection.conn_id == connection_id)
-            query.delete()
+            if AIRFLOW_V_3_0_PLUS:
+                try:
+                    delete_connection_request(connection_id=connection_id)
+                except HTTPError:
+                    log.info("Connection '%s' does not exist. A new one will be created:", connection_id)
+            else:
+                session = settings.Session()
+                query = session.query(Connection).filter(Connection.conn_id == connection_id)
+                query.delete()
 
             connection: dict[str, Any] = deepcopy(kwargs)
             connection["extra"]["instance"] = instance
             connection["host"] = ip_address
             connection["extra"]["database_type"] = db_type
             connection["port"] = port
-            _conn = Connection(conn_id=connection_id, **connection)
-            session.add(_conn)
-            session.commit()
+
+            if AIRFLOW_V_3_0_PLUS:
+                connection["extra"] = json.dumps(connection["extra"])
+                create_connection_request(connection_id=connection_id, connection=connection)
+            else:
+                _conn = Connection(conn_id=connection_id, **connection)
+                session.add(_conn)
+                session.commit()
             log.info("Connection created: '%s'", connection_id)
             return connection_id
 
@@ -513,11 +533,14 @@ with DAG(
 
         @task()
         def delete_connection(connection_id: str) -> None:
-            session = Session()
             log.info("Removing connection %s", connection_id)
-            query = session.query(Connection).filter(Connection.conn_id == connection_id)
-            query.delete()
-            session.commit()
+            if AIRFLOW_V_3_0_PLUS:
+                delete_connection_request(connection_id=connection_id)
+            else:
+                session = Session()
+                query = session.query(Connection).filter(Connection.conn_id == connection_id)
+                query.delete()
+                session.commit()
 
         delete_connections_task = delete_connection.expand(
             connection_id=[f"{conn.id}_{database_type}" for conn in CONNECTIONS]

@@ -32,14 +32,16 @@ import os
 import time
 import uuid
 from datetime import datetime
-from typing import cast
+from typing import Any, cast
 
 from google.api_core.exceptions import NotFound
+from requests.exceptions import HTTPError
 
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.google.cloud.hooks.secret_manager import GoogleCloudSecretManagerHook
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.marketing_platform.operators.campaign_manager import (
@@ -57,6 +59,12 @@ from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+
+if AIRFLOW_V_3_0_PLUS:
+    from tests_common.test_utils.api_client_helpers import (
+        create_connection_request,
+        delete_connection_request,
+    )
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
@@ -155,10 +163,7 @@ with DAG(
 
     @task
     def create_connection(connection_id: str) -> None:
-        connection = Connection(
-            conn_id=connection_id,
-            conn_type="google_cloud_platform",
-        )
+        log.info("Removing connection %s if it exists", connection_id)
         extras = {
             "scope": "https://www.googleapis.com/auth/cloud-platform,"
             "https://www.googleapis.com/auth/ddmconversions,"
@@ -168,15 +173,27 @@ with DAG(
             extras["impersonation_chain"] = CM360_IMPERSONATION_CHAIN
 
         conn_extra_json = json.dumps(extras)
-        connection.set_extra(conn_extra_json)
 
-        session = Session()
-        log.info("Removing connection %s if it exists", connection_id)
-        query = session.query(Connection).filter(Connection.conn_id == connection_id)
-        query.delete()
+        if AIRFLOW_V_3_0_PLUS:
+            try:
+                delete_connection_request(connection_id=connection_id)
+            except HTTPError:
+                log.info("Connection '%s' does not exist. A new one will be created:", connection_id)
+            connection: dict[str, Any] = {"conn_type": "google_cloud_platform", "extra": conn_extra_json}
+            create_connection_request(connection_id=connection_id, connection=connection)
+        else:
+            connection = Connection(
+                conn_id=connection_id,
+                conn_type="google_cloud_platform",
+            )
+            connection.set_extra(conn_extra_json)
 
-        session.add(connection)
-        session.commit()
+            session = Session()
+            query = session.query(Connection).filter(Connection.conn_id == connection_id)
+            query.delete()
+
+            session.add(connection)
+            session.commit()
         log.info("Connection %s created", CONNECTION_ID)
 
     @task
@@ -291,11 +308,14 @@ with DAG(
 
     @task(task_id="delete_connection")
     def delete_connection(connection_id: str) -> None:
-        session = Session()
         log.info("Removing connection %s", connection_id)
-        query = session.query(Connection).filter(Connection.conn_id == connection_id)
-        query.delete()
-        session.commit()
+        if AIRFLOW_V_3_0_PLUS:
+            delete_connection_request(connection_id=connection_id)
+        else:
+            session = Session()
+            query = session.query(Connection).filter(Connection.conn_id == connection_id)
+            query.delete()
+            session.commit()
 
     (
         # TEST SETUP

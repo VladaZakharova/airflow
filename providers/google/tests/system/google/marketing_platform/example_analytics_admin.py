@@ -40,13 +40,16 @@ import json
 import logging
 import os
 from datetime import datetime
+from typing import Any
 
 from google.analytics import admin_v1beta as google_analytics
 from google.cloud.exceptions import NotFound
+from requests.exceptions import HTTPError
 
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.google.cloud.hooks.secret_manager import GoogleCloudSecretManagerHook
 from airflow.providers.google.marketing_platform.operators.analytics_admin import (
     GoogleAnalyticsAdminCreateDataStreamOperator,
@@ -59,6 +62,12 @@ from airflow.providers.google.marketing_platform.operators.analytics_admin impor
 )
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
+
+if AIRFLOW_V_3_0_PLUS:
+    from tests_common.test_utils.api_client_helpers import (
+        create_connection_request,
+        delete_connection_request,
+    )
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "google_analytics_admin"
@@ -90,25 +99,33 @@ with DAG(
 
     @task
     def create_connection(connection_id: str) -> None:
-        connection = Connection(
-            conn_id=connection_id,
-            conn_type="google_cloud_platform",
-        )
+        log.info("Removing connection %s if it exists", connection_id)
         conn_extra_json = json.dumps(
             {
                 "scope": "https://www.googleapis.com/auth/analytics.edit,"
                 "https://www.googleapis.com/auth/analytics.readonly",
             }
         )
-        connection.set_extra(conn_extra_json)
+        if AIRFLOW_V_3_0_PLUS:
+            try:
+                delete_connection_request(connection_id=connection_id)
+            except HTTPError:
+                log.info("Connection '%s' does not exist. A new one will be created:", connection_id)
+            connection: dict[str, Any] = {"conn_type": "google_cloud_platform", "extra": conn_extra_json}
+            create_connection_request(connection_id=connection_id, connection=connection)
+        else:
+            connection = Connection(
+                conn_id=connection_id,
+                conn_type="google_cloud_platform",
+            )
+            connection.set_extra(conn_extra_json)
 
-        session = Session()
-        log.info("Removing connection %s if it exists", connection_id)
-        query = session.query(Connection).filter(Connection.conn_id == connection_id)
-        query.delete()
+            session = Session()
+            query = session.query(Connection).filter(Connection.conn_id == connection_id)
+            query.delete()
 
-        session.add(connection)
-        session.commit()
+            session.add(connection)
+            session.commit()
         log.info("Connection %s created", CONNECTION_ID)
 
     create_connection_task = create_connection(connection_id=CONNECTION_ID)
@@ -197,11 +214,14 @@ with DAG(
 
     @task(task_id="delete_connection")
     def delete_connection(connection_id: str) -> None:
-        session = Session()
         log.info("Removing connection %s", connection_id)
-        query = session.query(Connection).filter(Connection.conn_id == connection_id)
-        query.delete()
-        session.commit()
+        if AIRFLOW_V_3_0_PLUS:
+            delete_connection_request(connection_id=connection_id)
+        else:
+            session = Session()
+            query = session.query(Connection).filter(Connection.conn_id == connection_id)
+            query.delete()
+            session.commit()
 
     delete_connection_task = delete_connection(connection_id=CONNECTION_ID)
 
