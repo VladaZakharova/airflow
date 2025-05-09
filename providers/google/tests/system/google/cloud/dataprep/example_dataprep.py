@@ -26,14 +26,19 @@ This DAG relies on the following OS environment variables
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from datetime import datetime
+from typing import Any
+
+from requests.exceptions import HTTPError
 
 from airflow import models
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.baseoperator import chain
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.google.cloud.hooks.dataprep import GoogleDataprepHook
 from airflow.providers.google.cloud.operators.dataprep import (
     DataprepCopyFlowOperator,
@@ -49,6 +54,12 @@ from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+
+if AIRFLOW_V_3_0_PLUS:
+    from tests_common.test_utils.api_client_helpers import (
+        create_connection_request,
+        delete_connection_request,
+    )
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "dataprep"
@@ -77,6 +88,7 @@ WRITE_SETTINGS = {
     ],
 }
 
+
 log = logging.getLogger(__name__)
 
 
@@ -96,19 +108,31 @@ with models.DAG(
 
     @task
     def create_connection(connection_id: str) -> None:
-        connection = Connection(
-            conn_id=connection_id,
-            description="Example Dataprep connection",
-            conn_type="dataprep",
-            extra={"token": DATAPREP_TOKEN},
-        )
-        session = Session()
         log.info("Removing connection %s if it exists", connection_id)
-        query = session.query(Connection).filter(Connection.conn_id == connection_id)
-        query.delete()
+        if AIRFLOW_V_3_0_PLUS:
+            try:
+                delete_connection_request(connection_id=connection_id)
+            except HTTPError:
+                log.info("Connection '%s' does not exist. A new one will be created:", connection_id)
+            connection: dict[str, Any] = {
+                "description": "Example Dataprep connection",
+                "conn_type": "dataprep",
+                "extra": json.dumps({"token": DATAPREP_TOKEN}),
+            }
+            create_connection_request(connection_id=connection_id, connection=connection)
+        else:
+            connection = Connection(
+                conn_id=connection_id,
+                description="Example Dataprep connection",
+                conn_type="dataprep",
+                extra={"token": DATAPREP_TOKEN},
+            )
+            session = Session()
+            query = session.query(Connection).filter(Connection.conn_id == connection_id)
+            query.delete()
 
-        session.add(connection)
-        session.commit()
+            session.add(connection)
+            session.commit()
         log.info("Connection created: '%s'", connection_id)
 
     create_connection_task = create_connection(connection_id=CONNECTION_ID)
@@ -280,11 +304,14 @@ with models.DAG(
 
     @task(task_id="delete_connection")
     def delete_connection(connection_id: str) -> None:
-        session = Session()
         log.info("Removing connection %s", connection_id)
-        query = session.query(Connection).filter(Connection.conn_id == connection_id)
-        query.delete()
-        session.commit()
+        if AIRFLOW_V_3_0_PLUS:
+            delete_connection_request(connection_id=connection_id)
+        else:
+            session = Session()
+            query = session.query(Connection).filter(Connection.conn_id == connection_id)
+            query.delete()
+            session.commit()
 
     delete_connection_task = delete_connection(connection_id=CONNECTION_ID)
 
