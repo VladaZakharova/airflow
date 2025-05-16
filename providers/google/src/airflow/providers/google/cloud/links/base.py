@@ -97,8 +97,13 @@ class BaseGoogleLink(BaseOperatorLink):
         conf = self.get_config(operator, ti_key)
         if not conf:
             return ""
+        return self._format_link(**conf)
 
-        formatted_str = self.format_str.format(**conf)
-        if formatted_str.startswith("http"):
-            return formatted_str
-        return BASE_LINK + formatted_str
+    def _format_link(self, **kwargs):
+        try:
+            formatted_str = self.format_str.format(**kwargs)
+            if formatted_str.startswith("http"):
+                return formatted_str
+            return BASE_LINK + formatted_str
+        except KeyError:
+            return ""

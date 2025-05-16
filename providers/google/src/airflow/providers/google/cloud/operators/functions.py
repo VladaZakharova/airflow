@@ -244,7 +244,9 @@ class CloudFunctionDeployFunctionOperator(GoogleCloudBaseOperator):
         if project_id:
             CloudFunctionsDetailsLink.persist(
                 context=context,
+                location=self.location,
                 project_id=project_id,
+                function_name=self.body["name"].split("/")[-1],
             )
 
 
