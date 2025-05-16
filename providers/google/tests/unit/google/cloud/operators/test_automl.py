@@ -153,9 +153,9 @@ class TestAutoMLPredictOperator:
         )
         mock_link_persist.assert_called_once_with(
             context=mock_context,
-            task_instance=op,
             model_id=MODEL_ID,
             project_id=GCP_PROJECT_ID,
+            location=GCP_LOCATION,
             dataset_id=DATASET_ID,
         )
 

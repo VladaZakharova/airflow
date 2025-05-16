@@ -276,6 +276,14 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
             is_dataflow_job_id_exist_callback,
         )
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.dataflow_config.project_id,
+            "region": self.dataflow_config.location,
+            "job_id": self.dataflow_job_id,
+        }
+
     def execute_complete(self, context: Context, event: dict[str, Any]):
         """
         Execute when the trigger fires - returns immediately.
@@ -337,7 +345,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
         "dataflow_config",
     )
     template_fields_renderers = {"dataflow_config": "json", "pipeline_options": "json"}
-    operator_extra_links = (DataflowJobLink(),) if GOOGLE_PROVIDER_VERSION else ()
+    operator_extra_links = (DataflowJobLink(),)
 
     def __init__(
         self,
@@ -626,13 +634,6 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                     is_dataflow_job_id_exist_callback=self.is_dataflow_job_id_exist_callback,
                 )
             if self.dataflow_job_name and self.dataflow_config.location:
-                DataflowJobLink.persist(
-                    self,
-                    context,
-                    self.dataflow_config.project_id,
-                    self.dataflow_config.location,
-                    self.dataflow_job_id,
-                )
                 if self.deferrable:
                     trigger_args = {
                         "job_id": self.dataflow_job_id,
@@ -796,13 +797,6 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
                         process_line_callback=process_line_callback,
                     )
 
-                DataflowJobLink.persist(
-                    self,
-                    context,
-                    self.dataflow_config.project_id,
-                    self.dataflow_config.location,
-                    self.dataflow_job_id,
-                )
                 if dataflow_job_name and self.dataflow_config.location:
                     self.dataflow_hook.wait_for_done(
                         job_name=dataflow_job_name,

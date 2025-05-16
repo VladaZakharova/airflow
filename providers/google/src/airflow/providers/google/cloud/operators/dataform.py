@@ -258,7 +258,6 @@ class DataformCreateWorkflowInvocationOperator(GoogleCloudBaseOperator):
         )
         workflow_invocation_id = result.name.split("/")[-1]
         DataformWorkflowInvocationLink.persist(
-            operator_instance=self,
             context=context,
             project_id=self.project_id,
             region=self.region,
@@ -412,7 +411,6 @@ class DataformQueryWorkflowInvocationActionsOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         DataformWorkflowInvocationLink.persist(
-            operator_instance=self,
             context=context,
             project_id=self.project_id,
             region=self.region,
@@ -576,7 +574,6 @@ class DataformCreateRepositoryOperator(GoogleCloudBaseOperator):
         )
 
         DataformRepositoryLink.persist(
-            operator_instance=self,
             context=context,
             project_id=self.project_id,
             region=self.region,
@@ -735,7 +732,6 @@ class DataformCreateWorkspaceOperator(GoogleCloudBaseOperator):
         )
 
         DataformWorkspaceLink.persist(
-            operator_instance=self,
             context=context,
             project_id=self.project_id,
             region=self.region,

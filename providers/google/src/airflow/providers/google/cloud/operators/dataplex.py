@@ -150,6 +150,15 @@ class DataplexCreateTaskOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.asynchronous = asynchronous
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "lake_id": self.lake_id,
+            "task_id": self.dataplex_task_id,
+            "region": self.region,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context) -> dict:
         hook = DataplexHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -157,7 +166,6 @@ class DataplexCreateTaskOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         self.log.info("Creating Dataplex task %s", self.dataplex_task_id)
-        DataplexTaskLink.persist(context=context, task_instance=self)
 
         try:
             operation = hook.create_task(
@@ -351,6 +359,14 @@ class DataplexListTasksOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+            "lake_id": self.lake_id,
+            "region": self.region,
+        }
+
     def execute(self, context: Context) -> list[dict]:
         hook = DataplexHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -358,7 +374,6 @@ class DataplexListTasksOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         self.log.info("Listing Dataplex tasks from lake %s", self.lake_id)
-        DataplexTasksLink.persist(context=context, task_instance=self)
 
         tasks = hook.list_tasks(
             project_id=self.project_id,
@@ -430,6 +445,15 @@ class DataplexGetTaskOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "lake_id": self.lake_id,
+            "task_id": self.dataplex_task_id,
+            "region": self.region,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context) -> dict:
         hook = DataplexHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -437,7 +461,6 @@ class DataplexGetTaskOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         self.log.info("Retrieving Dataplex task %s", self.dataplex_task_id)
-        DataplexTaskLink.persist(context=context, task_instance=self)
 
         task = hook.get_task(
             project_id=self.project_id,
@@ -448,7 +471,6 @@ class DataplexGetTaskOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        DataplexTasksLink.persist(context=context, task_instance=self)
         return Task.to_dict(task)
 
 
@@ -522,6 +544,14 @@ class DataplexCreateLakeOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.asynchronous = asynchronous
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "lake_id": self.lake_id,
+            "region": self.region,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context) -> dict:
         hook = DataplexHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -566,10 +596,6 @@ class DataplexCreateLakeOperator(GoogleCloudBaseOperator):
                 if lake["state"] != "CREATING":
                     break
                 time.sleep(time_to_wait)
-        DataplexLakeLink.persist(
-            context=context,
-            task_instance=self,
-        )
         return Lake.to_dict(lake)
 
 
@@ -625,6 +651,14 @@ class DataplexDeleteLakeOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "lake_id": self.lake_id,
+            "region": self.region,
+            "project_id": self.project_id,
+        }
+
     def execute(self, context: Context) -> None:
         hook = DataplexHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -642,7 +676,6 @@ class DataplexDeleteLakeOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        DataplexLakeLink.persist(context=context, task_instance=self)
         hook.wait_for_operation(timeout=self.timeout, operation=operation)
         self.log.info("Dataplex lake %s deleted successfully!", self.lake_id)
 
@@ -2179,6 +2212,13 @@ class DataplexCatalogBaseOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "location": self.location,
+            "project_id": self.project_id,
+        }
+
 
 class DataplexCatalogCreateEntryGroupOperator(DataplexCatalogBaseOperator):
     """
@@ -2230,12 +2270,14 @@ class DataplexCatalogCreateEntryGroupOperator(DataplexCatalogBaseOperator):
         self.entry_group_configuration = entry_group_configuration
         self.validate_request = validate_request
 
-    def execute(self, context: Context):
-        DataplexCatalogEntryGroupLink.persist(
-            context=context,
-            task_instance=self,
-        )
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            **super().extra_links_params,
+            "entry_group_id": self.entry_group_id,
+        }
 
+    def execute(self, context: Context):
         if self.validate_request:
             self.log.info("Validating a Create Dataplex Catalog EntryGroup request.")
         else:
@@ -2316,11 +2358,14 @@ class DataplexCatalogGetEntryGroupOperator(DataplexCatalogBaseOperator):
         super().__init__(*args, **kwargs)
         self.entry_group_id = entry_group_id
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            **super().extra_links_params,
+            "entry_group_id": self.entry_group_id,
+        }
+
     def execute(self, context: Context):
-        DataplexCatalogEntryGroupLink.persist(
-            context=context,
-            task_instance=self,
-        )
         self.log.info(
             "Retrieving Dataplex Catalog EntryGroup %s.",
             self.entry_group_id,
@@ -2462,10 +2507,6 @@ class DataplexCatalogListEntryGroupsOperator(DataplexCatalogBaseOperator):
         self.order_by = order_by
 
     def execute(self, context: Context):
-        DataplexCatalogEntryGroupsLink.persist(
-            context=context,
-            task_instance=self,
-        )
         self.log.info(
             "Listing Dataplex Catalog EntryGroup from location %s.",
             self.location,
@@ -2554,12 +2595,14 @@ class DataplexCatalogUpdateEntryGroupOperator(DataplexCatalogBaseOperator):
         self.update_mask = update_mask
         self.validate_request = validate_request
 
-    def execute(self, context: Context):
-        DataplexCatalogEntryGroupLink.persist(
-            context=context,
-            task_instance=self,
-        )
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            **super().extra_links_params,
+            "entry_group_id": self.entry_group_id,
+        }
 
+    def execute(self, context: Context):
         if self.validate_request:
             self.log.info("Validating an Update Dataplex Catalog EntryGroup request.")
         else:
@@ -2644,12 +2687,14 @@ class DataplexCatalogCreateEntryTypeOperator(DataplexCatalogBaseOperator):
         self.entry_type_configuration = entry_type_configuration
         self.validate_request = validate_request
 
-    def execute(self, context: Context):
-        DataplexCatalogEntryTypeLink.persist(
-            context=context,
-            task_instance=self,
-        )
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            **super().extra_links_params,
+            "entry_type_id": self.entry_type_id,
+        }
 
+    def execute(self, context: Context):
         if self.validate_request:
             self.log.info("Validating a Create Dataplex Catalog EntryType request.")
         else:
@@ -2730,11 +2775,14 @@ class DataplexCatalogGetEntryTypeOperator(DataplexCatalogBaseOperator):
         super().__init__(*args, **kwargs)
         self.entry_type_id = entry_type_id
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            **super().extra_links_params,
+            "entry_type_id": self.entry_type_id,
+        }
+
     def execute(self, context: Context):
-        DataplexCatalogEntryTypeLink.persist(
-            context=context,
-            task_instance=self,
-        )
         self.log.info(
             "Retrieving Dataplex Catalog EntryType %s.",
             self.entry_type_id,
@@ -2876,10 +2924,6 @@ class DataplexCatalogListEntryTypesOperator(DataplexCatalogBaseOperator):
         self.order_by = order_by
 
     def execute(self, context: Context):
-        DataplexCatalogEntryTypesLink.persist(
-            context=context,
-            task_instance=self,
-        )
         self.log.info(
             "Listing Dataplex Catalog EntryType from location %s.",
             self.location,
@@ -2968,12 +3012,14 @@ class DataplexCatalogUpdateEntryTypeOperator(DataplexCatalogBaseOperator):
         self.update_mask = update_mask
         self.validate_request = validate_request
 
-    def execute(self, context: Context):
-        DataplexCatalogEntryTypeLink.persist(
-            context=context,
-            task_instance=self,
-        )
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            **super().extra_links_params,
+            "entry_type_id": self.entry_type_id,
+        }
 
+    def execute(self, context: Context):
         if self.validate_request:
             self.log.info("Validating an Update Dataplex Catalog EntryType request.")
         else:
@@ -3058,12 +3104,14 @@ class DataplexCatalogCreateAspectTypeOperator(DataplexCatalogBaseOperator):
         self.aspect_type_configuration = aspect_type_configuration
         self.validate_request = validate_request
 
-    def execute(self, context: Context):
-        DataplexCatalogAspectTypeLink.persist(
-            context=context,
-            task_instance=self,
-        )
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            **super().extra_links_params,
+            "aspect_type_id": self.aspect_type_id,
+        }
 
+    def execute(self, context: Context):
         if self.validate_request:
             self.log.info("Validating a Create Dataplex Catalog AspectType request.")
         else:
@@ -3144,11 +3192,14 @@ class DataplexCatalogGetAspectTypeOperator(DataplexCatalogBaseOperator):
         super().__init__(*args, **kwargs)
         self.aspect_type_id = aspect_type_id
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            **super().extra_links_params,
+            "aspect_type_id": self.aspect_type_id,
+        }
+
     def execute(self, context: Context):
-        DataplexCatalogAspectTypeLink.persist(
-            context=context,
-            task_instance=self,
-        )
         self.log.info(
             "Retrieving Dataplex Catalog AspectType %s.",
             self.aspect_type_id,
@@ -3223,10 +3274,6 @@ class DataplexCatalogListAspectTypesOperator(DataplexCatalogBaseOperator):
         self.order_by = order_by
 
     def execute(self, context: Context):
-        DataplexCatalogAspectTypesLink.persist(
-            context=context,
-            task_instance=self,
-        )
         self.log.info(
             "Listing Dataplex Catalog AspectType from location %s.",
             self.location,
@@ -3315,12 +3362,14 @@ class DataplexCatalogUpdateAspectTypeOperator(DataplexCatalogBaseOperator):
         self.update_mask = update_mask
         self.validate_request = validate_request
 
-    def execute(self, context: Context):
-        DataplexCatalogAspectTypeLink.persist(
-            context=context,
-            task_instance=self,
-        )
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            **super().extra_links_params,
+            "aspect_type_id": self.aspect_type_id,
+        }
 
+    def execute(self, context: Context):
         if self.validate_request:
             self.log.info("Validating an Update Dataplex Catalog AspectType request.")
         else:
@@ -3493,12 +3542,15 @@ class DataplexCatalogCreateEntryOperator(DataplexCatalogBaseOperator):
                 f"Missing required fields in Entry configuration: {', '.join(missing_fields)}. "
             )
 
-    def execute(self, context: Context):
-        DataplexCatalogEntryLink.persist(
-            context=context,
-            task_instance=self,
-        )
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            **super().extra_links_params,
+            "entry_id": self.entry_id,
+            "entry_group_id": self.entry_group_id,
+        }
 
+    def execute(self, context: Context):
         self._validate_fields(self.entry_configuration)
         try:
             entry = self.hook.create_entry(
@@ -3599,11 +3651,15 @@ class DataplexCatalogGetEntryOperator(DataplexCatalogBaseOperator):
         self.aspect_types = aspect_types
         self.paths = paths
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            **super().extra_links_params,
+            "entry_id": self.entry_id,
+            "entry_group_id": self.entry_group_id,
+        }
+
     def execute(self, context: Context):
-        DataplexCatalogEntryLink.persist(
-            context=context,
-            task_instance=self,
-        )
         self.log.info(
             "Retrieving Dataplex Catalog Entry %s.",
             self.entry_id,
@@ -3701,11 +3757,14 @@ class DataplexCatalogListEntriesOperator(DataplexCatalogBaseOperator):
         self.page_token = page_token
         self.filter_by = filter_by
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            **super().extra_links_params,
+            "entry_group_id": self.entry_group_id,
+        }
+
     def execute(self, context: Context):
-        DataplexCatalogEntryGroupLink.persist(
-            context=context,
-            task_instance=self,
-        )
         self.log.info(
             "Listing Dataplex Catalog Entry from location %s.",
             self.location,
@@ -3903,11 +3962,15 @@ class DataplexCatalogLookupEntryOperator(DataplexCatalogBaseOperator):
         self.aspect_types = aspect_types
         self.paths = paths
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            **super().extra_links_params,
+            "entry_id": self.entry_id,
+            "entry_group_id": self.entry_group_id,
+        }
+
     def execute(self, context: Context):
-        DataplexCatalogEntryLink.persist(
-            context=context,
-            task_instance=self,
-        )
         self.log.info(
             "Looking for Dataplex Catalog Entry %s.",
             self.entry_id,
@@ -4022,12 +4085,15 @@ class DataplexCatalogUpdateEntryOperator(DataplexCatalogBaseOperator):
         self.delete_missing_aspects = delete_missing_aspects
         self.aspect_keys = aspect_keys
 
-    def execute(self, context: Context):
-        DataplexCatalogEntryLink.persist(
-            context=context,
-            task_instance=self,
-        )
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            **super().extra_links_params,
+            "entry_id": self.entry_id,
+            "entry_group_id": self.entry_group_id,
+        }
 
+    def execute(self, context: Context):
         try:
             entry = self.hook.update_entry(
                 location=self.location,
