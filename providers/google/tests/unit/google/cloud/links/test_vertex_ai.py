@@ -26,7 +26,7 @@ from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIRayClusterLink,
     VertexAIRayClusterListLink,
 )
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.google.version_compat import AIRFLOW_V_2_LINK_DEPRECATION_WARNING, AIRFLOW_V_3_0_PLUS
 
 TEST_LOCATION = "test-location"
 TEST_CLUSTER_ID = "test-cluster-id"
@@ -59,12 +59,7 @@ class TestVertexAIRayClusterLink:
                 project_id=TEST_PROJECT_ID,
             )
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 VertexAIRayClusterLink.persist(
                     context=mock_context,
                     location=TEST_LOCATION,
@@ -98,12 +93,7 @@ class TestVertexAIRayClusterListLink:
                 project_id=TEST_PROJECT_ID,
             )
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 VertexAIRayClusterListLink.persist(
                     context=mock_context,
                     project_id=TEST_PROJECT_ID,

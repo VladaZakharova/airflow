@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.google.version_compat import AIRFLOW_V_2_LINK_DEPRECATION_WARNING, AIRFLOW_V_3_0_PLUS
 
 # For no Pydantic environment, we need to skip the tests
 pytest.importorskip("google.cloud.aiplatform_v1")
@@ -97,12 +97,9 @@ class TestAutoMLTrainModelOperator:
             if AIRFLOW_V_3_0_PLUS:
                 op.execute(context=mock.MagicMock())
             else:
-                deprecation_warning = (
-                    "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                    "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                    "to be removed after the Airflow 3 Migration completed!"
-                )
-                with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+                with pytest.raises(
+                    AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING
+                ):
                     op.execute(context=mock.MagicMock())
         mock_hook.return_value.create_model.assert_called_once_with(
             model=MODEL,
@@ -232,12 +229,7 @@ class TestAutoMLCreateImportOperator:
         if AIRFLOW_V_3_0_PLUS:
             op.execute(context=mock.MagicMock())
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 op.execute(context=mock.MagicMock())
         mock_hook.return_value.create_dataset.assert_called_once_with(
             dataset=DATASET,
@@ -358,12 +350,7 @@ class TestAutoMLGetModelOperator:
         if AIRFLOW_V_3_0_PLUS:
             op.execute(context=mock.MagicMock())
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 op.execute(context=mock.MagicMock())
         mock_hook.return_value.get_model.assert_called_once_with(
             location=GCP_LOCATION,
@@ -488,12 +475,7 @@ class TestAutoMLDatasetImportOperator:
         if AIRFLOW_V_3_0_PLUS:
             op.execute(context=mock.MagicMock())
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 op.execute(context=mock.MagicMock())
         mock_hook.return_value.import_data.assert_called_once_with(
             input_config=INPUT_CONFIG,
@@ -573,12 +555,7 @@ class TestAutoMLDatasetListOperator:
         if AIRFLOW_V_3_0_PLUS:
             op.execute(context=mock.MagicMock())
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 op.execute(context=mock.MagicMock())
         mock_hook.return_value.list_datasets.assert_called_once_with(
             location=GCP_LOCATION,

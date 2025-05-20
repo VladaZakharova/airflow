@@ -21,7 +21,7 @@ import warnings
 from typing import TYPE_CHECKING, ClassVar
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.google.version_compat import AIRFLOW_V_2_LINK_DEPRECATION_WARNING, AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models import BaseOperator
@@ -75,9 +75,7 @@ class BaseGoogleLink(BaseOperatorLink):
         params = {}
         if not AIRFLOW_V_3_0_PLUS:
             warnings.warn(
-                "GoogleBaseLink.persist method call with no extra value is Deprecated for Airflow 3."
-                " The method calls (only with context) needs to be removed after the Airflow 3 Migration"
-                " completed!",
+                AIRFLOW_V_2_LINK_DEPRECATION_WARNING,
                 AirflowProviderDeprecationWarning,
                 stacklevel=3,
             )

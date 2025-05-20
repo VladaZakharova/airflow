@@ -20,7 +20,7 @@ from __future__ import annotations
 import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.google.version_compat import AIRFLOW_V_2_LINK_DEPRECATION_WARNING, AIRFLOW_V_3_0_PLUS
 
 # For no Pydantic environment, we need to skip the tests
 pytest.importorskip("google.cloud.aiplatform_v1")
@@ -65,12 +65,7 @@ class TestTranslationLegacyDatasetLink:
         if AIRFLOW_V_3_0_PLUS:
             link.persist(context={"ti": ti}, dataset_id=DATASET, project_id=GCP_PROJECT_ID)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 link.persist(context={"ti": ti}, dataset_id=DATASET, project_id=GCP_PROJECT_ID)
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
@@ -101,12 +96,7 @@ class TestTranslationDatasetListLink:
         if AIRFLOW_V_3_0_PLUS:
             link.persist(context={"ti": ti}, project_id=GCP_PROJECT_ID)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 link.persist(context={"ti": ti}, project_id=GCP_PROJECT_ID)
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
@@ -182,12 +172,7 @@ class TestTranslationLegacyModelTrainLink:
                 project_id=GCP_PROJECT_ID,
             )
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 link.persist(
                     context={"ti": ti},
                     project_id=GCP_PROJECT_ID,

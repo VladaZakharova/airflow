@@ -42,7 +42,7 @@ from airflow.providers.google.cloud.operators.alloy_db import (
     AlloyDBUpdateUserOperator,
     AlloyDBWriteBaseOperator,
 )
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.google.version_compat import AIRFLOW_V_2_LINK_DEPRECATION_WARNING, AIRFLOW_V_3_0_PLUS
 
 TEST_TASK_ID = "test-task-id"
 TEST_GCP_PROJECT = "test-project"
@@ -294,12 +294,7 @@ class TestAlloyDBCreateClusterOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with("Creating an AlloyDB cluster.")
@@ -347,12 +342,7 @@ class TestAlloyDBCreateClusterOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with("Creating an AlloyDB cluster.")
@@ -399,12 +389,7 @@ class TestAlloyDBCreateClusterOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with("Validating a Create AlloyDB cluster request.")
@@ -451,12 +436,7 @@ class TestAlloyDBCreateClusterOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with("Validating a Create AlloyDB cluster request.")
@@ -497,12 +477,7 @@ class TestAlloyDBCreateClusterOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 result = self.operator.execute(context=mock_context)
 
         assert not mock_log.info.called
@@ -535,12 +510,7 @@ class TestAlloyDBCreateClusterOperator:
             with pytest.raises(AirflowException):
                 self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 with pytest.raises(AirflowException):
                     self.operator.execute(context=mock_context)
 
@@ -608,12 +578,7 @@ class TestAlloyDBUpdateClusterOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 result = self.operator.execute(context=mock_context)
 
         mock_update_cluster.assert_called_once_with(
@@ -661,12 +626,7 @@ class TestAlloyDBUpdateClusterOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with(expected_message)
@@ -701,12 +661,7 @@ class TestAlloyDBUpdateClusterOperator:
             with pytest.raises(AirflowException):
                 self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 with pytest.raises(AirflowException):
                     self.operator.execute(context=mock_context)
 
@@ -969,12 +924,7 @@ class TestAlloyDBCreateInstanceOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with("Creating an AlloyDB instance.")
@@ -1023,12 +973,7 @@ class TestAlloyDBCreateInstanceOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with("Creating an AlloyDB instance.")
@@ -1076,12 +1021,7 @@ class TestAlloyDBCreateInstanceOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with("Validating a Create AlloyDB instance request.")
@@ -1129,12 +1069,7 @@ class TestAlloyDBCreateInstanceOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with("Validating a Create AlloyDB instance request.")
@@ -1176,12 +1111,7 @@ class TestAlloyDBCreateInstanceOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 result = self.operator.execute(context=mock_context)
 
         assert not mock_log.info.called
@@ -1214,12 +1144,7 @@ class TestAlloyDBCreateInstanceOperator:
             with pytest.raises(AirflowException):
                 self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 with pytest.raises(AirflowException):
                     self.operator.execute(context=mock_context)
 
@@ -1294,12 +1219,7 @@ class TestAlloyDBUpdateInstanceOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 result = self.operator.execute(context=mock_context)
 
         mock_update_instance.assert_called_once_with(
@@ -1348,12 +1268,7 @@ class TestAlloyDBUpdateInstanceOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with(expected_message)
@@ -1389,12 +1304,7 @@ class TestAlloyDBUpdateInstanceOperator:
             with pytest.raises(AirflowException):
                 self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 with pytest.raises(AirflowException):
                     self.operator.execute(context=mock_context)
 
@@ -1641,12 +1551,7 @@ class TestAlloyDBCreateUserOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_has_calls(
@@ -1685,12 +1590,7 @@ class TestAlloyDBCreateUserOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with("Validating a Create AlloyDB user request.")
@@ -1721,12 +1621,7 @@ class TestAlloyDBCreateUserOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 result = self.operator.execute(context=mock_context)
 
         assert not mock_log.info.called
@@ -1748,12 +1643,7 @@ class TestAlloyDBCreateUserOperator:
             with pytest.raises(AirflowException):
                 self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 with pytest.raises(AirflowException):
                     self.operator.execute(context=mock_context)
 
@@ -1823,12 +1713,7 @@ class TestAlloyDBUpdateUserOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 result = self.operator.execute(context=mock_context)
 
         mock_update_user.assert_called_once_with(
@@ -1867,12 +1752,7 @@ class TestAlloyDBUpdateUserOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with(expected_message)
@@ -1906,12 +1786,7 @@ class TestAlloyDBUpdateUserOperator:
             with pytest.raises(AirflowException):
                 self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 with pytest.raises(AirflowException):
                     self.operator.execute(context=mock_context)
 
@@ -2145,12 +2020,7 @@ class TestAlloyDBCreateBackupOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with("Creating an AlloyDB backup.")
@@ -2195,12 +2065,7 @@ class TestAlloyDBCreateBackupOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with("Validating a Create AlloyDB backup request.")
@@ -2239,12 +2104,7 @@ class TestAlloyDBCreateBackupOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 result = self.operator.execute(context=mock_context)
 
         assert not mock_log.info.called
@@ -2275,12 +2135,7 @@ class TestAlloyDBCreateBackupOperator:
             with pytest.raises(AirflowException):
                 self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 with pytest.raises(AirflowException):
                     self.operator.execute(context=mock_context)
 
@@ -2350,12 +2205,7 @@ class TestAlloyDBUpdateBackupOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 result = self.operator.execute(context=mock_context)
 
         mock_update_backup.assert_called_once_with(
@@ -2397,12 +2247,7 @@ class TestAlloyDBUpdateBackupOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with(expected_message)
@@ -2437,12 +2282,7 @@ class TestAlloyDBUpdateBackupOperator:
             with pytest.raises(AirflowException):
                 self.operator.execute(context=mock_context)
         else:
-            deprecation_warning = (
-                "airflow.exceptions.AirflowProviderDeprecationWarning: GoogleBaseLink.persist method call "
-                "with no extra value is Deprecated for Airflow 3. The method calls (only with context) needs "
-                "to be removed after the Airflow 3 Migration completed!"
-            )
-            with pytest.raises(AirflowProviderDeprecationWarning, match=deprecation_warning):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
                 with pytest.raises(AirflowException):
                     self.operator.execute(context=mock_context)
 
