@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from unittest import mock
 
 import pytest
@@ -50,7 +51,9 @@ class TestCloudRunJobLoggingLink:
                 log_uri=TEST_LOG_URI,
             )
         else:
-            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
+            with pytest.raises(
+                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
+            ):
                 CloudRunJobLoggingLink.persist(
                     context=mock_context,
                     log_uri=TEST_LOG_URI,
@@ -78,7 +81,9 @@ class TestCloudRunJobLoggingLink:
         if AIRFLOW_V_3_0_PLUS:
             link.persist(context={"ti": ti}, log_uri=TEST_LOG_URI)
         else:
-            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
+            with pytest.raises(
+                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
+            ):
                 link.persist(context={"ti": ti}, log_uri=TEST_LOG_URI)
 
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:

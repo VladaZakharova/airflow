@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from typing import Any
 from unittest import mock
 
@@ -64,7 +65,9 @@ class TestBaseGoogleLink:
                 project_id=TEST_PROJECT_ID,
             )
         else:
-            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
+            with pytest.raises(
+                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
+            ):
                 GoogleLink.persist(
                     context=mock_context,
                     location=TEST_LOCATION,

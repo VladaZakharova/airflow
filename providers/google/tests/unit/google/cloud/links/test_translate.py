@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -65,7 +67,9 @@ class TestTranslationLegacyDatasetLink:
         if AIRFLOW_V_3_0_PLUS:
             link.persist(context={"ti": ti}, dataset_id=DATASET, project_id=GCP_PROJECT_ID)
         else:
-            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
+            with pytest.raises(
+                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
+            ):
                 link.persist(context={"ti": ti}, dataset_id=DATASET, project_id=GCP_PROJECT_ID)
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
@@ -96,7 +100,9 @@ class TestTranslationDatasetListLink:
         if AIRFLOW_V_3_0_PLUS:
             link.persist(context={"ti": ti}, project_id=GCP_PROJECT_ID)
         else:
-            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
+            with pytest.raises(
+                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
+            ):
                 link.persist(context={"ti": ti}, project_id=GCP_PROJECT_ID)
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
@@ -172,7 +178,9 @@ class TestTranslationLegacyModelTrainLink:
                 project_id=GCP_PROJECT_ID,
             )
         else:
-            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
+            with pytest.raises(
+                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
+            ):
                 link.persist(
                     context={"ti": ti},
                     project_id=GCP_PROJECT_ID,

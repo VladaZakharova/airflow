@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -214,7 +216,9 @@ class TestDataplexCatalogEntryGroupLink:
         if AIRFLOW_V_3_0_PLUS:
             link.persist(context={"ti": ti})
         else:
-            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_WARNING):
+            with pytest.raises(
+                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
+            ):
                 link.persist(context={"ti": ti})
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
