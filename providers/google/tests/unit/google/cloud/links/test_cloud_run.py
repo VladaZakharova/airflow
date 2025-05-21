@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import re
 from unittest import mock
 
 import pytest
@@ -25,7 +24,7 @@ import pytest
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.links.cloud_run import CloudRunJobLoggingLink
 from airflow.providers.google.cloud.operators.cloud_run import CloudRunExecuteJobOperator
-from airflow.providers.google.version_compat import AIRFLOW_V_2_LINK_DEPRECATION_WARNING, AIRFLOW_V_3_0_PLUS
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
@@ -33,6 +32,7 @@ if AIRFLOW_V_3_0_PLUS:
 TEST_LOG_URI = (
     "https://console.cloud.google.com/run/jobs/logs?project=test-project&region=test-region&job=test-job"
 )
+AIRFLOW_V_2_LINK_DEPRECATION_MSG = "persist method call with no extra value is Deprecated for Airflow 3"
 
 
 class TestCloudRunJobLoggingLink:
@@ -51,9 +51,7 @@ class TestCloudRunJobLoggingLink:
                 log_uri=TEST_LOG_URI,
             )
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 CloudRunJobLoggingLink.persist(
                     context=mock_context,
                     log_uri=TEST_LOG_URI,
@@ -81,9 +79,7 @@ class TestCloudRunJobLoggingLink:
         if AIRFLOW_V_3_0_PLUS:
             link.persist(context={"ti": ti}, log_uri=TEST_LOG_URI)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 link.persist(context={"ti": ti}, log_uri=TEST_LOG_URI)
 
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:

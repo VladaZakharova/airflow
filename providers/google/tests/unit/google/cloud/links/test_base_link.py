@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import re
 from typing import Any
 from unittest import mock
 
@@ -26,7 +25,7 @@ import pytest
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.version_compat import AIRFLOW_V_2_LINK_DEPRECATION_WARNING, AIRFLOW_V_3_0_PLUS
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
@@ -40,6 +39,7 @@ EXPECTED_GOOGLE_LINK_FORMAT = "/services/locations/{location}/clusters/{cluster_
 EXPECTED_GOOGLE_LINK = "https://console.cloud.google.com" + EXPECTED_GOOGLE_LINK_FORMAT.format(
     location=TEST_LOCATION, cluster_id=TEST_CLUSTER_ID, project_id=TEST_PROJECT_ID
 )
+AIRFLOW_V_2_LINK_DEPRECATION_MSG = "persist method call with no extra value is Deprecated for Airflow 3"
 
 
 class GoogleLink(BaseGoogleLink):
@@ -65,9 +65,7 @@ class TestBaseGoogleLink:
                 project_id=TEST_PROJECT_ID,
             )
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 GoogleLink.persist(
                     context=mock_context,
                     location=TEST_LOCATION,

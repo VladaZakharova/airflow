@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import re
 from unittest import mock
 
 import pytest
@@ -27,7 +26,7 @@ from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIRayClusterLink,
     VertexAIRayClusterListLink,
 )
-from airflow.providers.google.version_compat import AIRFLOW_V_2_LINK_DEPRECATION_WARNING, AIRFLOW_V_3_0_PLUS
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
 TEST_LOCATION = "test-location"
 TEST_CLUSTER_ID = "test-cluster-id"
@@ -40,6 +39,7 @@ EXPECTED_VERTEX_AI_RAY_CLUSTER_LINK_FORMAT_STR = (
 EXPECTED_VERTEX_AI_RAY_CLUSTER_LIST_LINK_NAME = "Ray Cluster List"
 EXPECTED_VERTEX_AI_RAY_CLUSTER_LIST_LINK_KEY = "ray_cluster_list_conf"
 EXPECTED_VERTEX_AI_RAY_CLUSTER_LIST_LINK_FORMAT_STR = "/vertex-ai/ray?project={project_id}"
+AIRFLOW_V_2_LINK_DEPRECATION_MSG = "persist method call with no extra value is Deprecated for Airflow 3"
 
 
 class TestVertexAIRayClusterLink:
@@ -60,9 +60,7 @@ class TestVertexAIRayClusterLink:
                 project_id=TEST_PROJECT_ID,
             )
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 VertexAIRayClusterLink.persist(
                     context=mock_context,
                     location=TEST_LOCATION,
@@ -96,9 +94,7 @@ class TestVertexAIRayClusterListLink:
                 project_id=TEST_PROJECT_ID,
             )
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 VertexAIRayClusterListLink.persist(
                     context=mock_context,
                     project_id=TEST_PROJECT_ID,

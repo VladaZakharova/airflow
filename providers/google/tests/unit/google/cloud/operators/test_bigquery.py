@@ -20,7 +20,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import re
 from contextlib import suppress
 from unittest import mock
 from unittest.mock import ANY, MagicMock
@@ -80,7 +79,7 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryIntervalCheckTrigger,
     BigQueryValueCheckTrigger,
 )
-from airflow.providers.google.version_compat import AIRFLOW_V_2_LINK_DEPRECATION_WARNING, AIRFLOW_V_3_0_PLUS
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.timezone import datetime
 
@@ -118,6 +117,7 @@ TEST_JOB_ID_1 = "test-job-id"
 TEST_JOB_ID_2 = "test-123"
 TEST_FULL_JOB_ID = f"{TEST_GCP_PROJECT_ID}:{TEST_DATASET_LOCATION}:{TEST_JOB_ID_1}"
 TEST_FULL_JOB_ID_2 = f"{TEST_GCP_PROJECT_ID}:{TEST_DATASET_LOCATION}:{TEST_JOB_ID_2}"
+AIRFLOW_V_2_LINK_DEPRECATION_MSG = "persist method call with no extra value is Deprecated for Airflow 3"
 
 
 def create_bigquery_job(errors=None, error_result=None, state="DONE"):
@@ -146,9 +146,7 @@ class TestBigQueryCreateTableOperator:
         if AIRFLOW_V_3_0_PLUS:
             operator.execute(context=MagicMock())
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 operator.execute(context=MagicMock())
         mock_hook.return_value.create_table.assert_called_once_with(
             dataset_id=TEST_DATASET,
@@ -181,9 +179,7 @@ class TestBigQueryCreateTableOperator:
         if AIRFLOW_V_3_0_PLUS:
             operator.execute(context=MagicMock())
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 operator.execute(context=MagicMock())
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
@@ -207,9 +203,7 @@ class TestBigQueryCreateTableOperator:
         if AIRFLOW_V_3_0_PLUS:
             operator.execute(context=MagicMock())
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 operator.execute(context=MagicMock())
         mock_hook.return_value.create_table.assert_called_once_with(
             dataset_id=TEST_DATASET,
@@ -252,9 +246,7 @@ class TestBigQueryCreateTableOperator:
         if AIRFLOW_V_3_0_PLUS:
             operator.execute(context=MagicMock())
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 operator.execute(context=MagicMock())
         mock_hook.return_value.create_table.assert_called_once_with(
             dataset_id=TEST_DATASET,
@@ -311,7 +303,7 @@ class TestBigQueryCreateTableOperator:
                     with [
                         pytest.raises(
                             AirflowProviderDeprecationWarning,
-                            match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING),
+                            match=AIRFLOW_V_2_LINK_DEPRECATION_MSG,
                         ),
                         *expected_error,
                     ]:
@@ -324,7 +316,7 @@ class TestBigQueryCreateTableOperator:
                 else:
                     with pytest.raises(
                         AirflowProviderDeprecationWarning,
-                        match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING),
+                        match=AIRFLOW_V_2_LINK_DEPRECATION_MSG,
                     ):
                         operator.execute(context=MagicMock())
 
@@ -354,9 +346,7 @@ class TestBigQueryCreateTableOperator:
         if AIRFLOW_V_3_0_PLUS:
             operator.execute(context=MagicMock())
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 operator.execute(context=MagicMock())
 
         mock_hook.return_value.create_table.assert_called_once_with(
@@ -411,9 +401,7 @@ class TestBigQueryCreateEmptyTableOperator:
             if AIRFLOW_V_3_0_PLUS:
                 operator.execute(context=MagicMock())
             else:
-                with pytest.raises(
-                    AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-                ):
+                with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                     operator.execute(context=MagicMock())
             mock_hook.return_value.create_empty_table.assert_called_once_with(
                 dataset_id=TEST_DATASET,
@@ -443,9 +431,7 @@ class TestBigQueryCreateEmptyTableOperator:
             if AIRFLOW_V_3_0_PLUS:
                 operator.execute(context=MagicMock())
             else:
-                with pytest.raises(
-                    AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-                ):
+                with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                     operator.execute(context=MagicMock())
             mock_hook.return_value.create_empty_table.assert_called_once_with(
                 dataset_id=TEST_DATASET,
@@ -476,9 +462,7 @@ class TestBigQueryCreateEmptyTableOperator:
             if AIRFLOW_V_3_0_PLUS:
                 operator.execute(context=MagicMock())
             else:
-                with pytest.raises(
-                    AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-                ):
+                with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                     operator.execute(context=MagicMock())
             mock_hook.return_value.create_empty_table.assert_called_once_with(
                 dataset_id=TEST_DATASET,

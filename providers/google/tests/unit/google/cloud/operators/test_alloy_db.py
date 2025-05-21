@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import re
 from typing import Any
 from unittest import mock
 from unittest.mock import call
@@ -43,7 +42,7 @@ from airflow.providers.google.cloud.operators.alloy_db import (
     AlloyDBUpdateUserOperator,
     AlloyDBWriteBaseOperator,
 )
-from airflow.providers.google.version_compat import AIRFLOW_V_2_LINK_DEPRECATION_WARNING, AIRFLOW_V_3_0_PLUS
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
 TEST_TASK_ID = "test-task-id"
 TEST_GCP_PROJECT = "test-project"
@@ -93,6 +92,8 @@ DELETE_USER_OPERATOR_PATH = OPERATOR_MODULE_PATH.format("AlloyDBDeleteUserOperat
 CREATE_BACKUP_OPERATOR_PATH = OPERATOR_MODULE_PATH.format("AlloyDBCreateBackupOperator.{}")
 UPDATE_BACKUP_OPERATOR_PATH = OPERATOR_MODULE_PATH.format("AlloyDBUpdateBackupOperator.{}")
 DELETE_BACKUP_OPERATOR_PATH = OPERATOR_MODULE_PATH.format("AlloyDBDeleteBackupOperator.{}")
+
+AIRFLOW_V_2_LINK_DEPRECATION_MSG = "persist method call with no extra value is Deprecated for Airflow 3"
 
 
 class TestAlloyDBBaseOperator:
@@ -295,9 +296,7 @@ class TestAlloyDBCreateClusterOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with("Creating an AlloyDB cluster.")
@@ -345,9 +344,7 @@ class TestAlloyDBCreateClusterOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with("Creating an AlloyDB cluster.")
@@ -394,9 +391,7 @@ class TestAlloyDBCreateClusterOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with("Validating a Create AlloyDB cluster request.")
@@ -443,9 +438,7 @@ class TestAlloyDBCreateClusterOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with("Validating a Create AlloyDB cluster request.")
@@ -486,9 +479,7 @@ class TestAlloyDBCreateClusterOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 result = self.operator.execute(context=mock_context)
 
         assert not mock_log.info.called
@@ -521,9 +512,7 @@ class TestAlloyDBCreateClusterOperator:
             with pytest.raises(AirflowException):
                 self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 with pytest.raises(AirflowException):
                     self.operator.execute(context=mock_context)
 
@@ -591,9 +580,7 @@ class TestAlloyDBUpdateClusterOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 result = self.operator.execute(context=mock_context)
 
         mock_update_cluster.assert_called_once_with(
@@ -641,9 +628,7 @@ class TestAlloyDBUpdateClusterOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with(expected_message)
@@ -678,9 +663,7 @@ class TestAlloyDBUpdateClusterOperator:
             with pytest.raises(AirflowException):
                 self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 with pytest.raises(AirflowException):
                     self.operator.execute(context=mock_context)
 
@@ -943,9 +926,7 @@ class TestAlloyDBCreateInstanceOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with("Creating an AlloyDB instance.")
@@ -994,9 +975,7 @@ class TestAlloyDBCreateInstanceOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with("Creating an AlloyDB instance.")
@@ -1044,9 +1023,7 @@ class TestAlloyDBCreateInstanceOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with("Validating a Create AlloyDB instance request.")
@@ -1094,9 +1071,7 @@ class TestAlloyDBCreateInstanceOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with("Validating a Create AlloyDB instance request.")
@@ -1138,9 +1113,7 @@ class TestAlloyDBCreateInstanceOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 result = self.operator.execute(context=mock_context)
 
         assert not mock_log.info.called
@@ -1173,9 +1146,7 @@ class TestAlloyDBCreateInstanceOperator:
             with pytest.raises(AirflowException):
                 self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 with pytest.raises(AirflowException):
                     self.operator.execute(context=mock_context)
 
@@ -1250,9 +1221,7 @@ class TestAlloyDBUpdateInstanceOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 result = self.operator.execute(context=mock_context)
 
         mock_update_instance.assert_called_once_with(
@@ -1301,9 +1270,7 @@ class TestAlloyDBUpdateInstanceOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with(expected_message)
@@ -1339,9 +1306,7 @@ class TestAlloyDBUpdateInstanceOperator:
             with pytest.raises(AirflowException):
                 self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 with pytest.raises(AirflowException):
                     self.operator.execute(context=mock_context)
 
@@ -1588,9 +1553,7 @@ class TestAlloyDBCreateUserOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_has_calls(
@@ -1629,9 +1592,7 @@ class TestAlloyDBCreateUserOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with("Validating a Create AlloyDB user request.")
@@ -1662,9 +1623,7 @@ class TestAlloyDBCreateUserOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 result = self.operator.execute(context=mock_context)
 
         assert not mock_log.info.called
@@ -1686,9 +1645,7 @@ class TestAlloyDBCreateUserOperator:
             with pytest.raises(AirflowException):
                 self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 with pytest.raises(AirflowException):
                     self.operator.execute(context=mock_context)
 
@@ -1758,9 +1715,7 @@ class TestAlloyDBUpdateUserOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 result = self.operator.execute(context=mock_context)
 
         mock_update_user.assert_called_once_with(
@@ -1799,9 +1754,7 @@ class TestAlloyDBUpdateUserOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with(expected_message)
@@ -1835,9 +1788,7 @@ class TestAlloyDBUpdateUserOperator:
             with pytest.raises(AirflowException):
                 self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 with pytest.raises(AirflowException):
                     self.operator.execute(context=mock_context)
 
@@ -2071,9 +2022,7 @@ class TestAlloyDBCreateBackupOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with("Creating an AlloyDB backup.")
@@ -2118,9 +2067,7 @@ class TestAlloyDBCreateBackupOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with("Validating a Create AlloyDB backup request.")
@@ -2159,9 +2106,7 @@ class TestAlloyDBCreateBackupOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 result = self.operator.execute(context=mock_context)
 
         assert not mock_log.info.called
@@ -2192,9 +2137,7 @@ class TestAlloyDBCreateBackupOperator:
             with pytest.raises(AirflowException):
                 self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 with pytest.raises(AirflowException):
                     self.operator.execute(context=mock_context)
 
@@ -2264,9 +2207,7 @@ class TestAlloyDBUpdateBackupOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 result = self.operator.execute(context=mock_context)
 
         mock_update_backup.assert_called_once_with(
@@ -2308,9 +2249,7 @@ class TestAlloyDBUpdateBackupOperator:
         if AIRFLOW_V_3_0_PLUS:
             result = self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 result = self.operator.execute(context=mock_context)
 
         mock_log.info.assert_called_once_with(expected_message)
@@ -2345,9 +2284,7 @@ class TestAlloyDBUpdateBackupOperator:
             with pytest.raises(AirflowException):
                 self.operator.execute(context=mock_context)
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 with pytest.raises(AirflowException):
                     self.operator.execute(context=mock_context)
 

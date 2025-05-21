@@ -18,12 +18,11 @@
 from __future__ import annotations
 
 import copy
-import re
 from unittest import mock
 
 import pytest
 
-from airflow.providers.google.version_compat import AIRFLOW_V_2_LINK_DEPRECATION_WARNING, AIRFLOW_V_3_0_PLUS
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
 # For no Pydantic environment, we need to skip the tests
 pytest.importorskip("google.cloud.aiplatform_v1")
@@ -78,6 +77,8 @@ DATASET = {"dataset_id": "data", "translation_dataset_metadata": "data"}
 DATASET_DEPRECATED = {"tables_model_metadata": "data"}
 MASK = {"field": "mask"}
 
+AIRFLOW_V_2_LINK_DEPRECATION_MSG = "persist method call with no extra value is Deprecated for Airflow 3"
+
 extract_object_id = CloudAutoMLHook.extract_object_id
 
 
@@ -98,9 +99,7 @@ class TestAutoMLTrainModelOperator:
             if AIRFLOW_V_3_0_PLUS:
                 op.execute(context=mock.MagicMock())
             else:
-                with pytest.raises(
-                    AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-                ):
+                with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                     op.execute(context=mock.MagicMock())
         mock_hook.return_value.create_model.assert_called_once_with(
             model=MODEL,
@@ -230,9 +229,7 @@ class TestAutoMLCreateImportOperator:
         if AIRFLOW_V_3_0_PLUS:
             op.execute(context=mock.MagicMock())
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 op.execute(context=mock.MagicMock())
         mock_hook.return_value.create_dataset.assert_called_once_with(
             dataset=DATASET,
@@ -353,9 +350,7 @@ class TestAutoMLGetModelOperator:
         if AIRFLOW_V_3_0_PLUS:
             op.execute(context=mock.MagicMock())
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 op.execute(context=mock.MagicMock())
         mock_hook.return_value.get_model.assert_called_once_with(
             location=GCP_LOCATION,
@@ -480,9 +475,7 @@ class TestAutoMLDatasetImportOperator:
         if AIRFLOW_V_3_0_PLUS:
             op.execute(context=mock.MagicMock())
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 op.execute(context=mock.MagicMock())
         mock_hook.return_value.import_data.assert_called_once_with(
             input_config=INPUT_CONFIG,
@@ -562,9 +555,7 @@ class TestAutoMLDatasetListOperator:
         if AIRFLOW_V_3_0_PLUS:
             op.execute(context=mock.MagicMock())
         else:
-            with pytest.raises(
-                AirflowProviderDeprecationWarning, match=re.escape(AIRFLOW_V_2_LINK_DEPRECATION_WARNING)
-            ):
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 op.execute(context=mock.MagicMock())
         mock_hook.return_value.list_datasets.assert_called_once_with(
             location=GCP_LOCATION,
