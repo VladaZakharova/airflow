@@ -50,17 +50,16 @@ class TestCloudRunJobLoggingLink:
                 context=mock_context,
                 log_uri=TEST_LOG_URI,
             )
+            mock_context["ti"].xcom_push.assert_called_once_with(
+                key=CloudRunJobLoggingLink.key,
+                value={"log_uri": TEST_LOG_URI},
+            )
         else:
             with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 CloudRunJobLoggingLink.persist(
                     context=mock_context,
                     log_uri=TEST_LOG_URI,
                 )
-
-        mock_context["ti"].xcom_push.assert_called_once_with(
-            key=CloudRunJobLoggingLink.key,
-            value={"log_uri": TEST_LOG_URI},
-        )
 
     @pytest.mark.db_test
     def test_get_link(self, create_task_instance_of_operator, session, mock_supervisor_comms):
@@ -82,7 +81,7 @@ class TestCloudRunJobLoggingLink:
             with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 link.persist(context={"ti": ti}, log_uri=TEST_LOG_URI)
 
-        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
+        if mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="key",
                 value={"log_uri": TEST_LOG_URI},
