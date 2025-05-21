@@ -64,6 +64,14 @@ class TestBaseGoogleLink:
                 cluster_id=TEST_CLUSTER_ID,
                 project_id=TEST_PROJECT_ID,
             )
+            mock_context["ti"].xcom_push.assert_called_once_with(
+                key=EXPECTED_GOOGLE_LINK_KEY,
+                value={
+                    "location": TEST_LOCATION,
+                    "cluster_id": TEST_CLUSTER_ID,
+                    "project_id": TEST_PROJECT_ID,
+                },
+            )
         else:
             with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
                 GoogleLink.persist(
@@ -72,15 +80,6 @@ class TestBaseGoogleLink:
                     cluster_id=TEST_CLUSTER_ID,
                     project_id=TEST_PROJECT_ID,
                 )
-
-        mock_context["ti"].xcom_push.assert_called_once_with(
-            key=EXPECTED_GOOGLE_LINK_KEY,
-            value={
-                "location": TEST_LOCATION,
-                "cluster_id": TEST_CLUSTER_ID,
-                "project_id": TEST_PROJECT_ID,
-            },
-        )
 
 
 class MyOperator(GoogleCloudBaseOperator):
