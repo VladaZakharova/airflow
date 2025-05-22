@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.links.dataplex import (
     DataplexCatalogAspectTypeLink,
     DataplexCatalogAspectTypesLink,
@@ -101,6 +102,7 @@ EXPECTED_DATAPLEX_CATALOG_ENTRY_LINK = (
     DATAPLEX_BASE_LINK
     + f"dp-entries/projects/{TEST_PROJECT_ID}/locations/{TEST_LOCATION}/entryGroups/{TEST_ENTRY_GROUP_ID}/entries/{TEST_ENTRY_ID}?project={TEST_PROJECT_ID}"
 )
+AIRFLOW_V_2_LINK_DEPRECATION_MSG = "persist method call with no extra value is Deprecated for Airflow 3"
 
 
 class TestDataplexTaskLink:
@@ -120,7 +122,6 @@ class TestDataplexTaskLink:
         )
         session.add(ti)
         session.commit()
-        link.persist(context={"ti": ti}, task_instance=ti.task)
 
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
@@ -151,7 +152,7 @@ class TestDataplexTasksLink:
         )
         session.add(ti)
         session.commit()
-        link.persist(context={"ti": ti}, task_instance=ti.task)
+
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="key",
@@ -181,7 +182,7 @@ class TestDataplexLakeLink:
         )
         session.add(ti)
         session.commit()
-        link.persist(context={"ti": ti}, task_instance=ti.task)
+
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="key",
@@ -210,7 +211,12 @@ class TestDataplexCatalogEntryGroupLink:
         )
         session.add(ti)
         session.commit()
-        link.persist(context={"ti": ti}, task_instance=ti.task)
+
+        if AIRFLOW_V_3_0_PLUS:
+            link.persist(context={"ti": ti})
+        else:
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
+                link.persist(context={"ti": ti})
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="key",
@@ -240,7 +246,7 @@ class TestDataplexCatalogEntryGroupsLink:
         )
         session.add(ti)
         session.commit()
-        link.persist(context={"ti": ti}, task_instance=ti.task)
+
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="key",
@@ -268,7 +274,7 @@ class TestDataplexCatalogEntryTypeLink:
         )
         session.add(ti)
         session.commit()
-        link.persist(context={"ti": ti}, task_instance=ti.task)
+
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="key",
@@ -298,7 +304,7 @@ class TestDataplexCatalogEntryTypesLink:
         )
         session.add(ti)
         session.commit()
-        link.persist(context={"ti": ti}, task_instance=ti.task)
+
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="key",
@@ -326,7 +332,7 @@ class TestDataplexCatalogAspectTypeLink:
         )
         session.add(ti)
         session.commit()
-        link.persist(context={"ti": ti}, task_instance=ti.task)
+
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="key",
@@ -356,7 +362,7 @@ class TestDataplexCatalogAspectTypesLink:
         )
         session.add(ti)
         session.commit()
-        link.persist(context={"ti": ti}, task_instance=ti.task)
+
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="key",
@@ -385,7 +391,7 @@ class TestDataplexCatalogEntryLink:
         )
         session.add(ti)
         session.commit()
-        link.persist(context={"ti": ti}, task_instance=ti.task)
+
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="key",
