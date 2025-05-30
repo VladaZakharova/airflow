@@ -480,7 +480,7 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
             },
         )
         mock_xcom_push.assert_called_with(None, key="model_id", value="test-model")
-        mock_link_persist.assert_called_once_with(context=None, task_instance=task, model_id="test-model")
+        mock_link_persist.assert_called_once_with(context=None, model_id="test-model")
         assert actual_result == expected_result
 
     def test_execute_complete_error_status_raises_exception(self):
@@ -811,7 +811,7 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
             },
         )
         mock_xcom_push.assert_called_with(None, key="model_id", value="test-model")
-        mock_link_persist.assert_called_once_with(context=None, task_instance=task, model_id="test-model")
+        mock_link_persist.assert_called_once_with(context=None, model_id="test-model")
         assert actual_result == expected_result
 
     def test_execute_complete_error_status_raises_exception(self):
@@ -1113,7 +1113,7 @@ class TestVertexAICreateCustomTrainingJobOperator:
             },
         )
         mock_xcom_push.assert_called_with(None, key="model_id", value="test-model")
-        mock_link_persist.assert_called_once_with(context=None, task_instance=task, model_id="test-model")
+        mock_link_persist.assert_called_once_with(context=None, model_id="test-model")
         assert actual_result == expected_result
 
     def test_execute_complete_error_status_raises_exception(self):
@@ -2042,7 +2042,8 @@ class TestVertexAICreateBatchPredictionJobOperator:
         mock_job.wait_for_completion.assert_called_once()
         mock_job.to_dict.assert_called_once()
         mock_link_persist.assert_called_once_with(
-            context=context, task_instance=op, batch_prediction_job_id=TEST_BATCH_PREDICTION_JOB_ID
+            context=context,
+            batch_prediction_job_id=TEST_BATCH_PREDICTION_JOB_ID,
         )
 
     @mock.patch(VERTEX_AI_LINKS_PATH.format("VertexAIBatchPredictionJobLink.persist"))
@@ -2105,7 +2106,6 @@ class TestVertexAICreateBatchPredictionJobOperator:
         mock_link_persist.assert_called_once_with(
             batch_prediction_job_id=TEST_BATCH_PREDICTION_JOB_ID,
             context=context,
-            task_instance=op,
         )
         assert hasattr(exception_info.value, "trigger")
         assert exception_info.value.trigger.conn_id == GCP_CONN_ID

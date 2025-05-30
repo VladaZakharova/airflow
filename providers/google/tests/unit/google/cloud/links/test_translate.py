@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
 # For no Pydantic environment, we need to skip the tests
@@ -44,6 +45,7 @@ GCP_LOCATION = "test-location"
 GCP_PROJECT_ID = "test-project"
 DATASET = "test-dataset"
 MODEL = "test-model"
+AIRFLOW_V_2_LINK_DEPRECATION_MSG = "persist method call with no extra value is Deprecated for Airflow 3"
 
 
 class TestTranslationLegacyDatasetLink:
@@ -60,11 +62,20 @@ class TestTranslationLegacyDatasetLink:
         )
         session.add(ti)
         session.commit()
-        link.persist(context={"ti": ti}, task_instance=ti.task, dataset_id=DATASET, project_id=GCP_PROJECT_ID)
+
+        if AIRFLOW_V_3_0_PLUS:
+            link.persist(context={"ti": ti}, dataset_id=DATASET, project_id=GCP_PROJECT_ID)
+        else:
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
+                link.persist(context={"ti": ti}, dataset_id=DATASET, project_id=GCP_PROJECT_ID)
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="key",
-                value={"location": ti.task.location, "dataset_id": DATASET, "project_id": GCP_PROJECT_ID},
+                value={
+                    "location": ti.task.location,
+                    "dataset_id": DATASET,
+                    "project_id": GCP_PROJECT_ID,
+                },
             )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url
@@ -83,7 +94,11 @@ class TestTranslationDatasetListLink:
         )
         session.add(ti)
         session.commit()
-        link.persist(context={"ti": ti}, task_instance=ti.task, project_id=GCP_PROJECT_ID)
+        if AIRFLOW_V_3_0_PLUS:
+            link.persist(context={"ti": ti}, project_id=GCP_PROJECT_ID)
+        else:
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
+                link.persist(context={"ti": ti}, project_id=GCP_PROJECT_ID)
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="key",
@@ -115,7 +130,6 @@ class TestTranslationLegacyModelLink:
         session.commit()
         link.persist(
             context={"ti": ti},
-            task_instance=ti.task,
             dataset_id=DATASET,
             model_id=MODEL,
             project_id=GCP_PROJECT_ID,
@@ -152,11 +166,18 @@ class TestTranslationLegacyModelTrainLink:
         )
         session.add(ti)
         session.commit()
-        link.persist(
-            context={"ti": ti},
-            task_instance=ti.task,
-            project_id=GCP_PROJECT_ID,
-        )
+
+        if AIRFLOW_V_3_0_PLUS:
+            link.persist(
+                context={"ti": ti},
+                project_id=GCP_PROJECT_ID,
+            )
+        else:
+            with pytest.raises(AirflowProviderDeprecationWarning, match=AIRFLOW_V_2_LINK_DEPRECATION_MSG):
+                link.persist(
+                    context={"ti": ti},
+                    project_id=GCP_PROJECT_ID,
+                )
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.get_message.return_value = XComResult(
                 key="key",

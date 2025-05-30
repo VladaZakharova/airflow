@@ -33,3 +33,9 @@ def get_base_airflow_version_tuple() -> tuple[int, int, int]:
 
 
 AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
+
+AIRFLOW_V_2_LINK_DEPRECATION_WARNING = (
+    "GoogleBaseLink.persist method call with no extra value is Deprecated for Airflow 3."
+    " The method calls (only with context) needs to be removed after the Airflow 3 Migration"
+    " completed!"
+)
