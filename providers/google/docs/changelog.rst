@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+17.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  Deprecated classes, parameters and features have been removed from the Google provider package.
+  The following breaking changes were introduced:
+
+* Operators
+  * ``Remove name attribute from GKEDeleteClusterOperator operator please use cluster_name instead``
+  * ``Remove regional attribute from GKEStartPodOperator because parameter is not in actual use``
+  * ``Remove is_delete_operator_pod attribute from GKEStartPodOperator please use on_finish_action attribute instead``
+
+* Hooks
+  * ``Remove get_auto_ml_text_training_job method from AutoMLHook because of deprecation of AutoMLText API``
+
 16.0.0
 ......
 
