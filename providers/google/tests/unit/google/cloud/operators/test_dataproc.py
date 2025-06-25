@@ -1113,7 +1113,7 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
         mock_hook.return_value.wait_for_operation.assert_not_called()
 
 
-@pytest.mark.db_test
+# @pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 def test_create_cluster_operator_extra_links(
     dag_maker, create_task_instance_of_operator, mock_supervisor_comms
@@ -1982,7 +1982,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             )
 
 
-@pytest.mark.db_test
+# @pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 @mock.patch(DATAPROC_PATH.format("DataprocHook"))
 def test_submit_job_operator_extra_links(
@@ -2190,7 +2190,7 @@ class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
         assert not mock_defer.called
 
 
-@pytest.mark.db_test
+# @pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 def test_update_cluster_operator_extra_links(
     dag_maker, create_task_instance_of_operator, mock_supervisor_comms
@@ -2418,7 +2418,7 @@ class TestDataprocInstantiateWorkflowTemplateOperator:
         )
 
 
-@pytest.mark.db_test
+# @pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 @mock.patch(DATAPROC_PATH.format("DataprocHook"))
 def test_instantiate_workflow_operator_extra_links(
@@ -3104,7 +3104,7 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
         )
 
 
-@pytest.mark.db_test
+# @pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 @mock.patch(DATAPROC_PATH.format("DataprocHook"))
 def test_instantiate_inline_workflow_operator_extra_links(
