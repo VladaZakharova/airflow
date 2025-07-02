@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.marketing_platform.sensors.display_video import (
     GoogleDisplayVideo360GetSDFDownloadOperationSensor,
     GoogleDisplayVideo360RunQuerySensor,
@@ -39,14 +39,17 @@ class TestGoogleDisplayVideo360RunQuerySensor:
     def test_poke(self, mock_base_op, hook_mock):
         query_id = "QUERY_ID"
         report_id = "REPORT_ID"
-        op = GoogleDisplayVideo360RunQuerySensor(query_id=query_id, report_id=report_id, task_id="test_task")
-        op.poke(context=None)
-        hook_mock.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            api_version="v2",
-            impersonation_chain=None,
-        )
-        hook_mock.return_value.get_report.assert_called_once_with(query_id=query_id, report_id=report_id)
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = GoogleDisplayVideo360RunQuerySensor(
+                query_id=query_id, report_id=report_id, task_id="test_task"
+            )
+            op.poke(context=None)
+            hook_mock.assert_called_once_with(
+                gcp_conn_id=GCP_CONN_ID,
+                api_version="v2",
+                impersonation_chain=None,
+            )
+            hook_mock.return_value.get_report.assert_called_once_with(query_id=query_id, report_id=report_id)
 
 
 class TestGoogleDisplayVideo360Sensor:
