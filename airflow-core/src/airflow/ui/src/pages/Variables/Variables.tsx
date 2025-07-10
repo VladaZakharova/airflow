@@ -43,6 +43,7 @@ import ImportVariablesButton from "./ImportVariablesButton";
 import AddVariableButton from "./ManageVariable/AddVariableButton";
 import DeleteVariableButton from "./ManageVariable/DeleteVariableButton";
 import EditVariableButton from "./ManageVariable/EditVariableButton";
+import { BackendOrderCard } from "./BackendOrderCard";
 
 const getColumns = ({
   allRowsSelected,
@@ -199,6 +200,7 @@ export const Variables = () => {
         />
         <HStack gap={4} mt={2}>
           <ImportVariablesButton disabled={selectedRows.size > 0} />
+          <BackendOrderCard />
           <Spacer />
           <AddVariableButton disabled={selectedRows.size > 0} />
         </HStack>
