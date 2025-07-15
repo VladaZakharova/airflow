@@ -130,5 +130,5 @@ class GoogleSheetsToGCSOperator(BaseOperator):
             gcs_path_to_file = self._upload_data(gcs_hook, sheet_hook, sheet_range, data)
             destination_array.append(gcs_path_to_file)
 
-        context["ti"].xcom_push(key="destination_objects", value=destination_array)
+        context["task_instance"].xcom_push(key="destination_objects", value=destination_array)
         return destination_array

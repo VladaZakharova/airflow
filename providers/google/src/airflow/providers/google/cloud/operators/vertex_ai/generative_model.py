@@ -94,7 +94,7 @@ class TextEmbeddingModelGetEmbeddingsOperator(GoogleCloudBaseOperator):
         )
 
         self.log.info("Model response: %s", response)
-        context["ti"].xcom_push(key="model_response", value=response)
+        context["task_instance"].xcom_push(key="model_response", value=response)
 
         return response
 
@@ -173,7 +173,7 @@ class GenerativeModelGenerateContentOperator(GoogleCloudBaseOperator):
         )
 
         self.log.info("Model response: %s", response)
-        context["ti"].xcom_push(key="model_response", value=response)
+        context["task_instance"].xcom_push(key="model_response", value=response)
 
         return response
 
@@ -269,8 +269,10 @@ class SupervisedFineTuningTrainOperator(GoogleCloudBaseOperator):
         self.log.info("Tuned Model Name: %s", response.tuned_model_name)
         self.log.info("Tuned Model Endpoint Name: %s", response.tuned_model_endpoint_name)
 
-        context["ti"].xcom_push(key="tuned_model_name", value=response.tuned_model_name)
-        context["ti"].xcom_push(key="tuned_model_endpoint_name", value=response.tuned_model_endpoint_name)
+        context["task_instance"].xcom_push(key="tuned_model_name", value=response.tuned_model_name)
+        context["task_instance"].xcom_push(
+            key="tuned_model_endpoint_name", value=response.tuned_model_endpoint_name
+        )
 
         result = {
             "tuned_model_name": response.tuned_model_name,
@@ -340,8 +342,10 @@ class CountTokensOperator(GoogleCloudBaseOperator):
         self.log.info("Total tokens: %s", response.total_tokens)
         self.log.info("Total billable characters: %s", response.total_billable_characters)
 
-        context["ti"].xcom_push(key="total_tokens", value=response.total_tokens)
-        context["ti"].xcom_push(key="total_billable_characters", value=response.total_billable_characters)
+        context["task_instance"].xcom_push(key="total_tokens", value=response.total_tokens)
+        context["task_instance"].xcom_push(
+            key="total_billable_characters", value=response.total_billable_characters
+        )
 
 
 class RunEvaluationOperator(GoogleCloudBaseOperator):

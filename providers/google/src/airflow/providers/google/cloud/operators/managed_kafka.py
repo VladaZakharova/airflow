@@ -256,7 +256,7 @@ class ManagedKafkaListClustersOperator(ManagedKafkaBaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-            context["ti"].xcom_push(
+            context["task_instance"].xcom_push(
                 key="cluster_page",
                 value=types.ListClustersResponse.to_dict(cluster_list_pager._response),
             )
@@ -621,7 +621,7 @@ class ManagedKafkaListTopicsOperator(ManagedKafkaBaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-            context["ti"].xcom_push(
+            context["task_instance"].xcom_push(
                 key="topic_page",
                 value=types.ListTopicsResponse.to_dict(topic_list_pager._response),
             )
@@ -895,7 +895,7 @@ class ManagedKafkaListConsumerGroupsOperator(ManagedKafkaBaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-            context["ti"].xcom_push(
+            context["task_instance"].xcom_push(
                 key="consumer_group_page",
                 value=types.ListConsumerGroupsResponse.to_dict(consumer_group_list_pager._response),
             )

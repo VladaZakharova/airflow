@@ -42,7 +42,7 @@ class TestCloudRunJobLoggingLink:
 
     def test_persist(self):
         mock_context = mock.MagicMock()
-        mock_context["ti"] = mock.MagicMock()
+        mock_context["task_instance"] = mock.MagicMock()
         mock_context["task"] = mock.MagicMock()
 
         CloudRunJobLoggingLink.persist(
@@ -50,7 +50,7 @@ class TestCloudRunJobLoggingLink:
             log_uri=TEST_LOG_URI,
         )
 
-        mock_context["ti"].xcom_push.assert_called_once_with(
+        mock_context["task_instance"].xcom_push.assert_called_once_with(
             key=CloudRunJobLoggingLink.key,
             value={"log_uri": TEST_LOG_URI},
         )
@@ -69,7 +69,7 @@ class TestCloudRunJobLoggingLink:
         session.add(ti)
         session.commit()
 
-        link.persist(context={"ti": ti, "task": ti.task}, log_uri=TEST_LOG_URI)
+        link.persist(context={"task_instance": ti, "task": ti.task}, log_uri=TEST_LOG_URI)
 
         if mock_supervisor_comms:
             mock_supervisor_comms.send.return_value = XComResult(

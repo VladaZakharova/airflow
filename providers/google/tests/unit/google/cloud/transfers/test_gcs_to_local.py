@@ -63,7 +63,7 @@ class TestGoogleCloudStorageDownloadOperator:
             object_name=TEST_OBJECT,
             store_to_xcom_key=XCOM_KEY,
         )
-        context = {"ti": MagicMock()}
+        context = {"task_instance": MagicMock()}
         mock_hook.return_value.download.return_value = FILE_CONTENT_BYTES_UTF8
         mock_hook.return_value.get_size.return_value = MAX_XCOM_SIZE - 1
 
@@ -74,7 +74,7 @@ class TestGoogleCloudStorageDownloadOperator:
         mock_hook.return_value.download.assert_called_once_with(
             bucket_name=TEST_BUCKET, object_name=TEST_OBJECT
         )
-        context["ti"].xcom_push.assert_called_once_with(key=XCOM_KEY, value=FILE_CONTENT_STR)
+        context["task_instance"].xcom_push.assert_called_once_with(key=XCOM_KEY, value=FILE_CONTENT_STR)
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_local.GCSHook")
     def test_size_gt_max_xcom_size(self, mock_hook):
@@ -84,7 +84,7 @@ class TestGoogleCloudStorageDownloadOperator:
             object_name=TEST_OBJECT,
             store_to_xcom_key=XCOM_KEY,
         )
-        context = {"ti": MagicMock()}
+        context = {"task_instance": MagicMock()}
         mock_hook.return_value.download.return_value = FILE_CONTENT_BYTES_UTF8
         mock_hook.return_value.get_size.return_value = MAX_XCOM_SIZE + 1
 
@@ -100,7 +100,7 @@ class TestGoogleCloudStorageDownloadOperator:
             store_to_xcom_key=XCOM_KEY,
             file_encoding="utf-16",
         )
-        context = {"ti": MagicMock()}
+        context = {"task_instance": MagicMock()}
         mock_hook.return_value.download.return_value = FILE_CONTENT_BYTES_UTF16
         mock_hook.return_value.get_size.return_value = MAX_XCOM_SIZE - 1
 
@@ -111,7 +111,7 @@ class TestGoogleCloudStorageDownloadOperator:
         mock_hook.return_value.download.assert_called_once_with(
             bucket_name=TEST_BUCKET, object_name=TEST_OBJECT
         )
-        context["ti"].xcom_push.assert_called_once_with(key=XCOM_KEY, value=FILE_CONTENT_STR)
+        context["task_instance"].xcom_push.assert_called_once_with(key=XCOM_KEY, value=FILE_CONTENT_STR)
 
     def test_get_openlineage_facets_on_start_(self):
         operator = GCSToLocalFilesystemOperator(

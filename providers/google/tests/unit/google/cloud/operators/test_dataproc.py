@@ -407,7 +407,7 @@ BATCH = {
     },
 }
 EXAMPLE_CONTEXT = {
-    "ti": MagicMock(
+    "task_instance": MagicMock(
         dag_id="dag_id",
         task_id="task_id",
         try_number=1,
@@ -468,15 +468,15 @@ class DataprocTestBase:
 
     def setup_method(self):
         self.mock_ti = MagicMock()
-        self.mock_context = {"ti": self.mock_ti, "task": self.mock_ti.task}
+        self.mock_context = {"task_instance": self.mock_ti, "task": self.mock_ti.task}
         self.extra_links_manager_mock = Mock()
-        self.extra_links_manager_mock.attach_mock(self.mock_ti, "ti")
+        self.extra_links_manager_mock.attach_mock(self.mock_ti, "task_instance")
 
     def tearDown(self):
         self.mock_ti = MagicMock()
-        self.mock_context = {"ti": self.mock_ti, "task": self.mock_ti.task}
+        self.mock_context = {"task_instance": self.mock_ti, "task": self.mock_ti.task}
         self.extra_links_manager_mock = Mock()
-        self.extra_links_manager_mock.attach_mock(self.mock_ti, "ti")
+        self.extra_links_manager_mock.attach_mock(self.mock_ti, "task_instance")
 
     @classmethod
     def tearDownClass(cls):
@@ -1474,7 +1474,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             },
         }
         context = {
-            "ti": MagicMock(
+            "task_instance": MagicMock(
                 dag_id="dag_id",
                 task_id="task_id",
                 try_number=1,

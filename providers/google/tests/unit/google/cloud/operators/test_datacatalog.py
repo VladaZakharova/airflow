@@ -164,7 +164,7 @@ class TestCloudDataCatalogCreateEntryOperator:
                 impersonation_chain=TEST_IMPERSONATION_CHAIN,
             )
         mock_ti = mock.MagicMock()
-        mock_context = {"ti": mock_ti}
+        mock_context = {"task_instance": mock_ti}
         if not AIRFLOW_V_3_0_PLUS:
             mock_context["task"] = task  # type: ignore[assignment]
         result = task.execute(context=mock_context)  # type: ignore[arg-type]
@@ -208,7 +208,7 @@ class TestCloudDataCatalogCreateEntryOperator:
                 impersonation_chain=TEST_IMPERSONATION_CHAIN,
             )
         mock_ti = mock.MagicMock()
-        mock_context = {"ti": mock_ti}
+        mock_context = {"task_instance": mock_ti}
         if not AIRFLOW_V_3_0_PLUS:
             mock_context["task"] = task  # type: ignore[assignment]
         result = task.execute(context=mock_context)  # type: ignore[arg-type]
@@ -262,7 +262,7 @@ class TestCloudDataCatalogCreateEntryGroupOperator:
                 impersonation_chain=TEST_IMPERSONATION_CHAIN,
             )
         mock_ti = mock.MagicMock()
-        mock_context = {"ti": mock_ti}
+        mock_context = {"task_instance": mock_ti}
         if not AIRFLOW_V_3_0_PLUS:
             mock_context["task"] = task  # type: ignore[assignment]
         result = task.execute(context=mock_context)  # type: ignore[arg-type]
@@ -308,7 +308,7 @@ class TestCloudDataCatalogCreateTagOperator:
                 impersonation_chain=TEST_IMPERSONATION_CHAIN,
             )
         mock_ti = mock.MagicMock()
-        mock_context = {"ti": mock_ti}
+        mock_context = {"task_instance": mock_ti}
         if not AIRFLOW_V_3_0_PLUS:
             mock_context["task"] = task  # type: ignore[assignment]
         result = task.execute(context=mock_context)  # type: ignore[arg-type]
@@ -354,7 +354,7 @@ class TestCloudDataCatalogCreateTagTemplateOperator:
                 impersonation_chain=TEST_IMPERSONATION_CHAIN,
             )
         mock_ti = mock.MagicMock()
-        mock_context = {"ti": mock_ti}
+        mock_context = {"task_instance": mock_ti}
         if not AIRFLOW_V_3_0_PLUS:
             mock_context["task"] = task  # type: ignore[assignment]
         result = task.execute(context=mock_context)  # type: ignore[arg-type]
@@ -399,7 +399,7 @@ class TestCloudDataCatalogCreateTagTemplateFieldOperator:
                 impersonation_chain=TEST_IMPERSONATION_CHAIN,
             )
         mock_ti = mock.MagicMock()
-        mock_context = {"ti": mock_ti}
+        mock_context = {"task_instance": mock_ti}
         if not AIRFLOW_V_3_0_PLUS:
             mock_context["task"] = task  # type: ignore[assignment]
         result = task.execute(context=mock_context)  # type: ignore[arg-type]

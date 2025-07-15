@@ -63,7 +63,7 @@ class TestBaseGoogleLink:
                 cluster_id=TEST_CLUSTER_ID,
                 project_id=TEST_PROJECT_ID,
             )
-            mock_context["ti"].xcom_push.assert_called_once_with(
+            mock_context["task_instance"].xcom_push.assert_called_once_with(
                 key=EXPECTED_GOOGLE_LINK_KEY,
                 value={
                     "location": TEST_LOCATION,

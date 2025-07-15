@@ -717,7 +717,7 @@ class TestGcfFunctionInvokeOperator:
             impersonation_chain=impersonation_chain,
         )
         mock_ti = mock.MagicMock()
-        mock_context = {"ti": mock_ti}
+        mock_context = {"task_instance": mock_ti}
         if not AIRFLOW_V_3_0_PLUS:
             mock_context["task"] = op
         op.execute(mock_context)

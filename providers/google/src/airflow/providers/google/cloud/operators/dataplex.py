@@ -2533,7 +2533,7 @@ class DataplexCatalogListEntryGroupsOperator(DataplexCatalogBaseOperator):
                 metadata=self.metadata,
             )
             self.log.info("EntryGroup on page: %s", entry_group_on_page)
-            context["ti"].xcom_push(
+            context["task_instance"].xcom_push(
                 key="entry_group_page",
                 value=ListEntryGroupsResponse.to_dict(entry_group_on_page._response),
             )
@@ -2953,7 +2953,7 @@ class DataplexCatalogListEntryTypesOperator(DataplexCatalogBaseOperator):
                 metadata=self.metadata,
             )
             self.log.info("EntryType on page: %s", entry_type_on_page)
-            context["ti"].xcom_push(
+            context["task_instance"].xcom_push(
                 key="entry_type_page",
                 value=ListEntryTypesResponse.to_dict(entry_type_on_page._response),
             )
@@ -3306,7 +3306,7 @@ class DataplexCatalogListAspectTypesOperator(DataplexCatalogBaseOperator):
                 metadata=self.metadata,
             )
             self.log.info("AspectType on page: %s", aspect_type_on_page)
-            context["ti"].xcom_push(
+            context["task_instance"].xcom_push(
                 key="aspect_type_page",
                 value=ListAspectTypesResponse.to_dict(aspect_type_on_page._response),
             )
@@ -3800,7 +3800,7 @@ class DataplexCatalogListEntriesOperator(DataplexCatalogBaseOperator):
                 metadata=self.metadata,
             )
             self.log.info("Entries on page: %s", entries_on_page)
-            context["ti"].xcom_push(
+            context["task_instance"].xcom_push(
                 key="entry_page",
                 value=ListEntriesResponse.to_dict(entries_on_page._response),
             )
@@ -3897,7 +3897,7 @@ class DataplexCatalogSearchEntriesOperator(DataplexCatalogBaseOperator):
                 metadata=self.metadata,
             )
             self.log.info("Entries on page: %s", entries_on_page)
-            context["ti"].xcom_push(
+            context["task_instance"].xcom_push(
                 key="entry_page",
                 value=SearchEntriesResponse.to_dict(entries_on_page._response),
             )

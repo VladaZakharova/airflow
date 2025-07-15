@@ -183,7 +183,7 @@ class TestTranslateTextBatchOperator:
             timeout=TIMEOUT,
             retry=None,
         )
-        context = {"ti": mock.MagicMock()}
+        context = {"task_instance": mock.MagicMock()}
         result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -250,7 +250,7 @@ class TestTranslateDatasetCreate:
             retry=None,
         )
         mock_ti = mock.MagicMock()
-        mock_context = {"ti": mock_ti}
+        mock_context = {"task_instance": mock_ti}
         result = op.execute(context=mock_context)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -450,7 +450,7 @@ class TestTranslateModelCreate:
             retry=None,
         )
         mock_ti = mock.MagicMock()
-        mock_context = {"ti": mock_ti}
+        mock_context = {"task_instance": mock_ti}
         result = op.execute(context=mock_context)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -619,7 +619,7 @@ class TestTranslateDocumentBatchOperator:
             timeout=TIMEOUT,
             retry=None,
         )
-        context = {"ti": mock.MagicMock()}
+        context = {"task_instance": mock.MagicMock()}
         result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -693,7 +693,7 @@ class TestTranslateDocumentOperator:
             timeout=TIMEOUT,
             retry=None,
         )
-        context = {"ti": mock.MagicMock()}
+        context = {"task_instance": mock.MagicMock()}
         result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -759,7 +759,7 @@ class TestTranslateGlossaryCreate:
             retry=None,
         )
         mock_ti = mock.MagicMock()
-        mock_context = {"ti": mock_ti}
+        mock_context = {"task_instance": mock_ti}
         result = op.execute(context=mock_context)
 
         mock_hook.assert_called_once_with(

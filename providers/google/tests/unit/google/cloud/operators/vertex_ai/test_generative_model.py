@@ -67,7 +67,7 @@ class TestVertexAITextEmbeddingModelGetEmbeddingsOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"task_instance": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -108,7 +108,7 @@ class TestVertexAIGenerativeModelGenerateContentOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"task_instance": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -145,7 +145,7 @@ class TestVertexAISupervisedFineTuningTrainOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"task_instance": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -179,7 +179,7 @@ class TestVertexAICountTokensOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"task_instance": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -258,7 +258,7 @@ class TestVertexAIRunEvaluationOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"task_instance": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -313,7 +313,7 @@ class TestVertexAICreateCachedContentOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"task_instance": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -344,7 +344,7 @@ class TestVertexAIGenerateFromCachedContentOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"task_instance": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -375,7 +375,7 @@ class TestVertexAIDeleteExperimentRunOperator:
                 gcp_conn_id=GCP_CONN_ID,
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"task_instance": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,

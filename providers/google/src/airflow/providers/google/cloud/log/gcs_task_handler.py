@@ -261,7 +261,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         if not self.upload_on_close:
             return
 
-        if hasattr(self, "ti"):
+        if hasattr(self, "task_instance"):
             self.io.upload(self.log_relative_path, self.ti)
 
         # Mark closed so we don't double write if close is called twice

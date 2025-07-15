@@ -152,7 +152,7 @@ class TestDataplexTasksLink:
         session.add(ti)
         session.commit()
 
-        link.persist(context={"ti": ti, "task": ti.task})
+        link.persist(context={"task_instance": ti, "task": ti.task})
 
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.send.return_value = XComResult(
@@ -213,7 +213,7 @@ class TestDataplexCatalogEntryGroupLink:
         session.add(ti)
         session.commit()
 
-        link.persist(context={"ti": ti, "task": ti.task})
+        link.persist(context={"task_instance": ti, "task": ti.task})
 
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.send.return_value = XComResult(
