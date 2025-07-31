@@ -283,6 +283,8 @@ class GetRayClusterOperator(RayBaseOperator):
                 cluster_id=self.cluster_id,
             )
             self.log.info("Cluster was gotten.")
+            print("RAY_OP_DBG INFO:--->", repr(ray_cluster), type(ray_cluster), dir(ray_cluster))
+
             ray_cluster_dict = self.hook.serialize_cluster_obj(ray_cluster)
             return ray_cluster_dict
         except NotFound as not_found_err:
