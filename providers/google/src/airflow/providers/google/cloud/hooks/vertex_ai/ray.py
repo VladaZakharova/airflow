@@ -20,27 +20,15 @@
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import MutableMapping
 from typing import Any
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
-
-try:
-    import vertex_ray
-except ImportError:
-    # Fallback for environments where the upb module is not available.
-    # TODO: check if fallback needed, check the error message maybe delete the whole exception?
-    # TODO: pdate the system test import
-
-    raise AirflowOptionalProviderFeatureException(
-        "google._upb._message.ScalarMapContainer is not available. "
-        "Please install the ray package to use this feature."
-    )
+import vertex_ray
 from google.cloud import aiplatform
 from google.cloud.aiplatform.vertex_ray.util import resources
 from google.cloud.aiplatform_v1 import (
     PersistentResourceServiceClient,
 )
-from collections.abc import MutableMapping
 from proto.marshal.collections.repeated import Repeated
 
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
@@ -62,11 +50,7 @@ class RayHook(GoogleBaseHook):
         def __encode_value(value: Any) -> Any:
             if isinstance(value, (list, Repeated)):
                 return [__encode_value(nested_value) for nested_value in value]
-            if not isinstance(value, dict) and  isinstance(value, MutableMapping):
-                print("RAY_DBG val to scalar_map_cont:--->", type(value), value)
-                print("RAY_DBG: auto-conversion:---->", dict(value))
-
-
+            if not isinstance(value, dict) and isinstance(value, MutableMapping):
                 return {key: __encode_value(nested_value) for key, nested_value in dict(value).items()}
             if dataclasses.is_dataclass(value):
                 return dataclasses.asdict(value)
