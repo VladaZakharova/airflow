@@ -28,6 +28,7 @@ from datetime import timedelta
 from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Part, Tool, grounding
 from vertexai.preview.evaluation import MetricPromptTemplateExamples
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import (
     GenerativeModelHook,
 )
@@ -141,7 +142,8 @@ class TestGenerativeModelWithDefaultProjectIdHook:
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
-            self.hook = GenerativeModelHook(gcp_conn_id=TEST_GCP_CONN_ID)
+            with pytest.warns(AirflowProviderDeprecationWarning):
+                self.hook = GenerativeModelHook(gcp_conn_id=TEST_GCP_CONN_ID)
             self.hook.get_credentials = self.dummy_get_credentials
 
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_text_embedding_model"))
