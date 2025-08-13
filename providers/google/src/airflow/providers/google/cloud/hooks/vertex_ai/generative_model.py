@@ -40,6 +40,11 @@ if TYPE_CHECKING:
     from google.cloud.aiplatform_v1beta1 import types as types_v1beta1
 
 
+@deprecated(
+    planned_removal_date="June 1, 2026",
+    use_instead="airflow.providers.google.cloud.hooks.vertex_ai.generative_model.GenAIGenerativeModelHook",
+    category=AirflowProviderDeprecationWarning,
+)
 class GenerativeModelHook(GoogleBaseHook):
     """Hook for Google Cloud Vertex AI Generative Model APIs."""
 
