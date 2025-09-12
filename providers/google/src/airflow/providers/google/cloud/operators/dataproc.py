@@ -634,6 +634,14 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
 
     operator_extra_links = (DataprocClusterLink(),)
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "region": self.region,
+            "cluster_id": self.cluster_name,
+            "project_id": self.project_id,
+        }
+
     def __init__(
         self,
         *,
@@ -812,12 +820,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         # Save data required to display extra link no matter what the cluster status will be
         project_id = self.project_id or hook.project_id
         if project_id:
-            DataprocClusterLink.persist(
-                context=context,
-                cluster_id=self.cluster_name,
-                project_id=project_id,
-                region=self.region,
-            )
+            DataprocClusterLink.persist(context=context)
 
         try:
             # First try to create a new cluster
