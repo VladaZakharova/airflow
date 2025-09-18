@@ -20,7 +20,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import re
@@ -1993,11 +1992,10 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             optional parameter `location`
             2. The `gcloud-aio-bigquery` library supports the `location` parameter in get_job() method.
         """
-        loop = asyncio.get_event_loop()
-        job = await loop.run_in_executor(None, self._get_job_sync, job_id, project_id, location)
+        job = await self._get_job_sync(job_id, project_id, location)
         return job
 
-    def _get_job_sync(self, job_id, project_id, location):
+    async def _get_job_sync(self, job_id, project_id, location):
         """
         Get BigQuery job by its ID, project ID and location synchronously.
 
@@ -2012,8 +2010,8 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             optional parameter `location`
             2. The `gcloud-aio-bigquery` library supports the `location` parameter in get_job() method.
         """
-        hook = BigQueryHook(**self._hook_kwargs)
-        return hook.get_job(job_id=job_id, project_id=project_id, location=location)
+        sync_hook = await self.get_sync_hook()
+        return sync_hook.get_job(job_id=job_id, project_id=project_id, location=location)
 
     async def get_job_status(
         self, job_id: str | None, project_id: str = PROVIDE_PROJECT_ID, location: str | None = None
