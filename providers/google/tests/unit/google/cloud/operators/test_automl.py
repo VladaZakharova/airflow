@@ -130,7 +130,7 @@ class TestAutoMLPredictOperator:
     def test_execute(self, mock_hook, mock_link_persist):
         mock_hook.return_value.predict.return_value = PredictResponse()
         mock_hook.return_value.get_model.return_value = mock.MagicMock(**MODEL)
-        mock_context = {"ti": mock.MagicMock()}
+        mock_context = {"task_instance": mock.MagicMock()}
         with pytest.warns(AirflowProviderDeprecationWarning):
             op = AutoMLPredictOperator(
                 model_id=MODEL_ID,

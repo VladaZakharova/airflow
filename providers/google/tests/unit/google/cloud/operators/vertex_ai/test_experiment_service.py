@@ -58,7 +58,7 @@ class TestVertexAICreateExperimentOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"task_instance": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -84,7 +84,7 @@ class TestVertexAIDeleteExperimentOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
             delete_backing_tensorboard_runs=TEST_DELETE_BACKING_TENSORBOARD_RUNS,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"task_instance": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -110,7 +110,7 @@ class TestVertexAICreateExperimentRunOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"task_instance": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -136,7 +136,7 @@ class TestVertexAIListExperimentRunsOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"task_instance": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -161,7 +161,7 @@ class TestVertexAIUpdateExperimentRunStateOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
             new_state=TEST_TARGET_STATE,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"task_instance": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -187,7 +187,7 @@ class TestVertexAIDeleteExperimentRunOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        op.execute(context={"task_instance": mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,

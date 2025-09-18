@@ -447,7 +447,7 @@ class GCSToBigQueryOperator(BaseOperator):
                                 BigQueryTableLink.persist(**persist_kwargs)
 
             self.job_id = job.job_id
-            context["ti"].xcom_push(key="job_id", value=self.job_id)
+            context["task_instance"].xcom_push(key="job_id", value=self.job_id)
             if self.deferrable:
                 self.defer(
                     timeout=self.execution_timeout,

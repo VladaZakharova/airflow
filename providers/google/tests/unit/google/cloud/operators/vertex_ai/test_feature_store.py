@@ -78,7 +78,7 @@ class TestSyncFeatureViewOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
-        response = op.execute(context={"ti": mock.MagicMock()})
+        response = op.execute(context={"task_instance": mock.MagicMock()})
         # Verify hook initialization
         mock_hook_class.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -116,7 +116,7 @@ class TestGetFeatureViewSyncOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        response = op.execute(context={"ti": mock.MagicMock()})
+        response = op.execute(context={"task_instance": mock.MagicMock()})
         # Verify hook initialization
         mock_hook_class.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -166,7 +166,7 @@ class TestCreateFeatureOnlineStoreOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
             **common_kwargs,
         )
-        result = op.execute(context={"ti": mock.MagicMock()})
+        result = op.execute(context={"task_instance": mock.MagicMock()})
         # Verify hook initialization
         mock_hook_class.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -228,7 +228,7 @@ class TestCreateFeatureViewOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
             **common_kwargs,
         )
-        result = op.execute(context={"ti": mock.MagicMock()})
+        result = op.execute(context={"task_instance": mock.MagicMock()})
         # Verify hook initialization
         mock_hook_class.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -280,7 +280,7 @@ class TestFetchFeatureValuesOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
             **common_kwargs,
         )
-        result = op.execute(context={"ti": mock.MagicMock()})
+        result = op.execute(context={"task_instance": mock.MagicMock()})
         # Verify hook initialization
         mock_hook_class.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -326,7 +326,7 @@ class TestGetFeatureOnlineStoreOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
             **common_kwargs,
         )
-        response = op.execute(context={"ti": mock.MagicMock()})
+        response = op.execute(context={"task_instance": mock.MagicMock()})
         # Verify hook initialization
         mock_hook_class.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -362,7 +362,7 @@ class TestDeleteFeatureOnlineStoreOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
             **common_kwargs,
         )
-        response = op.execute(context={"ti": mock.MagicMock()})
+        response = op.execute(context={"task_instance": mock.MagicMock()})
         # Verify hook initialization
         mock_hook_class.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -398,7 +398,7 @@ class TestDeleteFeatureViewOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
             **common_kwargs,
         )
-        response = op.execute(context={"ti": mock.MagicMock()})
+        response = op.execute(context={"task_instance": mock.MagicMock()})
         # Verify hook initialization
         mock_hook_class.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,

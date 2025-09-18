@@ -426,7 +426,7 @@ def test_async_create_build_fires_correct_trigger_should_execute_successfully(
     )
 
     with pytest.raises(TaskDeferred) as exc:
-        ti.task.execute({"ti": ti, "task_instance": ti})
+        ti.task.execute({"task_instance": ti})
 
     assert isinstance(exc.value.trigger, CloudBuildCreateBuildTrigger), (
         "Trigger is not a CloudBuildCreateBuildTrigger"
@@ -472,7 +472,7 @@ def test_async_create_build_correct_logging_should_execute_successfully(
 
     with mock.patch.object(ti.task.log, "info") as mock_log_info:
         ti.task.execute_complete(
-            context={"ti": ti, "task": ti.task},
+            context={"task_instance": ti, "task": ti.task},
             event={
                 "instance": TEST_BUILD_INSTANCE,
                 "status": "success",
@@ -550,7 +550,6 @@ def create_context(task):
         "dag": dag,
         "run_id": dag_run.run_id,
         "task": task,
-        "ti": task_instance,
         "task_instance": task_instance,
         "logical_date": logical_date,
     }

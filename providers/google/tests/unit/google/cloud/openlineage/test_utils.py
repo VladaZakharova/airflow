@@ -104,7 +104,7 @@ EXAMPLE_TEMPLATE = {
     ],
 }
 EXAMPLE_CONTEXT = {
-    "ti": MagicMock(
+    "task_instance": MagicMock(
         dag_id="dag_id",
         task_id="task_id",
         try_number=1,

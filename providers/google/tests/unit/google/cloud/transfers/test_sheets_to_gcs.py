@@ -83,7 +83,7 @@ class TestGoogleSheetsToGCSOperator:
     )
     def test_execute(self, mock_upload_data, mock_sheet_hook, mock_gcs_hook):
         mock_ti = mock.MagicMock()
-        mock_context = {"ti": mock_ti}
+        mock_context = {"task_instance": mock_ti}
         data = ["data1", "data2"]
         mock_sheet_hook.return_value.get_sheet_titles.return_value = RANGES
         mock_sheet_hook.return_value.get_values.side_effect = data
