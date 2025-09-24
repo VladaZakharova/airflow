@@ -78,7 +78,7 @@ class BaseGoogleLink(BaseOperatorLink):
             if common_params:
                 params.update(common_params)
 
-        context["ti"].xcom_push(
+        context["task_instance"].xcom_push(
             key=cls.key,
             value={
                 **params,

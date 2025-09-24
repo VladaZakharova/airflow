@@ -956,7 +956,7 @@ class GKEListJobsOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         for job in jobs.items:
             self.log.info("Retrieved description of Job:\n %s", job)
         if self.do_xcom_push:
-            ti = context["ti"]
+            ti = context["task_instance"]
             ti.xcom_push(key="jobs_list", value=V1JobList.to_dict(jobs))
         KubernetesEngineWorkloadsLink.persist(context=context)
         return V1JobList.to_dict(jobs)

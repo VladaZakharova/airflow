@@ -48,11 +48,11 @@ class LookerTestBase:
 
     def setup_method(self):
         self.mock_ti = MagicMock()
-        self.mock_context = {"ti": self.mock_ti}
+        self.mock_context = {"task_instance": self.mock_ti}
 
     def tearDown(self):
         self.mock_ti = MagicMock()
-        self.mock_context = {"ti": self.mock_ti}
+        self.mock_context = {"task_instance": self.mock_ti}
 
     @classmethod
     def tearDownClass(cls):

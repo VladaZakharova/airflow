@@ -45,7 +45,7 @@ class TestVertexAIRayClusterLink:
 
     def test_persist(self):
         mock_context = mock.MagicMock()
-        mock_context["ti"] = mock.MagicMock(location=TEST_LOCATION, project_id=TEST_PROJECT_ID)
+        mock_context["task_instance"] = mock.MagicMock(location=TEST_LOCATION, project_id=TEST_PROJECT_ID)
         mock_context["task"] = mock.MagicMock()
 
         VertexAIRayClusterLink.persist(
@@ -55,7 +55,7 @@ class TestVertexAIRayClusterLink:
             project_id=TEST_PROJECT_ID,
         )
 
-        mock_context["ti"].xcom_push.assert_called_once_with(
+        mock_context["task_instance"].xcom_push.assert_called_once_with(
             key=EXPECTED_VERTEX_AI_RAY_CLUSTER_LINK_KEY,
             value={
                 "location": TEST_LOCATION,
@@ -73,7 +73,7 @@ class TestVertexAIRayClusterListLink:
 
     def test_persist(self):
         mock_context = mock.MagicMock()
-        mock_context["ti"] = mock.MagicMock(project_id=TEST_PROJECT_ID)
+        mock_context["task_instance"] = mock.MagicMock(project_id=TEST_PROJECT_ID)
         mock_context["task"] = mock.MagicMock()
 
         VertexAIRayClusterListLink.persist(
@@ -81,7 +81,7 @@ class TestVertexAIRayClusterListLink:
             project_id=TEST_PROJECT_ID,
         )
 
-        mock_context["ti"].xcom_push.assert_called_once_with(
+        mock_context["task_instance"].xcom_push.assert_called_once_with(
             key=EXPECTED_VERTEX_AI_RAY_CLUSTER_LIST_LINK_KEY,
             value={
                 "project_id": TEST_PROJECT_ID,

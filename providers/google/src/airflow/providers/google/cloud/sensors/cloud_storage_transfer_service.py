@@ -103,7 +103,7 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         self.deferrable = deferrable
 
     def poke(self, context: Context) -> bool:
-        ti = context["ti"]
+        ti = context["task_instance"]
         hook = CloudDataTransferServiceHook(
             gcp_conn_id=self.gcp_cloud_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -159,5 +159,5 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
         if event["status"] == "error":
             raise AirflowException(event["message"])
 
-        ti = context["ti"]
+        ti = context["task_instance"]
         ti.xcom_push(key="sensed_operations", value=event["operations"])

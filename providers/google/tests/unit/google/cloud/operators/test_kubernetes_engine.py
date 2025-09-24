@@ -1025,7 +1025,7 @@ class TestGKEListJobsOperator:
         mock_to_dict_value = mock_to_dict.return_value
 
         mock_ti = mock.MagicMock()
-        context = {"ti": mock_ti, "task": mock.MagicMock()}
+        context = {"task_instance": mock_ti, "task": mock.MagicMock()}
 
         result = self.operator.execute(context=context)
 
@@ -1057,7 +1057,7 @@ class TestGKEListJobsOperator:
         mock_to_dict_value = mock_to_dict.return_value
 
         mock_ti = mock.MagicMock()
-        context = {"ti": mock_ti, "task": mock.MagicMock()}
+        context = {"task_instance": mock_ti, "task": mock.MagicMock()}
 
         self.operator.namespace = K8S_NAMESPACE
         result = self.operator.execute(context=context)
@@ -1089,7 +1089,7 @@ class TestGKEListJobsOperator:
         mock_to_dict_value = mock_to_dict.return_value
 
         mock_ti = mock.MagicMock()
-        context = {"ti": mock_ti, "task": mock.MagicMock()}
+        context = {"task_instance": mock_ti, "task": mock.MagicMock()}
 
         self.operator.do_xcom_push = False
         result = self.operator.execute(context=context)

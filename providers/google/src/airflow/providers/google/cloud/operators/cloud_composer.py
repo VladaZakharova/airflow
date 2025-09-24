@@ -160,7 +160,7 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-            context["ti"].xcom_push(key="operation_id", value=result.operation.name)
+            context["task_instance"].xcom_push(key="operation_id", value=result.operation.name)
 
             if not self.deferrable:
                 environment = hook.wait_for_operation(timeout=self.timeout, operation=result)

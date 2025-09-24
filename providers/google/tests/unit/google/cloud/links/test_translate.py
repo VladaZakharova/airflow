@@ -64,7 +64,7 @@ class TestTranslationLegacyDatasetLink:
         session.commit()
 
         link.persist(
-            context={"ti": ti, "task": ti.task},
+            context={"task_instance": ti, "task": ti.task},
             dataset_id=DATASET,
             project_id=GCP_PROJECT_ID,
             location=GCP_LOCATION,
@@ -96,7 +96,7 @@ class TestTranslationDatasetListLink:
         )
         session.add(ti)
         session.commit()
-        link.persist(context={"ti": ti, "task": ti.task}, project_id=GCP_PROJECT_ID)
+        link.persist(context={"task_instance": ti, "task": ti.task}, project_id=GCP_PROJECT_ID)
 
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.send.return_value = XComResult(
@@ -135,7 +135,7 @@ class TestTranslationLegacyModelLink:
             "location": GCP_LOCATION,
         }
         link.persist(
-            context={"ti": ti, "task": task},
+            context={"task_instance": ti, "task": task},
             dataset_id=DATASET,
             model_id=MODEL,
             project_id=GCP_PROJECT_ID,
@@ -179,7 +179,7 @@ class TestTranslationLegacyModelTrainLink:
             "location": GCP_LOCATION,
         }
         link.persist(
-            context={"ti": ti, "task": task},
+            context={"task_instance": ti, "task": task},
             dataset_id=DATASET,
             project_id=GCP_PROJECT_ID,
             location=GCP_LOCATION,

@@ -280,7 +280,7 @@ class BigQueryCheckOperator(
             if self.project_id is None:
                 self.project_id = hook.project_id
             job = self._submit_job(hook, job_id="")
-            context["ti"].xcom_push(key="job_id", value=job.job_id)
+            context["task_instance"].xcom_push(key="job_id", value=job.job_id)
             if job.running():
                 self.defer(
                     timeout=self.execution_timeout,
@@ -435,7 +435,7 @@ class BigQueryValueCheckOperator(
             if self.project_id is None:
                 self.project_id = hook.project_id
             job = self._submit_job(hook, job_id="")
-            context["ti"].xcom_push(key="job_id", value=job.job_id)
+            context["task_instance"].xcom_push(key="job_id", value=job.job_id)
             if job.running():
                 self.defer(
                     timeout=self.execution_timeout,
@@ -604,7 +604,7 @@ class BigQueryIntervalCheckOperator(
 
             self.log.info("Executing SQL check: %s", self.sql1)
             job_1 = self._submit_job(hook, sql=self.sql1, job_id="")
-            context["ti"].xcom_push(key="job_id", value=job_1.job_id)
+            context["task_instance"].xcom_push(key="job_id", value=job_1.job_id)
 
             self.log.info("Executing SQL check: %s", self.sql2)
             job_2 = self._submit_job(hook, sql=self.sql2, job_id="")
@@ -751,7 +751,7 @@ class BigQueryColumnCheckOperator(
         failed_tests = []
 
         job = self._submit_job(hook, job_id="")
-        context["ti"].xcom_push(key="job_id", value=job.job_id)
+        context["task_instance"].xcom_push(key="job_id", value=job.job_id)
         records = job.result().to_dataframe()
 
         if records.empty:
@@ -880,7 +880,7 @@ class BigQueryTableCheckOperator(
         if self.project_id is None:
             self.project_id = hook.project_id
         job = self._submit_job(hook, job_id="")
-        context["ti"].xcom_push(key="job_id", value=job.job_id)
+        context["task_instance"].xcom_push(key="job_id", value=job.job_id)
         records = job.result().to_dataframe()
 
         if records.empty:
@@ -1170,7 +1170,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
                 job_id=self.job_id, project_id=self.job_project_id or hook.project_id, location=self.location
             )
 
-        context["ti"].xcom_push(key="job_id", value=job.job_id)
+        context["task_instance"].xcom_push(key="job_id", value=job.job_id)
         self.defer(
             timeout=self.execution_timeout,
             trigger=BigQueryGetDataTrigger(
@@ -2450,7 +2450,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
                 project_id=self.project_id,
                 location=self.location,
             )
-            context["ti"].xcom_push(key="job_id_path", value=job_id_path)
+            context["task_instance"].xcom_push(key="job_id_path", value=job_id_path)
 
         persist_kwargs = {
             "context": context,
