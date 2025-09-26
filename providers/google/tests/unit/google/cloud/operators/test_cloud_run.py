@@ -46,7 +46,6 @@ TASK_ID = "test"
 PROJECT_ID = "testproject"
 REGION = "us-central1"
 JOB_NAME = "jobname"
-SERVICE = Service()
 SERVICE_NAME = "servicename"
 OVERRIDES = {
     "container_overrides": [{"args": ["python", "main.py"]}],
@@ -59,6 +58,34 @@ JOB.name = JOB_NAME
 
 SERVICE = Service()
 SERVICE.name = SERVICE_NAME
+SERVICE_DICT_FORMAT = {
+    "name": "servicename",
+    "description": "",
+    "uid": "",
+    "generation": "0",
+    "labels": {},
+    "annotations": {},
+    "creator": "",
+    "last_modifier": "",
+    "client": "",
+    "client_version": "",
+    "ingress": 0,
+    "launch_stage": 0,
+    "traffic": [],
+    "invoker_iam_disabled": False,
+    "default_uri_disabled": False,
+    "urls": [],
+    "custom_audiences": [],
+    "observed_generation": "0",
+    "conditions": [],
+    "latest_ready_revision": "",
+    "latest_created_revision": "",
+    "traffic_statuses": [],
+    "uri": "",
+    "satisfies_pzs": False,
+    "reconciling": False,
+    "etag": "",
+}
 
 
 def _assert_common_template_fields(template_fields):
@@ -462,7 +489,7 @@ class TestCloudRunCreateServiceOperator:
             project_id=PROJECT_ID,
         )
 
-        assert result == SERVICE
+        assert result == SERVICE_DICT_FORMAT
 
     @mock.patch(CLOUD_RUN_SERVICE_HOOK_PATH)
     def test_execute_when_other_error(self, hook_mock):
