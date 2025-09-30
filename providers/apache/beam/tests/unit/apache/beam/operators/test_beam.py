@@ -1,8 +1,10 @@
+# TODO: This license is not consistent with the license used in the project.
+#       Delete the inconsistent license and above line and rerun pre-commit to insert a good license.
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
 # regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
+# to you under the ApacTestBeamRunPythonPipelineOperatorhe License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
 #
@@ -247,7 +249,12 @@ class TestBeamRunPythonPipelineOperator:
         }
         gcs_provide_file.assert_any_call(object_url=PY_FILE)
         gcs_provide_file.assert_any_call(object_url=REQURIEMENTS_FILE)
-        persist_link_mock.assert_called_once_with(context={}, region="us-central1")
+        persist_link_mock.assert_called_once_with(
+            context={},
+            region="us-central1",
+            job_id=None,
+            project_id=dataflow_hook_mock.return_value.project_id,
+        )
         beam_hook_mock.return_value.start_python_pipeline.assert_called_once_with(
             variables=expected_options,
             py_file=gcs_provide_file.return_value.__enter__.return_value.name,
@@ -468,7 +475,12 @@ class TestBeamRunJavaPipelineOperator:
             "output": "gs://test/output",
             "impersonateServiceAccount": TEST_IMPERSONATION_ACCOUNT,
         }
-        persist_link_mock.assert_called_once_with(context={})
+        persist_link_mock.assert_called_once_with(
+            context={},
+            region="us-central1",
+            job_id=None,
+            project_id=dataflow_hook_mock.return_value.project_id,
+        )
         beam_hook_mock.return_value.start_java_pipeline.assert_called_once_with(
             variables=expected_options,
             jar=gcs_provide_file.return_value.__enter__.return_value.name,
