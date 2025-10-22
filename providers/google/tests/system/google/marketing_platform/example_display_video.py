@@ -72,6 +72,8 @@ OBJECT_NAME = "files/report.csv"
 PATH_TO_UPLOAD_FILE = os.environ.get("GCP_GCS_PATH_TO_UPLOAD_FILE", "test-gcs-example.csv")
 BUCKET_FILE_LOCATION = PATH_TO_UPLOAD_FILE.rpartition("/")[-1]
 
+IS_COMPOSER = bool(os.environ.get("COMPOSER_ENVIRONMENT", ""))
+
 CONNECTION_TYPE = "google_cloud_platform"
 CONN_ID = "google_display_video_default"
 
@@ -135,6 +137,7 @@ with DAG(
         create_airflow_connection(
             connection_id=connection_id,
             connection_conf={"conn_type": CONNECTION_TYPE, "extra": conn_extra_json},
+            is_composer=IS_COMPOSER,
         )
 
     create_connection_display_video_task = create_connection_display_video(
@@ -199,7 +202,7 @@ with DAG(
 
     @task(task_id="delete_connection_task")
     def delete_connection_display_video(connection_id: str) -> None:
-        delete_airflow_connection(connection_id=connection_id)
+        delete_airflow_connection(connection_id=connection_id, is_composer=IS_COMPOSER)
 
     delete_connection_task = delete_connection_display_video(connection_id=CONN_ID)
 

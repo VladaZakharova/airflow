@@ -333,7 +333,9 @@ with DAG(
             connection["extra"]["database_type"] = db_type
             connection["port"] = port
             connection["extra"] = json.dumps(connection["extra"])
-            create_airflow_connection(connection_id=connection_id, connection_conf=connection)
+            create_airflow_connection(
+                connection_id=connection_id, connection_conf=connection, is_composer=IS_COMPOSER
+            )
             return connection_id
 
         create_connection_task = create_connection(
@@ -410,7 +412,7 @@ with DAG(
 
         @task(task_id=f"delete_connection_{database_type}")
         def delete_connection(connection_id: str) -> None:
-            delete_airflow_connection(connection_id=connection_id)
+            delete_airflow_connection(connection_id=connection_id, is_composer=IS_COMPOSER)
 
         delete_connection_task = delete_connection(connection_id=conn_id)
 
