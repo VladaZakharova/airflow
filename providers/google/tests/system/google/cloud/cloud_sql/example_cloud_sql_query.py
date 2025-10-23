@@ -470,6 +470,7 @@ with DAG(
             create_airflow_connection(
                 connection_id=connection_id,
                 connection_conf=connection,
+                is_composer=run_in_composer(),
             )
             return connection_id
 
@@ -516,7 +517,7 @@ with DAG(
 
         @task()
         def delete_connection(connection_id: str) -> None:
-            delete_airflow_connection(connection_id=connection_id)
+            delete_airflow_connection(connection_id=connection_id, is_composer=run_in_composer())
 
         delete_connections_task = delete_connection.expand(
             connection_id=[f"{conn.id}_{database_type}" for conn in CONNECTIONS]

@@ -70,6 +70,8 @@ CM360_IMPERSONATION_CHAIN = os.environ.get("IMPERSONATION_CHAIN", None)
 
 DAG_ID = "campaign_manager"
 
+IS_COMPOSER = bool(os.environ.get("COMPOSER_ENVIRONMENT", ""))
+
 SECRET_ACCOUNT_ID = "cm360_account_id"
 SECRET_DCLID = "cm360_dclid"
 SECRET_ENCRYPTION_ENTITY_ID = "cm360_encryption_entity_id"
@@ -167,6 +169,7 @@ with DAG(
         create_airflow_connection(
             connection_id=connection_id,
             connection_conf=connection,
+            is_composer=IS_COMPOSER,
         )
 
     @task
@@ -281,7 +284,7 @@ with DAG(
 
     @task(task_id="delete_connection")
     def delete_connection(connection_id: str) -> None:
-        delete_airflow_connection(connection_id=connection_id)
+        delete_airflow_connection(connection_id=connection_id, is_composer=IS_COMPOSER)
 
     (
         # TEST SETUP
