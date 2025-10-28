@@ -80,6 +80,7 @@ from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -1314,18 +1315,22 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         job_id = f"airflow_{dag_id}_{task_id}_{job_id_timestamp.isoformat()}_{uniqueness_suffix}"
         return re.sub(r"[:\-+.]", "_", job_id)
 
-    def get_run_after_or_logical_date(self, context: Context) -> pendulum.DateTime:
+    def get_run_after_or_logical_date(self, context: Context) -> pendulum.DateTime | datetime:
+        dag_run = context.get("dag_run")
+
+        # Default fallback
+        run_after = pendulum.now("UTC")
+
+        if not dag_run:
+            return run_after
+
+        if dag_run.run_type == DagRunType.SCHEDULED:
+            return dag_run.start_date
+
         if AIRFLOW_V_3_0_PLUS:
-            if dag_run := context.get("dag_run"):
-                run_after = pendulum.instance(dag_run.run_after)
-            else:
-                run_after = pendulum.now("UTC")
-        else:
-            if logical_date := context.get("logical_date"):
-                run_after = logical_date
-            else:
-                run_after = pendulum.now("UTC")
-        return run_after
+            return pendulum.instance(getattr(dag_run, "run_after", run_after))
+
+        return context.get("logical_date") or run_after
 
     def split_tablename(
         self, table_input: str, default_project_id: str, var_name: str | None = None
