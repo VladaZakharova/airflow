@@ -106,6 +106,17 @@ else:
     from methodtools import lru_cache
 
 
+def _get_connections_with_log_level_warning() -> list:
+    connections = []
+    try:
+        from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
+
+        connections.append(KubernetesHook.default_conn_name)
+    except ImportError:
+        pass
+    return connections
+
+
 @cache
 def _get_fqdn(name=""):
     """
@@ -366,7 +377,12 @@ class ConnectionOperations:
             resp = self.client.get(f"connections/{conn_id}")
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
-                log.error(
+                connections_with_log_level_warning = _get_connections_with_log_level_warning()
+                log_level = (
+                    logging.WARNING if conn_id in connections_with_log_level_warning else logging.ERROR
+                )
+                log.log(
+                    log_level,
                     "Connection not found",
                     conn_id=conn_id,
                     detail=e.detail,
