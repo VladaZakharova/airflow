@@ -59,6 +59,8 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 DAG_ID = "gdrive_to_local"
 
+IS_COMPOSER = bool(os.environ.get("COMPOSER_ENVIRONMENT", ""))
+
 CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}"
 FILE_NAME = "empty.txt"
 DRIVE_FILE_NAME = f"empty_{DAG_ID}_{ENV_ID}.txt".replace("-", "_")
@@ -86,6 +88,7 @@ with DAG(
         create_airflow_connection(
             connection_id=connection_id,
             connection_conf=connection,
+            is_composer=IS_COMPOSER,
         )
 
     create_connection_task = create_connection(connection_id=CONNECTION_ID)
@@ -146,7 +149,7 @@ with DAG(
 
     @task(task_id="delete_connection")
     def delete_connection(connection_id: str) -> None:
-        delete_airflow_connection(connection_id=connection_id)
+        delete_airflow_connection(connection_id=connection_id, is_composer=IS_COMPOSER)
 
     delete_connection_task = delete_connection(connection_id=CONNECTION_ID)
 

@@ -161,6 +161,7 @@ with DAG(
         create_airflow_connection(
             connection_id=connection_id,
             connection_conf=connection,
+            is_composer=IS_COMPOSER,
         )
 
     create_connection_task = create_connection(connection_id=CONNECTION_ID)
