@@ -42,6 +42,14 @@ if TYPE_CHECKING:
 class DataformHook(GoogleBaseHook):
     """Hook for Google Cloud DataForm APIs."""
 
+    def __init__(
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(gcp_conn_id, impersonation_chain, **kwargs)
+
     def get_dataform_client(self) -> DataformClient:
         """Retrieve client library object that allow access to Cloud Dataform service."""
         return DataformClient(credentials=self.get_credentials())
