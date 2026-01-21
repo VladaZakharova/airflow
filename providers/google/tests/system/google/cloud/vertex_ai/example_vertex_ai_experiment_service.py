@@ -36,9 +36,9 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "vertex_ai_experiment_service_dag"
 REGION = "us-central1"
-EXPERIMENT_NAME = f"test-experiment-airflow-operator-{ENV_ID}"
-EXPERIMENT_RUN_NAME_1 = f"test-experiment-run-airflow-operator-1-{ENV_ID}"
-EXPERIMENT_RUN_NAME_2 = f"test-experiment-run-airflow-operator-2-{ENV_ID}"
+EXPERIMENT_NAME = f"test-experiment-airflow-operator-{ENV_ID}".replace("_", "-")
+EXPERIMENT_RUN_NAME_1 = f"test-experiment-run-airflow-operator-1-{ENV_ID}".replace("_", "-")
+EXPERIMENT_RUN_NAME_2 = f"test-experiment-run-airflow-operator-2-{ENV_ID}".replace("_", "-")
 
 with DAG(
     dag_id=DAG_ID,

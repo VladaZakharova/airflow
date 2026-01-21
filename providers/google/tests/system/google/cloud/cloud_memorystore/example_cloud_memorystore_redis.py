@@ -63,17 +63,17 @@ DAG_ID = "cloud_memorystore_redis"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 LOCATION = "europe-north1"
-MEMORYSTORE_REDIS_INSTANCE_NAME = f"redis-{ENV_ID_LOWER}-1"
-MEMORYSTORE_REDIS_INSTANCE_NAME_2 = f"redis-{ENV_ID_LOWER}-2"
-MEMORYSTORE_REDIS_INSTANCE_NAME_3 = f"redis-{ENV_ID_LOWER}-3"
+MEMORYSTORE_REDIS_INSTANCE_NAME = f"redis-{ENV_ID_LOWER}-1".replace("_", "-")
+MEMORYSTORE_REDIS_INSTANCE_NAME_2 = f"redis-{ENV_ID_LOWER}-2".replace("_", "-")
+MEMORYSTORE_REDIS_INSTANCE_NAME_3 = f"redis-{ENV_ID_LOWER}-3".replace("_", "-")
 
 EXPORT_GCS_URL = f"gs://{BUCKET_NAME}/my-export.rdb"
 
 # [START howto_operator_instance]
-FIRST_INSTANCE = {"tier": Instance.Tier.BASIC, "memory_size_gb": 1}
+FIRST_INSTANCE = {"tier": Instance.Tier.BASIC.value, "memory_size_gb": 1}  # type: ignore[attr-defined]
 # [END howto_operator_instance]
 
-SECOND_INSTANCE = {"tier": Instance.Tier.STANDARD_HA, "memory_size_gb": 3}
+SECOND_INSTANCE = {"tier": Instance.Tier.STANDARD_HA.value, "memory_size_gb": 3}  # type: ignore[attr-defined]
 
 
 with DAG(
@@ -134,7 +134,7 @@ with DAG(
         location=LOCATION,
         instance=MEMORYSTORE_REDIS_INSTANCE_NAME_2,
         data_protection_mode=FailoverInstanceRequest.DataProtectionMode(
-            FailoverInstanceRequest.DataProtectionMode.LIMITED_DATA_LOSS
+            FailoverInstanceRequest.DataProtectionMode.LIMITED_DATA_LOSS.value  # type: ignore[attr-defined]
         ),
         project_id=PROJECT_ID,
     )
