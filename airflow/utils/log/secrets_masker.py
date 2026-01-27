@@ -184,17 +184,27 @@ class SecretsMasker(logging.Filter):
         )
         return frozenset(record.__dict__).difference({"msg", "args"})
 
-    def _redact_exception_with_context(self, exception):
+    def _redact_exception_with_context(self, exception, visited=None):
         # Exception class may not be modifiable (e.g. declared by an
         # extension module such as JDBC).
+        if visited is None:
+            visited = set()
+
+        if id(exception) in visited:
+            return
+
+        visited.add(id(exception))
+
+        if len(visited) > self.MAX_RECURSION_DEPTH:
+            return
         try:
             exception.args = (self.redact(v) for v in exception.args)
         except AttributeError:
             pass
         if exception.__context__:
-            self._redact_exception_with_context(exception.__context__)
+            self._redact_exception_with_context(exception.__context__, visited)
         if exception.__cause__ and exception.__cause__ is not exception.__context__:
-            self._redact_exception_with_context(exception.__cause__)
+            self._redact_exception_with_context(exception.__cause__, visited)
 
     def filter(self, record) -> bool:
         if settings.MASK_SECRETS_IN_LOGS is not True:
