@@ -22,6 +22,7 @@ import itertools
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any, Literal
 
+from google.api_core.client_options import ClientOptions
 from google.cloud.run_v2 import (
     CreateJobRequest,
     CreateServiceRequest,
@@ -39,7 +40,6 @@ from google.cloud.run_v2 import (
     ServicesClient,
     UpdateJobRequest,
 )
-from google.longrunning import operations_pb2
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
@@ -59,6 +59,8 @@ class CloudRunHook(GoogleBaseHook):
     """
     Hook for the Google Cloud Run service.
 
+    :param use_regional_endpoint: If set to True, regional endpoint will be used while creating Client.
+        If not provided, the default one is global endpoint.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -84,9 +86,13 @@ class CloudRunHook(GoogleBaseHook):
         self._client: JobsClient | None = None
         self.transport = transport
 
-    def get_conn(self):
+    def get_conn(self, location: str, use_regional_endpoint: bool) -> JobsClient:
         """
-        Retrieve connection to Cloud Run.
+        Retrieve the connection to Google Cloud Run.
+
+        :param location: The location of the project.
+        :param use_regional_endpoint: If set to True, regional endpoint will be used while creating Client.
+            If not provided, the default one is global endpoint.
 
         :return: Cloud Run Jobs client object.
         """
@@ -101,16 +107,25 @@ class CloudRunHook(GoogleBaseHook):
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def delete_job(self, job_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID) -> Job:
+    def delete_job(
+        self, job_name: str, region: str, use_regional_endpoint: bool, project_id: str = PROVIDE_PROJECT_ID
+    ) -> Job:
         delete_request = DeleteJobRequest()
         delete_request.name = f"projects/{project_id}/locations/{region}/jobs/{job_name}"
 
-        operation = self.get_conn().delete_job(delete_request)
+        operation = self.get_conn(location=region, use_regional_endpoint=use_regional_endpoint).delete_job(
+            delete_request
+        )
         return operation.result()
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_job(
-        self, job_name: str, job: Job | dict, region: str, project_id: str = PROVIDE_PROJECT_ID
+        self,
+        job_name: str,
+        job: Job | dict,
+        region: str,
+        use_regional_endpoint: bool,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> Job:
         if isinstance(job, dict):
             job = Job(job)
@@ -120,12 +135,20 @@ class CloudRunHook(GoogleBaseHook):
         create_request.job_id = job_name
         create_request.parent = f"projects/{project_id}/locations/{region}"
 
-        operation = self.get_conn().create_job(create_request)
+        operation = self.get_conn(location=region, use_regional_endpoint=use_regional_endpoint).create_job(
+            create_request
+        )
+        self.log.info("after creating job")
         return operation.result()
 
     @GoogleBaseHook.fallback_to_default_project_id
     def update_job(
-        self, job_name: str, job: Job | dict, region: str, project_id: str = PROVIDE_PROJECT_ID
+        self,
+        job_name: str,
+        job: Job | dict,
+        region: str,
+        use_regional_endpoint: bool,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> Job:
         if isinstance(job, dict):
             job = Job(job)
@@ -133,7 +156,9 @@ class CloudRunHook(GoogleBaseHook):
         update_request = UpdateJobRequest()
         job.name = f"projects/{project_id}/locations/{region}/jobs/{job_name}"
         update_request.job = job
-        operation = self.get_conn().update_job(update_request)
+        operation = self.get_conn(location=region, use_regional_endpoint=use_regional_endpoint).update_job(
+            update_request
+        )
         return operation.result()
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -141,24 +166,32 @@ class CloudRunHook(GoogleBaseHook):
         self,
         job_name: str,
         region: str,
+        use_regional_endpoint: bool,
         project_id: str = PROVIDE_PROJECT_ID,
         overrides: dict[str, Any] | None = None,
     ) -> operation.Operation:
         run_job_request = RunJobRequest(
             name=f"projects/{project_id}/locations/{region}/jobs/{job_name}", overrides=overrides
         )
-        operation = self.get_conn().run_job(request=run_job_request)
+        operation = self.get_conn(location=region, use_regional_endpoint=use_regional_endpoint).run_job(
+            request=run_job_request
+        )
         return operation
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_job(self, job_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID):
+    def get_job(
+        self, job_name: str, region: str, use_regional_endpoint: bool, project_id: str = PROVIDE_PROJECT_ID
+    ):
         get_job_request = GetJobRequest(name=f"projects/{project_id}/locations/{region}/jobs/{job_name}")
-        return self.get_conn().get_job(get_job_request)
+        return self.get_conn(location=region, use_regional_endpoint=use_regional_endpoint).get_job(
+            get_job_request
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def list_jobs(
         self,
         region: str,
+        use_regional_endpoint: bool,
         project_id: str = PROVIDE_PROJECT_ID,
         show_deleted: bool = False,
         limit: int | None = None,
@@ -170,7 +203,9 @@ class CloudRunHook(GoogleBaseHook):
             parent=f"projects/{project_id}/locations/{region}", show_deleted=show_deleted
         )
 
-        jobs: pagers.ListJobsPager = self.get_conn().list_jobs(request=list_jobs_request)
+        jobs: pagers.ListJobsPager = self.get_conn(
+            location=region, use_regional_endpoint=use_regional_endpoint
+        ).list_jobs(request=list_jobs_request)
 
         return list(itertools.islice(jobs, limit))
 
@@ -261,22 +296,52 @@ class CloudRunServiceHook(GoogleBaseHook):
         self._client: ServicesClient | None = None
         super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
 
-    def get_conn(self):
-        if self._client is None:
-            self._client = ServicesClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+    def get_conn(self, location: str, use_regional_endpoint: bool) -> ServicesClient:
+        """
+        Retrieve the connection to Google Cloud Run.
 
+        :param location: The location of the project.
+        :param use_regional_endpoint: If set to True, regional endpoint will be used while creating Client.
+            If not provided, the default one is global endpoint.
+
+        :return: Google Cloud Run client object.
+        """
+        client_options = (
+            ClientOptions(api_endpoint=f"{location}-run.googleapis.com:443")
+            if use_regional_endpoint
+            else None
+        )
+        if self._client is None:
+            self._client = ServicesClient(
+                credentials=self.get_credentials(),
+                client_info=CLIENT_INFO,
+                client_options=client_options,
+            )
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_service(self, service_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID):
+    def get_service(
+        self,
+        service_name: str,
+        region: str,
+        use_regional_endpoint: bool,
+        project_id: str = PROVIDE_PROJECT_ID,
+    ):
         get_service_request = GetServiceRequest(
             name=f"projects/{project_id}/locations/{region}/services/{service_name}"
         )
-        return self.get_conn().get_service(get_service_request)
+        return self.get_conn(location=region, use_regional_endpoint=use_regional_endpoint).get_service(
+            get_service_request
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_service(
-        self, service_name: str, service: Service | dict, region: str, project_id: str = PROVIDE_PROJECT_ID
+        self,
+        service_name: str,
+        service: Service | dict,
+        region: str,
+        use_regional_endpoint: bool,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> Service:
         if isinstance(service, dict):
             service = Service(service)
@@ -287,16 +352,26 @@ class CloudRunServiceHook(GoogleBaseHook):
             service_id=service_name,
         )
 
-        operation = self.get_conn().create_service(create_request)
+        operation = self.get_conn(
+            location=region, use_regional_endpoint=use_regional_endpoint
+        ).create_service(create_request)
         return operation.result()
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def delete_service(self, service_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID) -> Service:
+    def delete_service(
+        self,
+        service_name: str,
+        region: str,
+        use_regional_endpoint: bool,
+        project_id: str = PROVIDE_PROJECT_ID,
+    ) -> Service:
         delete_request = DeleteServiceRequest(
             name=f"projects/{project_id}/locations/{region}/services/{service_name}"
         )
 
-        operation = self.get_conn().delete_service(delete_request)
+        operation = self.get_conn(
+            location=region, use_regional_endpoint=use_regional_endpoint
+        ).delete_service(delete_request)
         return operation.result()
 
 
@@ -326,15 +401,37 @@ class CloudRunServiceAsyncHook(GoogleBaseAsyncHook):
         self._client: ServicesClient | None = None
         super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
 
-    def get_conn(self):
+    async def get_conn(self, location: str, use_regional_endpoint: bool) -> ServicesAsyncClient:
+        """
+        Retrieve the connection to Google Cloud Run.
+
+        :param location: The location of the project.
+        :param use_regional_endpoint: If set to True, regional endpoint will be used while creating Client.
+            If not provided, the default one is global endpoint.
+        """
+        client_options = (
+            ClientOptions(api_endpoint=f"{location}-run.googleapis.com:443")
+            if use_regional_endpoint
+            else None
+        )
         if self._client is None:
-            self._client = ServicesAsyncClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            sync_hook = await self.get_sync_hook()
+            self._client = ServicesAsyncClient(
+                credentials=sync_hook.get_credentials(),
+                client_info=CLIENT_INFO,
+                client_options=client_options,
+            )
 
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
     async def create_service(
-        self, service_name: str, service: Service | dict, region: str, project_id: str = PROVIDE_PROJECT_ID
+        self,
+        service_name: str,
+        service: Service | dict,
+        region: str,
+        use_regional_endpoint: bool,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> AsyncOperation:
         if isinstance(service, dict):
             service = Service(service)
@@ -344,15 +441,21 @@ class CloudRunServiceAsyncHook(GoogleBaseAsyncHook):
             service=service,
             service_id=service_name,
         )
+        client = await self.get_conn(location=region, use_regional_endpoint=use_regional_endpoint)
 
-        return await self.get_conn().create_service(create_request)
+        return await client.create_service(create_request)
 
     @GoogleBaseHook.fallback_to_default_project_id
     async def delete_service(
-        self, service_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID
+        self,
+        service_name: str,
+        region: str,
+        use_regional_endpoint: bool,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> AsyncOperation:
         delete_request = DeleteServiceRequest(
             name=f"projects/{project_id}/locations/{region}/services/{service_name}"
         )
+        client = await self.get_conn(location=region, use_regional_endpoint=use_regional_endpoint)
 
-        return await self.get_conn().delete_service(delete_request)
+        return await client.delete_service(delete_request)
