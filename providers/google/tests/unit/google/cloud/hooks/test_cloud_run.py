@@ -322,7 +322,7 @@ class TestCloudRunHook:
         """Test that transport parameter is passed to JobsClient."""
         hook = CloudRunHook(transport="rest")
         hook.get_credentials = self.dummy_get_credentials
-        hook.get_conn()
+        hook.get_conn(location=REGION, use_regional_endpoint=USE_REGIONAL_ENDPOINT)
 
         mock_jobs_client.assert_called_once()
         call_kwargs = mock_jobs_client.call_args[1]
@@ -337,7 +337,7 @@ class TestCloudRunHook:
         """Test that transport is not passed to JobsClient when None."""
         hook = CloudRunHook(transport=None)
         hook.get_credentials = self.dummy_get_credentials
-        hook.get_conn()
+        hook.get_conn(location=REGION, use_regional_endpoint=USE_REGIONAL_ENDPOINT)
 
         mock_jobs_client.assert_called_once()
         call_kwargs = mock_jobs_client.call_args[1]
@@ -374,7 +374,7 @@ class TestCloudRunAsyncHook:
         mock_sync_hook.get_credentials.return_value = "credentials"
         hook.get_sync_hook = mock.AsyncMock(return_value=mock_sync_hook)
 
-        await hook.get_conn()
+        await hook.get_conn(location=REGION, use_regional_endpoint=USE_REGIONAL_ENDPOINT)
 
         mock_async_client.assert_called_once()
         call_kwargs = mock_async_client.call_args[1]
@@ -389,7 +389,7 @@ class TestCloudRunAsyncHook:
         mock_sync_hook.get_credentials.return_value = "credentials"
         hook.get_sync_hook = mock.AsyncMock(return_value=mock_sync_hook)
 
-        await hook.get_conn()
+        await hook.get_conn(location=REGION, use_regional_endpoint=USE_REGIONAL_ENDPOINT)
 
         mock_sync_client.assert_called_once()
         call_kwargs = mock_sync_client.call_args[1]
@@ -406,7 +406,9 @@ class TestCloudRunAsyncHook:
         mock_conn = mock.MagicMock(spec=JobsClient)  # sync client
         hook.get_conn = mock.AsyncMock(return_value=mock_conn)
 
-        result = await hook.get_operation(operation_name=OPERATION_NAME)
+        result = await hook.get_operation(
+            operation_name=OPERATION_NAME, location=REGION, use_regional_endpoint=USE_REGIONAL_ENDPOINT
+        )
 
         mock_to_thread.assert_called_once_with(
             mock_conn.get_operation,
