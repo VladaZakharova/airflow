@@ -85,6 +85,10 @@ Doc-only
 19.5.0
 ......
 
+.. warning::
+  We have identified regressions in Cloud Run and Gemini AI operators within this version that may cause unexpected behavior (connectivity errors and incorrect task success states).
+  We are aware of these issues, and official fixes will be available in the next release.
+
 Features
 ~~~~~~~~
 
