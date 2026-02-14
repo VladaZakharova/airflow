@@ -65,7 +65,7 @@ GCP_VISION_ANNOTATE_IMAGE_URL = f"gs://{BUCKET_NAME}/{FILE_NAME}"
 # [START howto_operator_vision_annotate_image_request]
 annotate_image_request = {
     "image": {"source": {"image_uri": GCP_VISION_ANNOTATE_IMAGE_URL}},
-    "features": [{"type_": Feature.Type.LOGO_DETECTION}],
+    "features": [{"type_": Feature.Type.LOGO_DETECTION.value}],  # type: ignore[attr-defined]
 }
 # [END howto_operator_vision_annotate_image_request]
 
