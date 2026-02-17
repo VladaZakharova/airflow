@@ -187,9 +187,13 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
         return task_state != TaskInstanceState.DEFERRED
 
     async def run(self):
+        hook = self.get_async_hook()
+        # Trigger client cache with sync call get_credentials(), evaluated once.
+        await hook.get_job_client(region=self.region)
+
         try:
             while True:
-                job = await self.get_async_hook().get_job(
+                job = await hook.get_job(
                     project_id=self.project_id, region=self.region, job_id=self.job_id
                 )
                 state = job.status.state
