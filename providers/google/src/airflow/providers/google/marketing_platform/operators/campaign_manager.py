@@ -51,7 +51,7 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
     :param profile_id: The DFA user profile ID.
     :param report_name: The name of the report to delete.
     :param report_id: The ID of the report.
-    :param api_version: The version of the api that will be requested, for example 'v4'.
+    :param api_version: The version of the api that will be requested, for example 'v5'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -78,7 +78,7 @@ class GoogleCampaignManagerDeleteReportOperator(BaseOperator):
         profile_id: str,
         report_name: str | None = None,
         report_id: str | None = None,
-        api_version: str = "v4",
+        api_version: str = "v5",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -135,7 +135,7 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
     :param report_name: The report name to set when uploading the local file.
     :param gzip: Option to compress local file or file data for upload
     :param chunk_size: File will be downloaded in chunks of this many bytes.
-    :param api_version: The version of the api that will be requested, for example 'v4'.
+    :param api_version: The version of the api that will be requested, for example 'v5'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -169,7 +169,7 @@ class GoogleCampaignManagerDownloadReportOperator(BaseOperator):
         report_name: str | None = None,
         gzip: bool = True,
         chunk_size: int = 10 * 1024 * 1024,
-        api_version: str = "v4",
+        api_version: str = "v5",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -254,7 +254,7 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
 
     :param profile_id: The DFA user profile ID.
     :param report: Report to be created.
-    :param api_version: The version of the api that will be requested, for example 'v4'.
+    :param api_version: The version of the api that will be requested, for example 'v5'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -281,7 +281,7 @@ class GoogleCampaignManagerInsertReportOperator(BaseOperator):
         *,
         profile_id: str,
         report: dict[str, Any],
-        api_version: str = "v4",
+        api_version: str = "v5",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -328,7 +328,7 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
     :param profile_id: The DFA profile ID.
     :param report_id: The ID of the report.
     :param synchronous: If set and true, tries to run the report synchronously.
-    :param api_version: The version of the api that will be requested, for example 'v4'.
+    :param api_version: The version of the api that will be requested, for example 'v5'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -355,7 +355,7 @@ class GoogleCampaignManagerRunReportOperator(BaseOperator):
         profile_id: str,
         report_id: str,
         synchronous: bool = False,
-        api_version: str = "v4",
+        api_version: str = "v5",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -408,7 +408,7 @@ class GoogleCampaignManagerBatchInsertConversionsOperator(BaseOperator):
     :param encryption_source: Describes whether the encrypted cookie was received from ad serving
         (the %m macro) or from Data Transfer.
     :param max_failed_inserts: The maximum number of conversions that failed to be inserted
-    :param api_version: The version of the api that will be requested, for example 'v4'.
+    :param api_version: The version of the api that will be requested, for example 'v5'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -438,7 +438,7 @@ class GoogleCampaignManagerBatchInsertConversionsOperator(BaseOperator):
         encryption_entity_id: int,
         encryption_source: str,
         max_failed_inserts: int = 0,
-        api_version: str = "v4",
+        api_version: str = "v5",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -493,7 +493,7 @@ class GoogleCampaignManagerBatchUpdateConversionsOperator(BaseOperator):
     :param encryption_source: Describes whether the encrypted cookie was received from ad serving
         (the %m macro) or from Data Transfer.
     :param max_failed_updates: The maximum number of conversions that failed to be updated
-    :param api_version: The version of the api that will be requested, for example 'v4'.
+    :param api_version: The version of the api that will be requested, for example 'v5'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -523,7 +523,7 @@ class GoogleCampaignManagerBatchUpdateConversionsOperator(BaseOperator):
         encryption_entity_id: int,
         encryption_source: str,
         max_failed_updates: int = 0,
-        api_version: str = "v4",
+        api_version: str = "v5",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
