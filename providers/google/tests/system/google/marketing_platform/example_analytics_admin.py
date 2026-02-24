@@ -149,7 +149,7 @@ with DAG(
             "web_stream_data": {
                 "default_uri": "www.example.com",
             },
-            "type_": google_analytics.DataStream.DataStreamType.WEB_DATA_STREAM,
+            "type_": google_analytics.DataStream.DataStreamType.WEB_DATA_STREAM.value,  # type: ignore[attr-defined]
         },
         gcp_conn_id=CONNECTION_ID,
     )

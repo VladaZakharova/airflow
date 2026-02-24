@@ -327,7 +327,6 @@ class UpdateExperimentRunStateOperator(GoogleCloudBaseOperator):
         "impersonation_chain",
         "experiment_name",
         "experiment_run_name",
-        "new_state",
     )
 
     def __init__(
