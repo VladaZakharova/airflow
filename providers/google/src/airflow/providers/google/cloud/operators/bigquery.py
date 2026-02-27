@@ -2414,6 +2414,20 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
                 job_id=self.job_id,
             )
 
+            if job.error_result:
+                self.log.info("Job reached rate limit, restarting job with force_rerun flag")
+                self.job_id = hook.generate_job_id(
+                    job_id=self.job_id,
+                    dag_id=self.dag_id,
+                    task_id=self.task_id,
+                    logical_date=None,
+                    configuration=self.configuration,
+                    run_after=hook.get_run_after_or_logical_date(context),
+                    force_rerun=True,
+                )
+                self.log.info("Executing with force_rerun: %s'", self.configuration)
+                job: BigQueryJob | UnknownJob = self._submit_job(hook, self.job_id)
+
             if job.state not in self.reattach_states:
                 # Same job configuration, so we need force_rerun
                 raise AirflowException(
@@ -2476,8 +2490,8 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
         if not self.deferrable:
             job.result(timeout=self.result_timeout, retry=self.result_retry)
             self._handle_job_error(job)
-
             return self.job_id
+
         if job.running():
             self.defer(
                 timeout=self.execution_timeout,
