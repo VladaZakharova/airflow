@@ -127,6 +127,7 @@ with DAG(
                 "useLegacySql": False,
             }
         },
+        submit_new_job_on_retry=False,
     )
 
     delete_bucket = GCSDeleteBucketOperator(

@@ -107,6 +107,7 @@ with DAG(
                 "priority": "BATCH",
             }
         },
+        submit_new_job_on_retry=False,
     )
 
     execute_copy_job = BigQueryInsertJobOperator(
@@ -119,6 +120,7 @@ with DAG(
                 "operationType": "COPY",
             }
         },
+        submit_new_job_on_retry=False,
     )
 
     execute_ctas_query = BigQueryInsertJobOperator(
@@ -129,6 +131,7 @@ with DAG(
                 "useLegacySql": False,
             }
         },
+        submit_new_job_on_retry=False,
     )
 
     execute_load_job = BigQueryInsertJobOperator(
@@ -151,6 +154,7 @@ with DAG(
                 "sourceFormat": "CSV",
             }
         },
+        submit_new_job_on_retry=False,
     )
 
     execute_extract_job = BigQueryInsertJobOperator(
@@ -164,6 +168,7 @@ with DAG(
                 "destinationFormat": "CSV",
             }
         },
+        submit_new_job_on_retry=False,
     )
 
     delete_dataset = BigQueryDeleteDatasetOperator(

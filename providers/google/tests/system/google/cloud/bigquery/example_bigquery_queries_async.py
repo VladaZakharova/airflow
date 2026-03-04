@@ -147,6 +147,7 @@ with DAG(
                 "priority": "BATCH",
             }
         },
+        submit_new_job_on_retry=False,
         location=LOCATION,
         deferrable=True,
     )
@@ -161,6 +162,7 @@ with DAG(
                 "useLegacySql": False,
             }
         },
+        submit_new_job_on_retry=False,
         location=LOCATION,
         deferrable=True,
     )
@@ -201,6 +203,7 @@ with DAG(
                 "useLegacySql": False,
             }
         },
+        submit_new_job_on_retry=False,
         location=LOCATION,
         deferrable=True,
     )
@@ -249,6 +252,7 @@ with DAG(
                 },
             }
         },
+        submit_new_job_on_retry=False,
         location=LOCATION,
         deferrable=True,
     )
@@ -257,6 +261,7 @@ with DAG(
     execute_long_running_query = BigQueryInsertJobOperator(
         task_id="execute_long_running_query",
         configuration=CONFIGURATION,
+        submit_new_job_on_retry=False,
         location=LOCATION,
         deferrable=True,
     )

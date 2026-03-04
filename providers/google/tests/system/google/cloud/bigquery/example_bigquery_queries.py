@@ -116,6 +116,7 @@ with DAG(
                 "priority": "BATCH",
             }
         },
+        submit_new_job_on_retry=False,
     )
     # [END howto_operator_bigquery_insert_job]
 
@@ -128,6 +129,7 @@ with DAG(
                 "useLegacySql": False,
             }
         },
+        submit_new_job_on_retry=False,
     )
     # [END howto_operator_bigquery_select_job]
 
@@ -139,6 +141,7 @@ with DAG(
                 "useLegacySql": False,
             }
         },
+        submit_new_job_on_retry=False,
     )
 
     execute_query_save = BigQueryInsertJobOperator(
@@ -154,6 +157,7 @@ with DAG(
                 },
             }
         },
+        submit_new_job_on_retry=False,
     )
 
     bigquery_execute_multi_query = BigQueryInsertJobOperator(
@@ -167,6 +171,7 @@ with DAG(
                 "useLegacySql": False,
             }
         },
+        submit_new_job_on_retry=False,
     )
 
     # [START howto_operator_bigquery_get_data]
