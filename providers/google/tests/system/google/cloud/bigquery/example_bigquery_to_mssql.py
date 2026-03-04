@@ -198,6 +198,7 @@ with DAG(
                 "priority": "BATCH",
             }
         },
+        submit_new_job_on_retry=False,
     )
 
     create_gce_instance = ComputeEngineInsertInstanceOperator(

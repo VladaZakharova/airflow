@@ -133,6 +133,7 @@ with DAG(
                 "useLegacySql": False,
             }
         },
+        submit_new_job_on_retry=False,
     )
 
     # [START howto_operator_presto_to_gcs_many_chunks]
@@ -183,6 +184,7 @@ with DAG(
                 "useLegacySql": False,
             }
         },
+        submit_new_job_on_retry=False,
     )
     # [END howto_operator_read_data_from_gcs_many_chunks]
 

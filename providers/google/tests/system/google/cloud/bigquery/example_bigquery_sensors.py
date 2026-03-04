@@ -119,6 +119,7 @@ with DAG(
                 "useLegacySql": False,
             }
         },
+        submit_new_job_on_retry=False,
     )
 
     # [START howto_sensor_bigquery_table_partition]

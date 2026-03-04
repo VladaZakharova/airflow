@@ -99,6 +99,7 @@ with DAG(
                 "priority": "BATCH",
             }
         },
+        submit_new_job_on_retry=False,
         location=NON_US_LOCATION,
     )
 
