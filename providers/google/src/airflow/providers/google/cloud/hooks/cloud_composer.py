@@ -38,6 +38,7 @@ from google.cloud.orchestration.airflow.service_v1 import (
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
@@ -116,6 +117,13 @@ class CloudComposerHook(GoogleBaseHook, OperationHelper):
 
     def get_parent(self, project_id, region):
         return f"projects/{project_id}/locations/{region}"
+
+    def get_airflow_rest_api_version(self):
+        if AIRFLOW_V_3_0_PLUS:
+            api_version = "v2"
+        else:
+            api_version = "v1"
+        return api_version
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_environment(
@@ -455,10 +463,11 @@ class CloudComposerHook(GoogleBaseHook, OperationHelper):
         :param composer_dag_conf: Configuration parameters for the DAG run.
         :param timeout: The timeout for this request.
         """
+        resource_path = f"/api/{self.get_airflow_rest_api_version()}/dags/{composer_dag_id}/dagRuns"
         response = self.make_composer_airflow_api_request(
             method="POST",
             airflow_uri=composer_airflow_uri,
-            path=f"/api/v1/dags/{composer_dag_id}/dagRuns",
+            path=resource_path,
             data=json.dumps(
                 {
                     "conf": composer_dag_conf or {},
@@ -486,10 +495,11 @@ class CloudComposerHook(GoogleBaseHook, OperationHelper):
         :param composer_dag_id: The ID of DAG.
         :param timeout: The timeout for this request.
         """
+        resource_path = f"/api/{self.get_airflow_rest_api_version()}/dags/{composer_dag_id}/dagRuns"
         response = self.make_composer_airflow_api_request(
             method="GET",
             airflow_uri=composer_airflow_uri,
-            path=f"/api/v1/dags/{composer_dag_id}/dagRuns",
+            path=resource_path,
             timeout=timeout,
         )
 
@@ -521,11 +531,12 @@ class CloudComposerHook(GoogleBaseHook, OperationHelper):
         :param timeout: The timeout for this request.
         """
         query_string = f"?{urlencode(query_parameters)}" if query_parameters else ""
+        resource_path = f"/api/{self.get_airflow_rest_api_version()}/dags/{composer_dag_id}/dagRuns/~/taskInstances{query_string}"
 
         response = self.make_composer_airflow_api_request(
             method="GET",
             airflow_uri=composer_airflow_uri,
-            path=f"/api/v1/dags/{composer_dag_id}/dagRuns/~/taskInstances{query_string}",
+            path=resource_path,
             timeout=timeout,
         )
 
@@ -867,10 +878,12 @@ class CloudComposerAsyncHook(GoogleBaseAsyncHook):
         :param composer_dag_id: The ID of DAG.
         :param timeout: The timeout for this request.
         """
+        sync_hook = await self.get_sync_hook()
+        resource_path = f"/api/{sync_hook.get_airflow_rest_api_version()}/dags/{composer_dag_id}/dagRuns"
         response_body, response_status_code = await self.make_composer_airflow_api_request(
             method="GET",
             airflow_uri=composer_airflow_uri,
-            path=f"/api/v1/dags/{composer_dag_id}/dagRuns",
+            path=resource_path,
             timeout=timeout,
         )
 
@@ -901,12 +914,14 @@ class CloudComposerAsyncHook(GoogleBaseAsyncHook):
         :query_parameters: Query parameters for this request.
         :param timeout: The timeout for this request.
         """
+        sync_hook = await self.get_sync_hook()
         query_string = f"?{urlencode(query_parameters)}" if query_parameters else ""
+        resource_path = f"/api/{sync_hook.get_airflow_rest_api_version()}/dags/{composer_dag_id}/dagRuns/~/taskInstances{query_string}"
 
         response_body, response_status_code = await self.make_composer_airflow_api_request(
             method="GET",
             airflow_uri=composer_airflow_uri,
-            path=f"/api/v1/dags/{composer_dag_id}/dagRuns/~/taskInstances{query_string}",
+            path=resource_path,
             timeout=timeout,
         )
 
