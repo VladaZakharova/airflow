@@ -18,8 +18,13 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import itertools
-from collections.abc import Iterable, Sequence
+import textwrap
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
+from functools import cached_property
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Literal
 
 from google.api_core.client_options import ClientOptions
@@ -43,6 +48,7 @@ from google.cloud.run_v2 import (
 from google.longrunning import operations_pb2
 
 from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
@@ -60,6 +66,114 @@ class NoLocationSpecifiedException(Exception):
     """Custom exception to catch error when location is not specified."""
 
     pass
+
+
+class CloudRunPythonJobImageBuilder:
+    """Helper for building image from python source code for Cloud Run Job."""
+
+    def __init__(
+        self,
+        python_callable: Callable,
+        image_repository: str,
+        requirements: None | Iterable[str] | str = None,
+        op_args: Collection[Any] | None = None,
+        op_kwargs: Mapping[str, Any] | None = None,
+        python_file: str | None = None,  # TODO
+        python_version: str | None = None,  # TODO
+        string_args: None = None,  # TODO
+        entry_point: None = None,  # TODO
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+    ):
+        self.python_callable = python_callable
+        self.image_repository = image_repository
+
+        if not requirements:
+            self.requirements: list[str] = []
+        elif isinstance(requirements, str):
+            self.requirements = [requirements]
+        else:
+            self.requirements = list(requirements)
+
+        self.op_args = op_args or ()
+        self.op_kwargs = op_kwargs or {}
+
+        self.python_file = python_file
+        self.python_version = python_version
+        self.string_args = string_args
+        self.entry_point = entry_point
+
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    @cached_property
+    def cloud_build_hook(self) -> CloudBuildHook:
+        return CloudBuildHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    def prepare_image(self):
+        """Prepare python code, build cloud run Job image and upload it to registry."""
+        with TemporaryDirectory(prefix="cloud-run-job-image") as tmp:
+            tmp_dir = Path(tmp)
+
+            main_path = tmp_dir / "main.py"
+            procfile_path = tmp_dir / "Procfile"
+            requirements_path = tmp_dir / "requirements.txt"
+
+            main_content = self._generate_main_content()
+            requirements_content = self._generate_requirements_content()
+            procfile_content = self._generate_procfile_content()
+
+            with (
+                open(main_path, "w") as main_file,
+                open(procfile_path, "w") as procfile_file,
+                open(requirements_path, "w") as requirements_file,
+            ):
+                main_file.write(main_content)
+                procfile_file.write(procfile_content)
+                requirements_file.write(requirements_content)
+
+            self.cloud_build_hook.submit_build(
+                source=str(tmp_dir),
+                submit_flags={
+                    "pack": {"image": self.image_repository},
+                },
+            )
+
+    def get_python_source(self):
+        """Return the source of self.python_callable."""
+        return textwrap.dedent(inspect.getsource(self.python_callable))
+
+    def _generate_main_content(self):
+        """Return generated content for main.py file."""
+        python_callable_src = self.get_python_source()
+        python_callable_name = self.python_callable.__name__
+
+        return f"""
+{python_callable_src}
+
+if __name__ == "__main__":
+    args = {self.op_args}
+    kwargs = {self.op_kwargs}
+
+    {python_callable_name}(*args, **kwargs)
+"""
+
+    def _generate_requirements_content(self):
+        """Return generated content for requirements.txt file."""
+        requirements_str = "\n".join(self.requirements)
+
+        return f"""
+{requirements_str}
+"""
+
+    def _generate_procfile_content(self):
+        """Return generated content for Procfile file."""
+        return """
+web: python3 main.py
+"""
 
 
 class CloudRunHook(GoogleBaseHook):
