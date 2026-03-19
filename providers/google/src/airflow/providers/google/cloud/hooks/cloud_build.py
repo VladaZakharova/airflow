@@ -19,6 +19,8 @@
 
 from __future__ import annotations
 
+import shlex
+import subprocess
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
@@ -98,6 +100,34 @@ class CloudBuildHook(GoogleBaseHook, OperationHelper):
                 client_options=client_options,
             )
         return self._client[location]
+
+    def cloud_build_options_to_args(self, options: dict) -> list[str]:
+        """
+        Return a formatted builds parameters from a dictionary of arguments.
+
+        :param options: Dictionary with options
+        :return: List of arguments
+        """
+        if not options:
+            return []
+
+        args: list[str] = []
+        for attr, value in options.items():
+            if value is None or (isinstance(value, bool) and value):
+                args.append(f"--{attr}")
+            elif isinstance(value, bool) and not value:
+                continue
+            elif isinstance(value, list):
+                args.extend([f"--{attr}={v}" for v in value])
+            elif isinstance(value, dict):
+                args.append(f"--{attr}")
+                args.extend([f"{k}={v}" for k, v in value.items()])
+            else:
+                args.append(f"--{attr}={value}")
+        return args
+
+    def _build_gcloud_command(self, command: list[str], parameters: dict) -> list[str]:
+        return [*command, *(self.cloud_build_options_to_args(parameters))]
 
     @GoogleBaseHook.fallback_to_default_project_id
     def cancel_build(
@@ -565,6 +595,52 @@ class CloudBuildHook(GoogleBaseHook, OperationHelper):
         self.log.info("Build trigger has been updated: %s.", trigger_id)
 
         return trigger
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def submit_build(
+        self,
+        source: str | None = None,
+        submit_flags: dict | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+    ) -> str:
+        """
+        Submit a build using Cloud Build.
+
+        :param source: The location of the source to build.
+        :param submit_flags: Optional. The dictionary of flags which can be used for Submit command.
+        :param project_id: Google Cloud Project project_id where the function belongs.
+            If set to None or missing, the default project_id from the GCP connection is used.
+        """
+        submit_command = ["gcloud", "builds", "submit"]
+        if source:
+            submit_command.append(source)
+
+        if project_id:
+            if submit_flags:
+                submit_flags["project"] = project_id
+            else:
+                submit_flags = {"project": project_id}
+
+        cmd = self._build_gcloud_command(
+            command=submit_command,
+            parameters=submit_flags if submit_flags else {},
+        )
+
+        self.log.info("Executing command: %s", " ".join(shlex.quote(c) for c in cmd))
+        success_code = 0
+
+        with self.provide_authorized_gcloud():
+            proc = subprocess.run(cmd, check=False, capture_output=True)
+
+        if proc.returncode != success_code:
+            stderr_last_20_lines = "\n".join(proc.stderr.decode().strip().splitlines()[-20:])
+            raise AirflowException(
+                f"Process exit with non-zero exit code. Exit code: {proc.returncode}. Error Details : "
+                f"{stderr_last_20_lines}"
+            )
+
+        response = proc.stdout.decode().strip()
+        return response
 
 
 class CloudBuildAsyncHook(GoogleBaseHook):
