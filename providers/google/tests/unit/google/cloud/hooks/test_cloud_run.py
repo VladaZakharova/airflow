@@ -43,6 +43,8 @@ from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_run import (
     CloudRunAsyncHook,
     CloudRunHook,
+    CloudRunPythonCallableValidationError,
+    CloudRunPythonJobImageBuilder,
     CloudRunServiceAsyncHook,
     CloudRunServiceHook,
 )
@@ -62,6 +64,13 @@ BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 class TestCloudRunHook:
     def dummy_get_credentials(self):
         pass
+
+    def _mock_pager(self, number_of_jobs):
+        mock_pager = []
+        for i in range(number_of_jobs):
+            mock_pager.append(Job(name=f"name{i}"))
+
+        return mock_pager
 
     @pytest.fixture
     def cloud_run_hook(self):
@@ -247,111 +256,169 @@ class TestCloudRunHook:
         for i in range(limit):
             assert jobs_list[i].name == f"name{i}"
 
-    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
-    def test_list_jobs_with_limit_zero(self, mock_batch_service_client, cloud_run_hook):
-        number_of_jobs = 3
-        limit = 0
-        region = "us-central1"
-        project_id = "test_project_id"
 
-        page = self._mock_pager(number_of_jobs)
-        mock_batch_service_client.return_value.list_jobs.return_value = page
+class TestCloudRunPythonJobImageBuilder:
+    def test_generate_main_content_marks_user_code_errors(self):
+        def sample_callable():
+            raise ValueError("boom")
 
-        jobs_list = cloud_run_hook.list_jobs(
-            region=region, project_id=project_id, limit=limit, use_regional_endpoint=USE_REGIONAL_ENDPOINT
+        builder = CloudRunPythonJobImageBuilder(
+            python_callable=sample_callable,
+            image_repository="repo/image",
         )
 
-        assert len(jobs_list) == 0
+        main_content = builder._generate_main_content()
 
-    @mock.patch(
-        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
-        new=mock_base_gcp_hook_default_project_id,
-    )
-    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
-    def test_list_jobs_with_limit_greater_then_range(self, mock_batch_service_client, cloud_run_hook):
-        number_of_jobs = 3
-        limit = 5
-        region = "us-central1"
-        project_id = "test_project_id"
+        assert "AIRFLOW_USER_CODE_ERROR:" in main_content
+        assert '"status": "user_error"' in main_content
+        assert '"traceback": formatted_traceback' in main_content
+        assert "formatted_traceback = traceback.format_exc()" in main_content
 
-        page = self._mock_pager(number_of_jobs)
-        mock_batch_service_client.return_value.list_jobs.return_value = page
-
-        jobs_list = cloud_run_hook.list_jobs(
-            region=region, project_id=project_id, limit=limit, use_regional_endpoint=USE_REGIONAL_ENDPOINT
-        )
-
-        assert len(jobs_list) == number_of_jobs
-        for i in range(number_of_jobs):
-            assert jobs_list[i].name == f"name{i}"
-
-    @mock.patch(
-        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
-        new=mock_base_gcp_hook_default_project_id,
-    )
-    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
-    def test_list_jobs_with_limit_less_than_zero(self, mock_batch_service_client, cloud_run_hook):
-        number_of_jobs = 3
-        limit = -1
-        region = "us-central1"
-        project_id = "test_project_id"
-
-        page = self._mock_pager(number_of_jobs)
-        mock_batch_service_client.return_value.list_jobs.return_value = page
-
-        with pytest.raises(expected_exception=AirflowException):
-            cloud_run_hook.list_jobs(
-                region=region, project_id=project_id, limit=limit, use_regional_endpoint=USE_REGIONAL_ENDPOINT
+    def test_init_rejects_lambda_python_callable(self):
+        with pytest.raises(CloudRunPythonCallableValidationError):
+            CloudRunPythonJobImageBuilder(
+                python_callable=lambda: "boom",
+                image_repository="repo/image",
             )
 
-    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
-    def test_delete_job(self, mock_batch_service_client, cloud_run_hook):
-        delete_request = DeleteJobRequest(name=f"projects/{PROJECT_ID}/locations/{REGION}/jobs/{JOB_NAME}")
+    def test_init_rejects_generator_python_callable(self):
+        def sample_generator():
+            yield "boom"
 
-        cloud_run_hook.delete_job(
-            job_name=JOB_NAME,
-            region=REGION,
-            project_id=PROJECT_ID,
-            use_regional_endpoint=USE_REGIONAL_ENDPOINT,
+        with pytest.raises(CloudRunPythonCallableValidationError):
+            CloudRunPythonJobImageBuilder(
+                python_callable=sample_generator,
+                image_repository="repo/image",
+            )
+
+
+def _dummy_get_credentials():
+    pass
+
+
+def _create_cloud_run_hook() -> CloudRunHook:
+    cloud_run_hook = CloudRunHook()
+    cloud_run_hook.get_credentials = _dummy_get_credentials  # type: ignore[method-assign]
+    return cloud_run_hook
+
+
+def _mock_pager(number_of_jobs: int) -> list[Job]:
+    return [Job(name=f"name{i}") for i in range(number_of_jobs)]
+
+
+@pytest.mark.db_test
+@mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
+def test_list_jobs_with_limit_zero(mock_batch_service_client):
+    number_of_jobs = 3
+    limit = 0
+    region = "us-central1"
+    project_id = "test_project_id"
+    cloud_run_hook = _create_cloud_run_hook()
+
+    page = _mock_pager(number_of_jobs)
+    mock_batch_service_client.return_value.list_jobs.return_value = page
+
+    jobs_list = cloud_run_hook.list_jobs(
+        region=region, project_id=project_id, limit=limit, use_regional_endpoint=USE_REGIONAL_ENDPOINT
+    )
+
+    assert len(jobs_list) == 0
+
+
+@pytest.mark.db_test
+@mock.patch(
+    "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
+    new=mock_base_gcp_hook_default_project_id,
+)
+@mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
+def test_list_jobs_with_limit_greater_then_range(mock_batch_service_client):
+    number_of_jobs = 3
+    limit = 5
+    region = "us-central1"
+    project_id = "test_project_id"
+    cloud_run_hook = _create_cloud_run_hook()
+
+    page = _mock_pager(number_of_jobs)
+    mock_batch_service_client.return_value.list_jobs.return_value = page
+
+    jobs_list = cloud_run_hook.list_jobs(
+        region=region, project_id=project_id, limit=limit, use_regional_endpoint=USE_REGIONAL_ENDPOINT
+    )
+
+    assert len(jobs_list) == number_of_jobs
+    for i in range(number_of_jobs):
+        assert jobs_list[i].name == f"name{i}"
+
+
+@pytest.mark.db_test
+@mock.patch(
+    "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
+    new=mock_base_gcp_hook_default_project_id,
+)
+@mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
+def test_list_jobs_with_limit_less_than_zero(mock_batch_service_client):
+    number_of_jobs = 3
+    limit = -1
+    region = "us-central1"
+    project_id = "test_project_id"
+    cloud_run_hook = _create_cloud_run_hook()
+
+    page = _mock_pager(number_of_jobs)
+    mock_batch_service_client.return_value.list_jobs.return_value = page
+
+    with pytest.raises(expected_exception=AirflowException):
+        cloud_run_hook.list_jobs(
+            region=region, project_id=project_id, limit=limit, use_regional_endpoint=USE_REGIONAL_ENDPOINT
         )
-        cloud_run_hook._client.delete_job.assert_called_once_with(delete_request)
 
-    @mock.patch(
-        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
-        new=mock_base_gcp_hook_default_project_id,
+
+@pytest.mark.db_test
+@mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
+def test_delete_job(mock_batch_service_client):
+    cloud_run_hook = _create_cloud_run_hook()
+    delete_request = DeleteJobRequest(name=f"projects/{PROJECT_ID}/locations/{REGION}/jobs/{JOB_NAME}")
+
+    cloud_run_hook.delete_job(
+        job_name=JOB_NAME,
+        region=REGION,
+        project_id=PROJECT_ID,
+        use_regional_endpoint=USE_REGIONAL_ENDPOINT,
     )
-    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
-    def test_get_conn_with_transport(self, mock_jobs_client):
-        """Test that transport parameter is passed to JobsClient."""
-        hook = CloudRunHook(transport="rest")
-        hook.get_credentials = self.dummy_get_credentials
-        hook.get_conn(location=REGION, use_regional_endpoint=USE_REGIONAL_ENDPOINT)
+    cloud_run_hook._client.delete_job.assert_called_once_with(delete_request)
 
-        mock_jobs_client.assert_called_once()
-        call_kwargs = mock_jobs_client.call_args[1]
-        assert call_kwargs["transport"] == "rest"
 
-    @mock.patch(
-        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
-        new=mock_base_gcp_hook_default_project_id,
-    )
-    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
-    def test_get_conn_omits_transport_when_none(self, mock_jobs_client):
-        """Test that transport is not passed to JobsClient when None."""
-        hook = CloudRunHook(transport=None)
-        hook.get_credentials = self.dummy_get_credentials
-        hook.get_conn(location=REGION, use_regional_endpoint=USE_REGIONAL_ENDPOINT)
+@pytest.mark.db_test
+@mock.patch(
+    "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
+    new=mock_base_gcp_hook_default_project_id,
+)
+@mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
+def test_get_conn_with_transport(mock_jobs_client):
+    """Test that transport parameter is passed to JobsClient."""
+    hook = CloudRunHook(transport="rest")
+    hook.get_credentials = _dummy_get_credentials  # type: ignore[method-assign]
+    hook.get_conn(location=REGION, use_regional_endpoint=USE_REGIONAL_ENDPOINT)
 
-        mock_jobs_client.assert_called_once()
-        call_kwargs = mock_jobs_client.call_args[1]
-        assert "transport" not in call_kwargs
+    mock_jobs_client.assert_called_once()
+    call_kwargs = mock_jobs_client.call_args[1]
+    assert call_kwargs["transport"] == "rest"
 
-    def _mock_pager(self, number_of_jobs):
-        mock_pager = []
-        for i in range(number_of_jobs):
-            mock_pager.append(Job(name=f"name{i}"))
 
-        return mock_pager
+@pytest.mark.db_test
+@mock.patch(
+    "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
+    new=mock_base_gcp_hook_default_project_id,
+)
+@mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
+def test_get_conn_omits_transport_when_none(mock_jobs_client):
+    """Test that transport is not passed to JobsClient when None."""
+    hook = CloudRunHook(transport=None)
+    hook.get_credentials = _dummy_get_credentials  # type: ignore[method-assign]
+    hook.get_conn(location=REGION, use_regional_endpoint=USE_REGIONAL_ENDPOINT)
+
+    mock_jobs_client.assert_called_once()
+    call_kwargs = mock_jobs_client.call_args[1]
+    assert "transport" not in call_kwargs
 
 
 class TestCloudRunAsyncHook:

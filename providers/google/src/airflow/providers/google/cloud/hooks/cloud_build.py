@@ -22,6 +22,7 @@ from __future__ import annotations
 import shlex
 import subprocess
 from collections.abc import Sequence
+from subprocess import check_output
 from typing import TYPE_CHECKING
 
 from google.api_core.client_options import ClientOptions
@@ -42,6 +43,18 @@ if TYPE_CHECKING:
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 5
+
+
+class CloudBuildHookException(Exception):
+    """Base exception for Cloud Build hook command errors."""
+
+
+class CloudBuildSubmitBuildConfigurationError(CloudBuildHookException):
+    """Raised when submit_build parameters are invalid."""
+
+
+class CloudBuildSubmitBuildCommandError(CloudBuildHookException):
+    """Raised when gcloud builds submit exits with an error."""
 
 
 class CloudBuildHook(GoogleBaseHook, OperationHelper):
@@ -128,6 +141,18 @@ class CloudBuildHook(GoogleBaseHook, OperationHelper):
 
     def _build_gcloud_command(self, command: list[str], parameters: dict) -> list[str]:
         return [*command, *(self.cloud_build_options_to_args(parameters))]
+
+    def _get_gcloud_impersonation_chain(self) -> str | None:
+        if not self.impersonation_chain:
+            return None
+
+        if isinstance(self.impersonation_chain, Sequence) and not isinstance(self.impersonation_chain, str):
+            # Airflow expects the last account in the list to be the target.
+            # gcloud expects the first account to be the target.
+            # Therefore, we need to reverse the list before passing it to gcloud.
+            return ",".join(reversed(self.impersonation_chain))
+
+        return self.impersonation_chain
 
     @GoogleBaseHook.fallback_to_default_project_id
     def cancel_build(
@@ -601,17 +626,24 @@ class CloudBuildHook(GoogleBaseHook, OperationHelper):
         self,
         source: str | None = None,
         submit_flags: dict | None = None,
+        config: str | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> str:
         """
         Submit a build using Cloud Build.
 
         :param source: The location of the source to build.
-        :param submit_flags: Optional. The dictionary of flags which can be used for Submit command.
-        :param project_id: Google Cloud Project project_id where the function belongs.
-            If set to None or missing, the default project_id from the GCP connection is used.
+        :param submit_flags: Optional dictionary of flags for `gcloud builds submit`.
+        :param config: Optional path to a cloudbuild.yaml file.
+        :param project_id: Google Cloud Project ID.
         """
+        if submit_flags and config:
+            raise CloudBuildSubmitBuildConfigurationError(
+                "Choose one build configuration method: use either 'submit_flags' or 'config', not both."
+            )
+
         submit_command = ["gcloud", "builds", "submit"]
+
         if source:
             submit_command.append(source)
 
@@ -621,26 +653,36 @@ class CloudBuildHook(GoogleBaseHook, OperationHelper):
             else:
                 submit_flags = {"project": project_id}
 
+        if config:
+            if submit_flags:
+                submit_flags["config"] = config
+            else:
+                submit_flags = {"config": config}
+
         cmd = self._build_gcloud_command(
             command=submit_command,
             parameters=submit_flags if submit_flags else {},
         )
 
         self.log.info("Executing command: %s", " ".join(shlex.quote(c) for c in cmd))
-        success_code = 0
 
         with self.provide_authorized_gcloud():
+            impersonation_chain = self._get_gcloud_impersonation_chain()
+            if impersonation_chain:
+                self.log.info("Configuring gcloud impersonation for Cloud Build.")
+                check_output(
+                    ["gcloud", "config", "set", "auth/impersonate_service_account", impersonation_chain]
+                )
             proc = subprocess.run(cmd, check=False, capture_output=True)
 
-        if proc.returncode != success_code:
+        if proc.returncode != 0:
             stderr_last_20_lines = "\n".join(proc.stderr.decode().strip().splitlines()[-20:])
-            raise AirflowException(
-                f"Process exit with non-zero exit code. Exit code: {proc.returncode}. Error Details : "
-                f"{stderr_last_20_lines}"
+            raise CloudBuildSubmitBuildCommandError(
+                f"Cloud Build submission failed with exit code {proc.returncode}. "
+                f"Last error output:\n{stderr_last_20_lines}"
             )
 
-        response = proc.stdout.decode().strip()
-        return response
+        return proc.stdout.decode().strip()
 
 
 class CloudBuildAsyncHook(GoogleBaseHook):
