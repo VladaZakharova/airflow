@@ -21,6 +21,8 @@ This module contains various unit tests for GCP Cloud Build Operators
 
 from __future__ import annotations
 
+from concurrent.futures import TimeoutError as FutureTimeoutError
+from datetime import datetime
 from unittest import mock
 
 import pytest
@@ -28,6 +30,7 @@ from google.api_core.exceptions import AlreadyExists
 from google.cloud.exceptions import GoogleCloudError
 from google.cloud.run_v2 import Job, Service
 
+from airflow.models.dag import DAG
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.operators.cloud_run import (
     CloudRunCreateJobOperator,
@@ -35,8 +38,12 @@ from airflow.providers.google.cloud.operators.cloud_run import (
     CloudRunDeleteJobOperator,
     CloudRunDeleteServiceOperator,
     CloudRunExecuteJobOperator,
+    CloudRunExecutePythonJobOperator,
+    CloudRunInfrastructureExecutionError,
+    CloudRunJobTimeoutError,
     CloudRunListJobsOperator,
     CloudRunUpdateJobOperator,
+    CloudRunUserCodeExecutionError,
 )
 from airflow.providers.google.cloud.triggers.cloud_run import RunJobStatus
 
@@ -58,6 +65,26 @@ JOB.name = JOB_NAME
 
 SERVICE = Service()
 SERVICE.name = SERVICE_NAME
+
+
+def create_context(task):
+    dag = task.dag if task.has_dag() else DAG(dag_id="dag", schedule=None)
+    if not task.has_dag():
+        task.dag = dag
+    logical_date = datetime(2022, 1, 1, 0, 0, 0)
+    task_instance = mock.Mock()
+    task_instance.try_number = 1
+    task_instance.xcom_push = mock.Mock()
+    return {
+        "dag": dag,
+        "run_id": "manual__2022-01-01T00:00:00+00:00",
+        "task": task,
+        "ti": task_instance,
+        "task_instance": task_instance,
+        "logical_date": logical_date,
+        "params": {"message": "hello"},
+        "ds": "2022-01-01",
+    }
 
 
 def _assert_common_template_fields(template_fields):
@@ -452,6 +479,191 @@ class TestCloudRunListJobsOperator:
         limit = -1
         with pytest.raises(expected_exception=AirflowException):
             CloudRunListJobsOperator(task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, limit=limit)
+
+
+class TestCloudRunExecutePythonJobOperator:
+    def test_template_fields(self):
+        operator = CloudRunExecutePythonJobOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            location=REGION,
+            image_repository="repo/image",
+            python_file="gs://bucket/{{ ds }}/code.py",
+            entry_point="main",
+            xcom_volume="gs://bucket/results/{{ ds }}",
+            logs_volume="gs://bucket/logs/{{ params.message }}",
+            requirements=["package==1.0"],
+            op_kwargs={"message": "{{ params.message }}"},
+            timeout="{{ params.timeout_seconds }}",
+        )
+
+        assert "image_repository" in operator.template_fields
+        assert "python_file" in operator.template_fields
+        assert "entry_point" in operator.template_fields
+        assert "xcom_volume" in operator.template_fields
+        assert "logs_volume" in operator.template_fields
+        assert "requirements" in operator.template_fields
+        assert "op_args" in operator.template_fields
+        assert "op_kwargs" in operator.template_fields
+        assert "labels" in operator.template_fields
+        assert "network" in operator.template_fields
+        assert "subnet" in operator.template_fields
+        assert "python_version" in operator.template_fields
+        assert "cache_image_repository" in operator.template_fields
+
+    def test_render_template_fields(self):
+        with DAG(dag_id="dag", schedule=None):
+            operator = CloudRunExecutePythonJobOperator(
+                task_id=TASK_ID,
+                project_id=PROJECT_ID,
+                location=REGION,
+                image_repository="repo/image",
+                python_file="gs://bucket/{{ ds }}/code.py",
+                entry_point="run_{{ params.message }}",
+                xcom_volume="gs://bucket/results/{{ ds }}",
+                logs_volume="gs://bucket/logs/{{ params.message }}",
+                requirements=["package-{{ ds }}"],
+                op_kwargs={"message": "{{ params.message }}"},
+                timeout="{{ params.timeout_seconds }}",
+                params={"message": "hello", "timeout_seconds": 30},
+            )
+
+        context = create_context(operator)
+        operator.render_template_fields(context)
+
+        assert operator.python_file == "gs://bucket/2022-01-01/code.py"
+        assert operator.entry_point == "run_hello"
+        assert operator.xcom_volume == "gs://bucket/results/2022-01-01"
+        assert operator.logs_volume == "gs://bucket/logs/hello"
+        assert operator.requirements == ["package-2022-01-01"]
+        assert operator.op_kwargs == {"message": "hello"}
+        assert operator.timeout == "{{ params.timeout_seconds }}"
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.cloud_run.CloudRunPythonJobImageBuilder.prepare_image"
+    )
+    def test_execute_uses_timeout_override_and_wait_timeout(self, prepare_image_mock, hook_mock):
+        job_operation = mock.MagicMock()
+        job_execution = mock.MagicMock()
+        job_execution.failed_count = 0
+        job_operation.result.return_value = job_execution
+        hook_mock.return_value.execute_job.return_value = job_operation
+        cloud_run_job = Job()
+        cloud_run_job.name = "projects/x/locations/y/jobs/test-job"
+        hook_mock.return_value.create_job.return_value = cloud_run_job
+
+        operator = CloudRunExecutePythonJobOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            location=REGION,
+            image_repository="repo/image",
+            python_file="gs://bucket/code.py",
+            entry_point="main",
+            do_xcom_push=False,
+            timeout=30,
+        )
+
+        operator.execute(context=create_context(operator))
+
+        hook_mock.return_value.execute_job.assert_called_once_with(
+            job_name="test-job",
+            project_id=PROJECT_ID,
+            region=REGION,
+            overrides={"timeout": "30s"},
+        )
+        job_operation.result.assert_called_once_with(timeout=30)
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.cloud_run.CloudRunPythonJobImageBuilder.prepare_image"
+    )
+    def test_execute_timeout_raises_clean_error(self, prepare_image_mock, hook_mock):
+        job_operation = mock.MagicMock()
+        job_operation.result.side_effect = FutureTimeoutError
+        hook_mock.return_value.execute_job.return_value = job_operation
+        cloud_run_job = Job()
+        cloud_run_job.name = "projects/x/locations/y/jobs/test-job"
+        hook_mock.return_value.create_job.return_value = cloud_run_job
+
+        operator = CloudRunExecutePythonJobOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            location=REGION,
+            image_repository="repo/image",
+            python_file="gs://bucket/code.py",
+            entry_point="main",
+            do_xcom_push=False,
+            timeout=30,
+        )
+
+        with pytest.raises(CloudRunJobTimeoutError):
+            operator.execute(context=create_context(operator))
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.cloud_run.CloudRunPythonJobImageBuilder.prepare_image"
+    )
+    def test_execute_user_code_error(self, prepare_image_mock, hook_mock):
+        job_operation = mock.MagicMock()
+        job_execution = mock.MagicMock()
+        job_execution.failed_count = 1
+        job_operation.result.return_value = job_execution
+        hook_mock.return_value.execute_job.return_value = job_operation
+        cloud_run_job = Job()
+        cloud_run_job.name = "projects/x/locations/y/jobs/test-job"
+        hook_mock.return_value.create_job.return_value = cloud_run_job
+
+        operator = CloudRunExecutePythonJobOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            location=REGION,
+            image_repository="repo/image",
+            python_file="gs://bucket/code.py",
+            entry_point="main",
+            xcom_volume="gs://bucket/results",
+            logs_volume="gs://bucket/logs",
+        )
+        operator._read_logs_from_gcs = mock.Mock(
+            return_value="AIRFLOW_USER_CODE_ERROR: ValueError: bad input\nTraceback..."
+        )
+        operator._emit_collected_logs = mock.Mock()
+
+        with pytest.raises(CloudRunUserCodeExecutionError) as exc_info:
+            operator.execute(context=create_context(operator))
+
+        assert "ValueError" in str(exc_info.value)
+        assert "bad input" in str(exc_info.value)
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.cloud_run.CloudRunPythonJobImageBuilder.prepare_image"
+    )
+    def test_execute_infrastructure_error(self, prepare_image_mock, hook_mock):
+        job_operation = mock.MagicMock()
+        job_execution = mock.MagicMock()
+        job_execution.failed_count = 1
+        job_operation.result.return_value = job_execution
+        hook_mock.return_value.execute_job.return_value = job_operation
+        cloud_run_job = Job()
+        cloud_run_job.name = "projects/x/locations/y/jobs/test-job"
+        hook_mock.return_value.create_job.return_value = cloud_run_job
+
+        operator = CloudRunExecutePythonJobOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            location=REGION,
+            image_repository="repo/image",
+            python_file="gs://bucket/code.py",
+            entry_point="main",
+            xcom_volume="gs://bucket/results",
+            logs_volume="gs://bucket/logs",
+        )
+        operator._read_logs_from_gcs = mock.Mock(return_value=None)
+        operator._emit_collected_logs = mock.Mock()
+
+        with pytest.raises(CloudRunInfrastructureExecutionError):
+            operator.execute(context=create_context(operator))
 
 
 class TestCloudRunCreateServiceOperator:
