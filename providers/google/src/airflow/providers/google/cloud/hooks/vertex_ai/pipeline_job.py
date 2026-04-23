@@ -29,7 +29,6 @@ import asyncio
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform import PipelineJob
 from google.cloud.aiplatform_v1 import (
@@ -73,12 +72,14 @@ class PipelineJobHook(GoogleBaseHook, OperationHelper):
         region: str | None = None,
     ) -> PipelineServiceClient:
         """Return PipelineServiceClient object."""
+        api_endpoint = None
         if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
-        else:
-            client_options = ClientOptions()
+            api_endpoint = f"{region}-aiplatform.googleapis.com:443"
+
         return PipelineServiceClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(api_endpoint_override=api_endpoint),
         )
 
     def get_pipeline_job_object(
@@ -547,14 +548,16 @@ class PipelineJobAsyncHook(GoogleBaseAsyncHook):
         self,
         region: str | None = None,
     ) -> PipelineServiceAsyncClient:
+        sync_hook = await self.get_sync_hook()
+
+        api_endpoint = None
         if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
-        else:
-            client_options = ClientOptions()
+            api_endpoint = f"{region}-aiplatform.googleapis.com:443"
+
         return PipelineServiceAsyncClient(
-            credentials=await self.get_credentials(),
+            credentials=sync_hook.get_credentials(),
             client_info=CLIENT_INFO,
-            client_options=client_options,
+            client_options=sync_hook.get_client_options(api_endpoint_override=api_endpoint),
         )
 
     async def get_pipeline_job(
