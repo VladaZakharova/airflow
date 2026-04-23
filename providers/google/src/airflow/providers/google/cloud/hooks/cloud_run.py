@@ -22,7 +22,6 @@ import itertools
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any, Literal
 
-from google.api_core.client_options import ClientOptions
 from google.cloud.run_v2 import (
     CreateJobRequest,
     CreateServiceRequest,
@@ -58,6 +57,12 @@ if TYPE_CHECKING:
 
 class NoLocationSpecifiedException(Exception):
     """Custom exception to catch error when location is not specified."""
+
+    pass
+
+
+class NonGoogleDefaultUniverseException(Exception):
+    """Custom exception to catch error when use_regional_endpoint used for non google default universe domain."""
 
     pass
 
@@ -108,14 +113,20 @@ class CloudRunHook(GoogleBaseHook):
             }
             if self.transport:
                 client_kwargs["transport"] = self.transport
+            api_endpoint_override = None
             if use_regional_endpoint:
+                if not self.is_default_universe():
+                    raise NonGoogleDefaultUniverseException(
+                        "use_regional_endpoint is not supported in non default universes"
+                    )
                 if not location:
                     raise NoLocationSpecifiedException(
                         "No location was specified while using use_regional_endpoint parameter"
                     )
-                client_kwargs["client_options"] = ClientOptions(
-                    api_endpoint=f"{location}-run.googleapis.com:443"
-                )
+                api_endpoint_override = f"{location}-run.googleapis.com:443"
+            client_kwargs["client_options"] = self.get_client_options(
+                api_endpoint_override=api_endpoint_override
+            )
             self._client = JobsClient(**client_kwargs)  # type: ignore[arg-type]
         return self._client
 
@@ -281,14 +292,20 @@ class CloudRunAsyncHook(GoogleBaseAsyncHook):
                 "credentials": credentials,
                 "client_info": CLIENT_INFO,
             }
+            api_endpoint_override = None
             if use_regional_endpoint:
+                if not sync_hook.is_default_universe():
+                    raise NonGoogleDefaultUniverseException(
+                        "use_regional_endpoint is not supported in non default universes"
+                    )
                 if not location:
                     raise NoLocationSpecifiedException(
                         "No location was specified while using use_regional_endpoint parameter"
                     )
-                common_kwargs["client_options"] = ClientOptions(
-                    api_endpoint=f"{location}-run.googleapis.com:443"
-                )
+                api_endpoint_override = f"{location}-run.googleapis.com:443"
+            common_kwargs["client_options"] = sync_hook.get_client_options(
+                api_endpoint_override=api_endpoint_override
+            )
             if self.transport == "rest":
                 # REST transport is synchronous-only. Use the sync JobsClient here;
                 # get_operation() wraps calls with asyncio.to_thread() for async compat.
@@ -356,14 +373,20 @@ class CloudRunServiceHook(GoogleBaseHook):
                 "credentials": self.get_credentials(),
                 "client_info": CLIENT_INFO,
             }
+            api_endpoint_override = None
             if use_regional_endpoint:
+                if not self.is_default_universe():
+                    raise NonGoogleDefaultUniverseException(
+                        "use_regional_endpoint is not supported in non default universes"
+                    )
                 if not location:
                     raise NoLocationSpecifiedException(
                         "No location was specified while using use_regional_endpoint parameter"
                     )
-                client_kwargs["client_options"] = ClientOptions(
-                    api_endpoint=f"{location}-run.googleapis.com:443"
-                )
+                api_endpoint_override = f"{location}-run.googleapis.com:443"
+            client_kwargs["client_options"] = self.get_client_options(
+                api_endpoint_override=api_endpoint_override
+            )
             self._client = ServicesClient(**client_kwargs)  # type: ignore[arg-type]
         return self._client
 
@@ -465,14 +488,20 @@ class CloudRunServiceAsyncHook(GoogleBaseAsyncHook):
                 "credentials": sync_hook.get_credentials(),
                 "client_info": CLIENT_INFO,
             }
+            api_endpoint_override = None
             if use_regional_endpoint:
+                if not sync_hook.is_default_universe():
+                    raise NonGoogleDefaultUniverseException(
+                        "use_regional_endpoint is not supported in non default universes"
+                    )
                 if not location:
                     raise NoLocationSpecifiedException(
                         "No location was specified while using use_regional_endpoint parameter"
                     )
-                client_kwargs["client_options"] = ClientOptions(
-                    api_endpoint=f"{location}-run.googleapis.com:443"
-                )
+                api_endpoint_override = f"{location}-run.googleapis.com:443"
+            client_kwargs["client_options"] = sync_hook.get_client_options(
+                api_endpoint_override=api_endpoint_override
+            )
             self._client = ServicesAsyncClient(**client_kwargs)
         return self._client
 

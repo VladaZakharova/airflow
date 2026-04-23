@@ -22,7 +22,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform_v1 import DatasetServiceClient
 
@@ -47,13 +46,14 @@ class DatasetHook(GoogleBaseHook, OperationHelper):
 
     def get_dataset_service_client(self, region: str | None = None) -> DatasetServiceClient:
         """Return DatasetServiceClient."""
-        if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
-        else:
-            client_options = ClientOptions()
+        api_endpoint_override = None
+        if region and region != "global" and self.is_default_universe():
+            api_endpoint_override = f"{region}-aiplatform.googleapis.com:443"
 
         return DatasetServiceClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(api_endpoint_override=api_endpoint_override),
         )
 
     @staticmethod

@@ -22,7 +22,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from google.api_core.client_options import ClientOptions
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.devtools.cloudbuild_v1 import CloudBuildAsyncClient, CloudBuildClient, GetBuildRequest
@@ -89,13 +88,13 @@ class CloudBuildHook(GoogleBaseHook, OperationHelper):
         :return: Google Cloud Build client object.
         """
         if location not in self._client:
-            client_options = None
-            if location != "global":
-                client_options = ClientOptions(api_endpoint=f"{location}-cloudbuild.googleapis.com:443")
+            api_endpoint_override = None
+            if location != "global" and self.is_default_universe():
+                api_endpoint_override = f"{location}-cloudbuild.googleapis.com:443"
             self._client[location] = CloudBuildClient(
                 credentials=self.get_credentials(),
                 client_info=CLIENT_INFO,
-                client_options=client_options,
+                client_options=self.get_client_options(api_endpoint_override=api_endpoint_override),
             )
         return self._client[location]
 
@@ -584,11 +583,13 @@ class CloudBuildAsyncHook(GoogleBaseHook):
         if not id_:
             raise AirflowException("Google Cloud Build id is required.")
 
-        client_options = None
-        if location != "global":
-            client_options = ClientOptions(api_endpoint=f"{location}-cloudbuild.googleapis.com:443")
+        api_endpoint_override = None
+        if location != "global" and self.is_default_universe():
+            api_endpoint_override = f"{location}-cloudbuild.googleapis.com:443"
         client = CloudBuildAsyncClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(api_endpoint_override=api_endpoint_override),
         )
 
         request = GetBuildRequest(

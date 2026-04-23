@@ -29,7 +29,6 @@ import asyncio
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform import CustomJob, HyperparameterTuningJob, gapic, hyperparameter_tuning
 from google.cloud.aiplatform_v1 import JobServiceAsyncClient, JobServiceClient, JobState, types
@@ -63,13 +62,14 @@ class HyperparameterTuningJobHook(GoogleBaseHook, OperationHelper):
 
     def get_job_service_client(self, region: str | None = None) -> JobServiceClient:
         """Return JobServiceClient."""
-        if region and region != "global":
-            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
-        else:
-            client_options = ClientOptions()
+        api_endpoint_override = None
+        if region and region != "global" and self.is_default_universe():
+            api_endpoint_override = f"{region}-aiplatform.googleapis.com:443"
 
         return JobServiceClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(api_endpoint_override=api_endpoint_override),
         )
 
     def get_hyperparameter_tuning_job_object(
@@ -443,11 +443,14 @@ class HyperparameterTuningJobAsyncHook(GoogleBaseAsyncHook):
 
         :return: Google Cloud Vertex AI client object.
         """
-        endpoint = f"{region}-aiplatform.googleapis.com:443" if region and region != "global" else None
+        sync_hook = await self.get_sync_hook()
+        api_endpoint_override = None
+        if region and region != "global" and sync_hook.is_default_universe():
+            api_endpoint_override = f"{region}-aiplatform.googleapis.com:443"
         return JobServiceAsyncClient(
-            credentials=(await self.get_sync_hook()).get_credentials(),
+            credentials=sync_hook.get_credentials(),
             client_info=CLIENT_INFO,
-            client_options=ClientOptions(api_endpoint=endpoint),
+            client_options=sync_hook.get_client_options(api_endpoint_override=api_endpoint_override),
         )
 
     async def get_hyperparameter_tuning_job(
