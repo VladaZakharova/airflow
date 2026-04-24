@@ -263,12 +263,6 @@ def get_provider_info():
                 "tags": ["gcp"],
             },
             {
-                "integration-name": "Google Data Proc",
-                "external-doc-url": "https://cloud.google.com/dataproc/",
-                "logo": "/docs/integration-logos/Google-Data-Proc.png",
-                "tags": ["gcp"],
-            },
-            {
                 "integration-name": "Google Dataflow",
                 "external-doc-url": "https://cloud.google.com/dataflow/",
                 "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/dataflow.rst"],
@@ -283,7 +277,7 @@ def get_provider_info():
                 "tags": ["gcp"],
             },
             {
-                "integration-name": "Google Dataplex",
+                "integration-name": "Google Knowledge Catalog",
                 "external-doc-url": "https://cloud.google.com/dataplex/",
                 "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/dataplex.rst"],
                 "tags": ["gcp"],
@@ -304,7 +298,7 @@ def get_provider_info():
                 "tags": ["gcp"],
             },
             {
-                "integration-name": "Google Dataproc",
+                "integration-name": "Google Managed Service for Apache Spark",
                 "external-doc-url": "https://cloud.google.com/dataproc/",
                 "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/dataproc.rst"],
                 "logo": "/docs/integration-logos/Cloud-Dataproc.png",
@@ -446,7 +440,7 @@ def get_provider_info():
                 "tags": ["gcp"],
             },
             {
-                "integration-name": "Google Looker",
+                "integration-name": "Google Data Studio",
                 "external-doc-url": "https://cloud.google.com/looker",
                 "logo": "/docs/integration-logos/Cloud-Looker.png",
                 "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/looker.rst"],
@@ -545,7 +539,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.operators.datafusion"],
             },
             {
-                "integration-name": "Google Dataplex",
+                "integration-name": "Google Knowledge Catalog",
                 "python-modules": ["airflow.providers.google.cloud.operators.dataplex"],
             },
             {
@@ -557,7 +551,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.operators.dataproc_metastore"],
             },
             {
-                "integration-name": "Google Dataproc",
+                "integration-name": "Google Managed Service for Apache Spark",
                 "python-modules": ["airflow.providers.google.cloud.operators.dataproc"],
             },
             {
@@ -676,7 +670,7 @@ def get_provider_info():
                 ],
             },
             {
-                "integration-name": "Google Looker",
+                "integration-name": "Google Data Studio",
                 "python-modules": ["airflow.providers.google.cloud.operators.looker"],
             },
             {
@@ -742,11 +736,11 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.sensors.dataprep"],
             },
             {
-                "integration-name": "Google Dataplex",
+                "integration-name": "Google Knowledge Catalog",
                 "python-modules": ["airflow.providers.google.cloud.sensors.dataplex"],
             },
             {
-                "integration-name": "Google Dataproc",
+                "integration-name": "Google Managed Service for Apache Spark",
                 "python-modules": ["airflow.providers.google.cloud.sensors.dataproc"],
             },
             {
@@ -782,7 +776,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.marketing_platform.sensors.display_video"],
             },
             {
-                "integration-name": "Google Looker",
+                "integration-name": "Google Data Studio",
                 "python-modules": ["airflow.providers.google.cloud.sensors.looker"],
             },
             {
@@ -887,7 +881,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.hooks.datafusion"],
             },
             {
-                "integration-name": "Google Dataplex",
+                "integration-name": "Google Knowledge Catalog",
                 "python-modules": ["airflow.providers.google.cloud.hooks.dataplex"],
             },
             {
@@ -899,7 +893,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.hooks.dataproc_metastore"],
             },
             {
-                "integration-name": "Google Dataproc",
+                "integration-name": "Google Managed Service for Apache Spark",
                 "python-modules": ["airflow.providers.google.cloud.hooks.dataproc"],
             },
             {
@@ -1052,7 +1046,7 @@ def get_provider_info():
                 ],
             },
             {
-                "integration-name": "Google Looker",
+                "integration-name": "Google Data Studio",
                 "python-modules": ["airflow.providers.google.cloud.hooks.looker"],
             },
             {
@@ -1128,11 +1122,11 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.triggers.datafusion"],
             },
             {
-                "integration-name": "Google Dataplex",
+                "integration-name": "Google Knowledge Catalog",
                 "python-modules": ["airflow.providers.google.cloud.triggers.dataplex"],
             },
             {
-                "integration-name": "Google Dataproc",
+                "integration-name": "Google Managed Service for Apache Spark",
                 "python-modules": ["airflow.providers.google.cloud.triggers.dataproc"],
             },
             {
@@ -1565,7 +1559,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.google.cloud.hooks.looker.LookerHook",
-                "hook-name": "Google Looker",
+                "hook-name": "Google Data Studio",
                 "connection-type": "gcp_looker",
             },
         ],
