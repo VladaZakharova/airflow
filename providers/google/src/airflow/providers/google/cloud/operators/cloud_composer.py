@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import shlex
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -926,3 +926,13 @@ class CloudComposerTriggerDAGRunOperator(GoogleCloudBaseOperator):
         self.log.info("The DAG %s was triggered with Run ID: %s", self.composer_dag_id, dag_run["dag_run_id"])
 
         return dag_run
+
+
+ManagedAirflowCreateEnvironmentOperator: TypeAlias = CloudComposerCreateEnvironmentOperator
+ManagedAirflowDeleteEnvironmentOperator: TypeAlias = CloudComposerDeleteEnvironmentOperator
+ManagedAirflowGetEnvironmentOperator: TypeAlias = CloudComposerGetEnvironmentOperator
+ManagedAirflowListEnvironmentsOperator: TypeAlias = CloudComposerListEnvironmentsOperator
+ManagedAirflowUpdateEnvironmentOperator: TypeAlias = CloudComposerUpdateEnvironmentOperator
+ManagedAirflowListImageVersionsOperator: TypeAlias = CloudComposerListImageVersionsOperator
+ManagedAirflowRunAirflowCLICommandOperator: TypeAlias = CloudComposerRunAirflowCLICommandOperator
+ManagedAirflowTriggerDAGRunOperator: TypeAlias = CloudComposerTriggerDAGRunOperator

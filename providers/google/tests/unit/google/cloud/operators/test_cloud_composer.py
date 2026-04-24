@@ -33,6 +33,14 @@ from airflow.providers.google.cloud.operators.cloud_composer import (
     CloudComposerRunAirflowCLICommandOperator,
     CloudComposerTriggerDAGRunOperator,
     CloudComposerUpdateEnvironmentOperator,
+    ManagedAirflowCreateEnvironmentOperator,
+    ManagedAirflowDeleteEnvironmentOperator,
+    ManagedAirflowGetEnvironmentOperator,
+    ManagedAirflowListEnvironmentsOperator,
+    ManagedAirflowListImageVersionsOperator,
+    ManagedAirflowRunAirflowCLICommandOperator,
+    ManagedAirflowTriggerDAGRunOperator,
+    ManagedAirflowUpdateEnvironmentOperator,
     ComposerEnvironmentNotRunningError,
 )
 from airflow.providers.google.cloud.triggers.cloud_composer import (
@@ -77,6 +85,17 @@ TEST_COMPOSER_DAG_CONF = {"test-key": "test-value"}
 COMPOSER_STRING = "airflow.providers.google.cloud.operators.cloud_composer.{}"
 COMPOSER_TRIGGERS_STRING = "airflow.providers.google.cloud.triggers.cloud_composer.{}"
 TEST_COMPOSER_AIRFLOW_VERSION = 1
+
+
+def test_managed_airflow_aliases() -> None:
+    assert ManagedAirflowCreateEnvironmentOperator is CloudComposerCreateEnvironmentOperator
+    assert ManagedAirflowDeleteEnvironmentOperator is CloudComposerDeleteEnvironmentOperator
+    assert ManagedAirflowGetEnvironmentOperator is CloudComposerGetEnvironmentOperator
+    assert ManagedAirflowListEnvironmentsOperator is CloudComposerListEnvironmentsOperator
+    assert ManagedAirflowUpdateEnvironmentOperator is CloudComposerUpdateEnvironmentOperator
+    assert ManagedAirflowListImageVersionsOperator is CloudComposerListImageVersionsOperator
+    assert ManagedAirflowRunAirflowCLICommandOperator is CloudComposerRunAirflowCLICommandOperator
+    assert ManagedAirflowTriggerDAGRunOperator is CloudComposerTriggerDAGRunOperator
 
 
 class TestCloudComposerCreateEnvironmentOperator:
