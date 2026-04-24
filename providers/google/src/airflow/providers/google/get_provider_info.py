@@ -84,7 +84,7 @@ def get_provider_info():
                 "logo": "/docs/integration-logos/Google.png",
             },
             {
-                "integration-name": "Google Cloud Composer",
+                "integration-name": "Managed Service for Apache Airflow",
                 "external-doc-url": "https://cloud.google.com/composer",
                 "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/cloud_composer.rst"],
                 "tags": ["google"],
@@ -513,7 +513,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.operators.cloud_build"],
             },
             {
-                "integration-name": "Google Cloud Composer",
+                "integration-name": "Managed Service for Apache Airflow",
                 "python-modules": ["airflow.providers.google.cloud.operators.cloud_composer"],
             },
             {
@@ -722,7 +722,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.sensors.bigtable"],
             },
             {
-                "integration-name": "Google Cloud Composer",
+                "integration-name": "Managed Service for Apache Airflow",
                 "python-modules": ["airflow.providers.google.cloud.sensors.cloud_composer"],
             },
             {
@@ -852,7 +852,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.hooks.cloud_build"],
             },
             {
-                "integration-name": "Google Cloud Composer",
+                "integration-name": "Managed Service for Apache Airflow",
                 "python-modules": ["airflow.providers.google.cloud.hooks.cloud_composer"],
             },
             {
@@ -1104,7 +1104,7 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.triggers.cloud_build"],
             },
             {
-                "integration-name": "Google Cloud Composer",
+                "integration-name": "Managed Service for Apache Airflow",
                 "python-modules": ["airflow.providers.google.cloud.triggers.cloud_composer"],
             },
             {
