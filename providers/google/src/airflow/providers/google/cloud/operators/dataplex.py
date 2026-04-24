@@ -14,14 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains Google Dataplex operators."""
+"""This module contains Google Dataplex operators and Knowledge Catalog aliases."""
 
 from __future__ import annotations
 
 import time
 from collections.abc import MutableSequence, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 from google.protobuf.json_format import MessageToDict
 
@@ -4218,3 +4218,51 @@ class DataplexCatalogDeleteEntryOperator(DataplexCatalogBaseOperator):
         except Exception as ex:
             raise AirflowException(ex)
         return Entry.to_dict(entry)
+
+
+KnowledgeCatalogCreateTaskOperator: TypeAlias = DataplexCreateTaskOperator
+KnowledgeCatalogDeleteTaskOperator: TypeAlias = DataplexDeleteTaskOperator
+KnowledgeCatalogListTasksOperator: TypeAlias = DataplexListTasksOperator
+KnowledgeCatalogGetTaskOperator: TypeAlias = DataplexGetTaskOperator
+KnowledgeCatalogCreateLakeOperator: TypeAlias = DataplexCreateLakeOperator
+KnowledgeCatalogDeleteLakeOperator: TypeAlias = DataplexDeleteLakeOperator
+KnowledgeCatalogCreateOrUpdateDataQualityScanOperator: TypeAlias = (
+    DataplexCreateOrUpdateDataQualityScanOperator
+)
+KnowledgeCatalogGetDataQualityScanOperator: TypeAlias = DataplexGetDataQualityScanOperator
+KnowledgeCatalogDeleteDataQualityScanOperator: TypeAlias = DataplexDeleteDataQualityScanOperator
+KnowledgeCatalogRunDataQualityScanOperator: TypeAlias = DataplexRunDataQualityScanOperator
+KnowledgeCatalogGetDataQualityScanResultOperator: TypeAlias = DataplexGetDataQualityScanResultOperator
+KnowledgeCatalogCreateOrUpdateDataProfileScanOperator: TypeAlias = (
+    DataplexCreateOrUpdateDataProfileScanOperator
+)
+KnowledgeCatalogGetDataProfileScanOperator: TypeAlias = DataplexGetDataProfileScanOperator
+KnowledgeCatalogDeleteDataProfileScanOperator: TypeAlias = DataplexDeleteDataProfileScanOperator
+KnowledgeCatalogRunDataProfileScanOperator: TypeAlias = DataplexRunDataProfileScanOperator
+KnowledgeCatalogGetDataProfileScanResultOperator: TypeAlias = DataplexGetDataProfileScanResultOperator
+KnowledgeCatalogCreateZoneOperator: TypeAlias = DataplexCreateZoneOperator
+KnowledgeCatalogDeleteZoneOperator: TypeAlias = DataplexDeleteZoneOperator
+KnowledgeCatalogCreateAssetOperator: TypeAlias = DataplexCreateAssetOperator
+KnowledgeCatalogDeleteAssetOperator: TypeAlias = DataplexDeleteAssetOperator
+KnowledgeCatalogCreateEntryGroupOperator: TypeAlias = DataplexCatalogCreateEntryGroupOperator
+KnowledgeCatalogGetEntryGroupOperator: TypeAlias = DataplexCatalogGetEntryGroupOperator
+KnowledgeCatalogDeleteEntryGroupOperator: TypeAlias = DataplexCatalogDeleteEntryGroupOperator
+KnowledgeCatalogListEntryGroupsOperator: TypeAlias = DataplexCatalogListEntryGroupsOperator
+KnowledgeCatalogUpdateEntryGroupOperator: TypeAlias = DataplexCatalogUpdateEntryGroupOperator
+KnowledgeCatalogCreateEntryTypeOperator: TypeAlias = DataplexCatalogCreateEntryTypeOperator
+KnowledgeCatalogGetEntryTypeOperator: TypeAlias = DataplexCatalogGetEntryTypeOperator
+KnowledgeCatalogDeleteEntryTypeOperator: TypeAlias = DataplexCatalogDeleteEntryTypeOperator
+KnowledgeCatalogListEntryTypesOperator: TypeAlias = DataplexCatalogListEntryTypesOperator
+KnowledgeCatalogUpdateEntryTypeOperator: TypeAlias = DataplexCatalogUpdateEntryTypeOperator
+KnowledgeCatalogCreateAspectTypeOperator: TypeAlias = DataplexCatalogCreateAspectTypeOperator
+KnowledgeCatalogGetAspectTypeOperator: TypeAlias = DataplexCatalogGetAspectTypeOperator
+KnowledgeCatalogListAspectTypesOperator: TypeAlias = DataplexCatalogListAspectTypesOperator
+KnowledgeCatalogUpdateAspectTypeOperator: TypeAlias = DataplexCatalogUpdateAspectTypeOperator
+KnowledgeCatalogDeleteAspectTypeOperator: TypeAlias = DataplexCatalogDeleteAspectTypeOperator
+KnowledgeCatalogCreateEntryOperator: TypeAlias = DataplexCatalogCreateEntryOperator
+KnowledgeCatalogGetEntryOperator: TypeAlias = DataplexCatalogGetEntryOperator
+KnowledgeCatalogListEntriesOperator: TypeAlias = DataplexCatalogListEntriesOperator
+KnowledgeCatalogSearchEntriesOperator: TypeAlias = DataplexCatalogSearchEntriesOperator
+KnowledgeCatalogLookupEntryOperator: TypeAlias = DataplexCatalogLookupEntryOperator
+KnowledgeCatalogUpdateEntryOperator: TypeAlias = DataplexCatalogUpdateEntryOperator
+KnowledgeCatalogDeleteEntryOperator: TypeAlias = DataplexCatalogDeleteEntryOperator

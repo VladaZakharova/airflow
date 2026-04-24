@@ -61,6 +61,10 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocUpdateClusterOperator,
     InstanceFlexibilityPolicy,
     InstanceSelection,
+    ManagedSparkCreateBatchOperator,
+    ManagedSparkCreateClusterOperator,
+    ManagedSparkDeleteClusterOperator,
+    ManagedSparkSubmitJobOperator,
 )
 from airflow.providers.google.cloud.triggers.dataproc import (
     DataprocBatchTrigger,
@@ -84,6 +88,14 @@ cluster_params = inspect.signature(ClusterGenerator.__init__).parameters
 
 DATAPROC_PATH = "airflow.providers.google.cloud.operators.dataproc.{}"
 DATAPROC_TRIGGERS_PATH = "airflow.providers.google.cloud.triggers.dataproc.{}"
+
+
+def test_managed_spark_aliases():
+    assert ManagedSparkCreateClusterOperator is DataprocCreateClusterOperator
+    assert ManagedSparkDeleteClusterOperator is DataprocDeleteClusterOperator
+    assert ManagedSparkSubmitJobOperator is DataprocSubmitJobOperator
+    assert ManagedSparkCreateBatchOperator is DataprocCreateBatchOperator
+
 
 TASK_ID = "task-id"
 GCP_PROJECT = "test-project"
