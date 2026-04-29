@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-04-28T09:14:54.001512
+# This constraints file was automatically generated on 2026-04-29T08:07:08.671010
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -80,14 +80,17 @@ aiosqlite==0.21.0
 airbyte-api==0.53.0
 akeyless==5.0.24
 alembic==1.18.4
-alibabacloud-adb20211201==3.7.1
+alibabacloud-adb20211201==3.7.0
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.8
+alibabacloud-openapi-util==0.2.4
 alibabacloud-oss-v2==1.2.5
-alibabacloud-tea-openapi==0.4.4
 alibabacloud-tea-util==0.3.14
 alibabacloud-tea==0.4.3
+alibabacloud_endpoint_util==0.0.4
 alibabacloud_gateway_spi==0.0.3
+alibabacloud_tea_openapi==0.3.16
+alibabacloud_tea_xml==0.0.3
 amqp==5.3.1
 annotated-doc==0.0.4
 annotated-types==0.7.0
@@ -169,9 +172,8 @@ confluent-kafka==2.14.0
 crcmod-plus==2.3.1
 cron_descriptor==2.0.8
 croniter==6.2.2
-cryptography==46.0.7
+cryptography==47.0.0
 curlify==3.0.0
-darabonba-core==1.0.5
 databricks-sql-connector==4.2.5
 dataclasses-json==0.6.7
 datadog==0.52.1
@@ -198,7 +200,7 @@ executing==2.2.1
 facebook_business==25.0.1
 fastapi-cli==0.0.24
 fastapi==0.136.1
-fastavro==1.12.1
+fastavro==1.12.2
 fastcore==1.12.42
 fastjsonschema==2.21.2
 fastuuid==0.14.0
@@ -295,10 +297,10 @@ hmsclient==0.1.1
 hpack==4.1.0
 httpcore==1.0.9
 httplib2==0.31.2
-httpr==0.4.3
+httpr==0.4.4
 httptools==0.7.1
 httpx==0.28.1
-huggingface_hub==1.11.0
+huggingface_hub==1.12.0
 humanize==4.15.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -313,7 +315,7 @@ impyla==0.22.0
 inflection==0.5.1
 influxdb-client==1.50.0
 ipykernel==7.2.0
-ipython==9.10.1
+ipython==9.13.0
 ipython_pygments_lexers==1.1.1
 isodate==0.7.2
 itsdangerous==2.2.0
@@ -398,16 +400,16 @@ openlineage_sql==1.46.0
 openpyxl==3.1.5
 opensearch-protobufs==0.19.0
 opensearch-py==3.1.0
-opentelemetry-api==1.41.0
-opentelemetry-exporter-otlp-proto-common==1.41.0
-opentelemetry-exporter-otlp-proto-grpc==1.41.0
-opentelemetry-exporter-otlp-proto-http==1.41.0
-opentelemetry-exporter-otlp==1.41.0
-opentelemetry-exporter-prometheus==0.62b0
-opentelemetry-proto==1.41.0
+opentelemetry-api==1.41.1
+opentelemetry-exporter-otlp-proto-common==1.41.1
+opentelemetry-exporter-otlp-proto-grpc==1.41.1
+opentelemetry-exporter-otlp-proto-http==1.41.1
+opentelemetry-exporter-otlp==1.41.1
+opentelemetry-exporter-prometheus==0.62b1
+opentelemetry-proto==1.41.1
 opentelemetry-resourcedetector-gcp==1.11.0a0
-opentelemetry-sdk==1.41.0
-opentelemetry-semantic-conventions==0.62b0
+opentelemetry-sdk==1.41.1
+opentelemetry-semantic-conventions==0.62b1
 opsgenie-sdk==2.1.5
 oracledb==3.4.2
 ordered-set==4.1.0
@@ -449,8 +451,8 @@ psycopg2-binary==2.9.12
 ptyprocess==0.7.0
 pure-sasl==0.6.2
 pure_eval==0.2.3
-py-spy==0.4.1
-pyOpenSSL==26.0.0
+py-spy==0.4.2
+pyOpenSSL==26.1.0
 pyarrow==24.0.0
 pyasn1==0.6.3
 pyasn1_modules==0.4.2
@@ -458,9 +460,9 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==1.86.1
+pydantic-ai-slim==1.87.0
 pydantic-extra-types==2.11.1
-pydantic-graph==1.86.1
+pydantic-graph==1.87.0
 pydantic-settings==2.14.0
 pydantic==2.13.3
 pydantic_core==2.46.3
@@ -575,14 +577,14 @@ types-requests==2.33.0.20260408
 typing-inspect==0.9.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0
-tzdata==2026.1
+tzdata==2026.2
 tzlocal==5.3.1
 uc-micro-py==2.0.0
 universal_pathlib==0.3.10
 uritemplate==4.2.0
 urllib3==2.6.3
 uuid6==2025.0.1
-uv==0.11.7
+uv==0.11.8
 uvicorn==0.46.0
 uvloop==0.22.1
 validators==0.35.0
@@ -604,10 +606,10 @@ yandex-query-client==0.1.4
 yandexcloud==0.387.0
 yarl==1.23.0
 ydb-dbapi==0.1.20
-ydb==3.28.2
+ydb==3.28.3
 zeep==4.3.2
 zenpy==2.0.57
 zipp==3.23.1
 zope.event==6.1
-zope.interface==8.3
+zope.interface==8.4
 zstandard==0.25.0
