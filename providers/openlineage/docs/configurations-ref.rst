@@ -56,6 +56,24 @@ If you want to look at OpenLineage events without sending them anywhere, you can
     [openlineage]
     transport = {"type": "console"}
 
+HTTP transport with an API key stored in an Airflow connection
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For HTTP transports that require API key authentication, you can keep the token in an Airflow connection instead of
+putting the secret directly in Airflow configuration. Create an Airflow connection, store the API key in the
+connection password, and set ``auth.type`` to ``airflow_connection_api_key`` with ``conn_id`` pointing to that
+connection.
+The provider resolves ``airflow_connection_api_key`` to standard OpenLineage ``api_key`` auth before creating the
+OpenLineage client.
+
+.. code-block:: json
+
+    {
+      "type": "http",
+      "url": "http://example.com:5000",
+      "auth": {"type": "airflow_connection_api_key", "conn_id": "openlineage_default"}
+    }
+
 .. note::
   For full list of built-in transport types, specific transport's options or instructions on how to implement your custom transport, refer to
   `Python client documentation <https://openlineage.io/docs/client/python/configuration#transports>`_.
