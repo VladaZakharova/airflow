@@ -36,6 +36,10 @@ from openlineage.client.facet_v2 import (
 )
 
 from airflow.providers.common.compat.sdk import Stats, conf as airflow_conf
+from airflow.providers.openlineage.token_provider import (
+    AIRFLOW_CONNECTION_API_KEY_AUTH_TYPE,
+    AirflowConnectionTokenProvider,
+)
 
 try:
     from airflow.sdk.observability.stats import DualStatsManager
@@ -113,6 +117,9 @@ class OpenLineageAdapter(LoggingMixin):
         openlineage_config_path = conf.config_path(check_legacy_env_var=False)
         if openlineage_config_path:
             config = self._read_yaml_config(openlineage_config_path)
+            if config is None:
+                return None
+            self._resolve_airflow_connection_auth(config.get("transport"))
             return config
         self.log.debug("OpenLineage config_path configuration not found.")
 
@@ -121,12 +128,24 @@ class OpenLineageAdapter(LoggingMixin):
         if not transport_config:
             self.log.debug("OpenLineage transport configuration not found.")
             return None
-        return {"transport": transport_config}
+        config = {"transport": transport_config}
+        self._resolve_airflow_connection_auth(transport_config)
+        return config
 
     @staticmethod
     def _read_yaml_config(path: str) -> dict | None:
         with open(path) as config_file:
             return yaml.safe_load(config_file)
+
+    @staticmethod
+    def _resolve_airflow_connection_auth(transport_config: dict | None) -> None:
+        if not isinstance(transport_config, dict):
+            return
+
+        auth = transport_config.get("auth")
+        if isinstance(auth, dict) and auth.get("type") == AIRFLOW_CONNECTION_API_KEY_AUTH_TYPE:
+            provider = AirflowConnectionTokenProvider(auth)
+            transport_config["auth"] = {"type": "api_key", "apiKey": provider.get_api_key()}
 
     @staticmethod
     def build_dag_run_id(dag_id: str, logical_date: datetime, clear_number: int) -> str:
