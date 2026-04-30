@@ -21,6 +21,7 @@ import json
 import logging
 import os
 from datetime import datetime
+from functools import cache
 from typing import Any
 
 from airflow.models.dag import DAG
@@ -35,6 +36,7 @@ else:
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.providers.google.cloud.transfers.gdrive_to_gcs import GoogleDriveToGCSOperator
+from airflow.providers.google.common.utils.get_secret import get_secret
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 from airflow.providers.google.suite.sensors.drive import GoogleDriveFileExistenceSensor
 from airflow.providers.google.suite.transfers.gcs_to_gdrive import GCSToGoogleDriveOperator
@@ -64,6 +66,9 @@ FOLDER_ID = ""
 FILE_NAME = "example_upload.txt"
 DRIVE_FILE_NAME = f"example_upload_{DAG_ID}_{ENV_ID}.txt"
 LOCAL_PATH = f"gcs/{FILE_NAME}"
+GDRIVE_SECRET_ID = "gdrive_shared_folder_id"
+GDRIVE_ID = "{{ task_instance.xcom_pull('get_shared_drive_id') }}"
+
 
 log = logging.getLogger(__name__)
 
@@ -73,7 +78,13 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "gcs", "gdrive"],
+    render_template_as_native_obj=True,
 ) as dag:
+    @task
+    def get_shared_drive_id() -> str:
+        return get_secret(secret_id=GDRIVE_SECRET_ID).strip()
+
+    get_shared_drive_id_task = get_shared_drive_id()
 
     @task
     def create_connection(connection_id: str):
@@ -108,6 +119,7 @@ with DAG(
         source_bucket=BUCKET_NAME,
         source_object=FILE_NAME,
         destination_object=DRIVE_FILE_NAME,
+        destination_folder_id=GDRIVE_ID,
     )
 
     # [START detect_file]
@@ -115,6 +127,7 @@ with DAG(
         task_id="detect_file",
         folder_id=FOLDER_ID,
         file_name=DRIVE_FILE_NAME,
+        drive_id=GDRIVE_ID,
         gcp_conn_id=CONNECTION_ID,
     )
     # [END detect_file]
@@ -124,6 +137,7 @@ with DAG(
         task_id="upload_gdrive_object_to_gcs",
         gcp_conn_id=CONNECTION_ID,
         folder_id=FOLDER_ID,
+        drive_id=GDRIVE_ID,
         file_name=DRIVE_FILE_NAME,
         bucket_name=BUCKET_NAME,
         object_name=OBJECT,
@@ -131,13 +145,23 @@ with DAG(
     # [END upload_gdrive_to_gcs]
 
     @task(trigger_rule=TriggerRule.ALL_DONE)
-    def remove_files_from_drive():
+    def remove_files_from_drive(ti):
         service = GoogleDriveHook(gcp_conn_id=CONNECTION_ID).get_conn()
-        response = service.files().list(q=f"name = '{DRIVE_FILE_NAME}'").execute()
+        response = (
+            service.files()
+            .list(
+                q=f"name = '{DRIVE_FILE_NAME}'",
+                corpora="drive",
+                driveId=ti.xcom_pull("get_shared_drive_id"),
+                includeItemsFromAllDrives=True,
+                supportsAllDrives=True,
+            )
+            .execute()
+        )
         if files := response["files"]:
             file = files[0]
-            log.info("Deleting file {}...", file)
-            service.files().delete(fileId=file["id"])
+            log.info("Deleting file %s...", file["name"])
+            service.files().delete(fileId=file["id"], supportsAllDrives=True).execute()
             log.info("Done.")
 
     remove_files_from_drive_task = remove_files_from_drive()
@@ -153,7 +177,7 @@ with DAG(
     delete_connection_task = delete_connection(connection_id=CONNECTION_ID)
 
     (
-        [create_bucket >> upload_file, create_connection_task]
+        [get_shared_drive_id_task >> create_bucket >> upload_file, create_connection_task]
         >> copy_single_file
         # TEST BODY
         >> detect_file
