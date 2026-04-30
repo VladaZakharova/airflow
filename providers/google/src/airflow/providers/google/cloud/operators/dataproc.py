@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains Google Dataproc operators."""
+"""This module contains Google Dataproc operators and Managed Spark aliases."""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -2975,3 +2975,22 @@ class DataprocCancelOperationOperator(GoogleCloudBaseOperator):
         self.log.info("Canceling operation: %s", self.operation_name)
         hook.get_operations_client(region=self.region).cancel_operation(name=self.operation_name)
         self.log.info("Operation canceled.")
+
+
+ManagedSparkCreateClusterOperator: TypeAlias = DataprocCreateClusterOperator
+ManagedSparkDeleteClusterOperator: TypeAlias = DataprocDeleteClusterOperator
+ManagedSparkStartClusterOperator: TypeAlias = DataprocStartClusterOperator
+ManagedSparkStopClusterOperator: TypeAlias = DataprocStopClusterOperator
+ManagedSparkCreateWorkflowTemplateOperator: TypeAlias = DataprocCreateWorkflowTemplateOperator
+ManagedSparkInstantiateWorkflowTemplateOperator: TypeAlias = DataprocInstantiateWorkflowTemplateOperator
+ManagedSparkInstantiateInlineWorkflowTemplateOperator: TypeAlias = (
+    DataprocInstantiateInlineWorkflowTemplateOperator
+)
+ManagedSparkSubmitJobOperator: TypeAlias = DataprocSubmitJobOperator
+ManagedSparkUpdateClusterOperator: TypeAlias = DataprocUpdateClusterOperator
+ManagedSparkDiagnoseClusterOperator: TypeAlias = DataprocDiagnoseClusterOperator
+ManagedSparkCreateBatchOperator: TypeAlias = DataprocCreateBatchOperator
+ManagedSparkDeleteBatchOperator: TypeAlias = DataprocDeleteBatchOperator
+ManagedSparkGetBatchOperator: TypeAlias = DataprocGetBatchOperator
+ManagedSparkListBatchesOperator: TypeAlias = DataprocListBatchesOperator
+ManagedSparkCancelOperationOperator: TypeAlias = DataprocCancelOperationOperator
