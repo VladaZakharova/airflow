@@ -1357,7 +1357,7 @@ leveldb = [
 required-version = ">=0.9.17"
 no-build-isolation-package = ["sphinx-redoc"]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
-exclude-newer = "4 days"
+#exclude-newer = "4 days"
 
 [tool.uv.exclude-newer-package]
 # Automatically generated exclude-newer-package entries (update_airflow_pyproject_toml.py)
@@ -1494,7 +1494,7 @@ apache-aurflow-docker-stack = false
 
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
-exclude-newer = "4 days"
+#exclude-newer = "4 days"
 
 [tool.uv.pip.exclude-newer-package]
 # Automatically generated exclude-newer-package-pip entries (update_airflow_pyproject_toml.py)
