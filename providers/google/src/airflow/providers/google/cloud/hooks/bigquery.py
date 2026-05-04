@@ -243,6 +243,12 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """Override from ``DbApiHook`` for ``get_sqlalchemy_engine()``."""
         return f"bigquery://{self.project_id}"
 
+    def is_default_universe(self) -> bool:
+        import os
+
+        global_universe_domain = os.getenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN")
+        return global_universe_domain in ("googleapis.com", "", None)
+
     def get_sqlalchemy_engine(self, engine_kwargs: dict | None = None):
         """
         Create an SQLAlchemy engine object.
