@@ -58,7 +58,6 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryIntervalCheckTrigger,
     BigQueryValueCheckTrigger,
 )
-from airflow.providers.google.cloud.utils.bigquery import convert_job_id
 from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils.helpers import exactly_one
@@ -2504,14 +2503,6 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
                             BigQueryTableLink.persist(**persist_kwargs)
 
         self.job_id = job.job_id
-
-        if self.project_id:
-            job_id_path = convert_job_id(
-                job_id=self.job_id,
-                project_id=self.project_id,
-                location=self.location,
-            )
-            context["ti"].xcom_push(key="job_id_path", value=job_id_path)
 
         persist_kwargs = {
             "context": context,
