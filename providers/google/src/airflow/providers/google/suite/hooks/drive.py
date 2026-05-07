@@ -322,3 +322,19 @@ class GoogleDriveHook(GoogleBaseHook):
         """
         request = self.get_media_request(file_id=file_id)
         self.download_content_from_request(file_handle=file_handle, request=request, chunk_size=chunk_size)
+
+    def create_file(self, file_metadata) -> dict[str, Any]:
+        """
+        Create a file on Google Drive.
+
+        :param file_metadata: metadata of the file that will be created, e.g. name, mime type, etc.
+        """
+        service = self.get_conn()
+
+        response = (
+            service.files()
+            .create(body=file_metadata, fields="id, webViewLink", supportsAllDrives=True)
+            .execute()
+        )
+
+        return response
