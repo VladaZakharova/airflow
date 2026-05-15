@@ -232,3 +232,53 @@ To delete a job you can use:
     :end-before: [END howto_operator_cloud_delete_job]
 
 Note this operator waits for the job to be deleted, and the deleted Job's dictionary representation is pushed to XCom.
+
+
+Execute Python code in a job
+----------------------------
+
+To execute Python code in a Cloud Run job, you can use:
+
+:class:`~airflow.providers.google.cloud.operators.cloud_run.CloudRunExecutePythonJobOperator`
+
+This operator builds a container image from your Python code, deploys a temporary Cloud Run Job,
+and executes it.
+
+Before running it, make sure:
+
+* Cloud Build API is enabled in your project (used to build the image).
+* Cloud Run API is enabled in your project (used to create and run the job).
+* The target image repository exists and your connection has permission to push images.
+* If ``do_xcom_push=True``, set ``xcom_volume`` to a valid ``gs://bucket/path`` and ensure write access.
+
+When ``xcom_volume`` or ``logs_volume`` is configured, the operator injects internal environment
+variables into the Cloud Run container so the generated runtime knows where to upload results and
+logs. These reserved variables currently include ``AIRFLOW_RETURN_VALUE_GCS_URI`` and
+``AIRFLOW_LOG_OUTPUT_GCS_URI``. They are internal transport settings for this operator, not the
+same as standard Airflow context variables such as template values like ``{{ ds }}``.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/cloud_run/example_cloud_run_python.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_cloud_run_execute_python_job]
+    :end-before: [END howto_operator_cloud_run_execute_python_job]
+
+Set exactly one of ``python_callable`` or ``python_file``.
+
+If you only want to stream logs and do not need an XCom result, disable ``do_xcom_push``:
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/cloud_run/example_cloud_run_python.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_cloud_run_execute_python_job_logs_only]
+    :end-before: [END howto_operator_cloud_run_execute_python_job_logs_only]
+
+You can also load the Python source from a file stored in GCS by setting ``python_file`` and ``entry_point``:
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/cloud_run/example_cloud_run_python.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_cloud_run_execute_python_job_from_python_file]
+    :end-before: [END howto_operator_cloud_run_execute_python_job_from_python_file]
+
+When ``python_file`` is used, ``entry_point`` must also be provided.
