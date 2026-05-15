@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-05-14T10:13:07.811626
+# This constraints file was automatically generated on 2026-05-15T10:18:59.824006
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -204,7 +204,7 @@ facebook_business==25.0.1
 fastapi-cli==0.0.24
 fastapi==0.136.1
 fastavro==1.12.2
-fastcore==1.12.46
+fastcore==1.12.47
 fastjsonschema==2.21.2
 fastuuid==0.14.0
 filelock==3.29.0
@@ -309,7 +309,7 @@ hvac==2.4.0
 hyperframe==6.1.0
 ibm-cloud-sdk-core==3.24.4
 ibmcloudant==0.11.6
-idna==3.13
+idna==3.14
 ijson==3.4.0.post0
 immutabledict==4.3.1
 importlib_metadata==8.7.1
@@ -317,6 +317,7 @@ importlib_resources==7.1.0
 impyla==0.22.0
 inflection==0.5.1
 influxdb-client==1.50.0
+influxdb3-python==0.19.0
 ipykernel==7.2.0
 ipython==8.39.0
 isodate==0.7.2
@@ -488,7 +489,7 @@ python-http-client==3.3.7
 python-jenkins==1.8.3
 python-keycloak==7.1.1
 python-ldap==3.4.5
-python-multipart==0.0.27
+python-multipart==0.0.28
 python-slugify==8.0.4
 python-telegram-bot==22.7
 python3-saml==1.16.0
