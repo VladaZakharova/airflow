@@ -25,6 +25,11 @@ import os
 from datetime import datetime
 
 from airflow.models.dag import DAG
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.providers.google.marketing_platform.operators.search_ads import (
     GoogleSearchAdsGetCustomColumnOperator,
     GoogleSearchAdsGetFieldOperator,
@@ -32,9 +37,18 @@ from airflow.providers.google.marketing_platform.operators.search_ads import (
     GoogleSearchAdsSearchFieldsOperator,
     GoogleSearchAdsSearchOperator,
 )
+from airflow.providers.google.common.utils.get_secret import get_secret
+import json
+from typing import Any
+from system.google.gcp_api_client_helpers import create_airflow_connection, delete_airflow_connection
 
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "search_ads"
+
+CONN_ID = "google_search_ads_default"
+SEARCH_ADS_SERVICE_ACCOUNT_KEY = "google_display_video_service_account_key"
+IS_COMPOSER = bool(os.environ.get("COMPOSER_ENVIRONMENT", ""))
 
 # [START howto_search_ads_env_variables]
 CUSTOMER_ID: str = os.environ.get("GSA_CUSTOMER_ID", default="")
@@ -43,14 +57,14 @@ QUERY = """
         campaign.name,
         campaign.id,
         campaign.status
-    FROM campaign;
+    FROM campaign
 """
 FIELD_NAME: str = os.environ.get("GSA_FIELD_NAME", default="")
 SEARCH_FIELDS_QUERY: str = """
     SELECT
         f1,
         f2
-    FROM t1;
+    FROM t1
 """
 CUSTOM_COLUMN_ID: str = os.environ.get("GSA_CUSTOM_COLUMN_ID", default="")
 # [END howto_search_ads_env_variables]
@@ -62,6 +76,43 @@ with DAG(
     catchup=False,
     tags=["search", "search-ads", "ads"],
 ) as dag:
+    @task
+    def get_search_ads_service_account_key():
+        return get_secret(secret_id=SEARCH_ADS_SERVICE_ACCOUNT_KEY)
+
+
+    @task
+    def create_connection_search_ads(connection_id: str, key) -> None:
+        conn_extra_json = json.dumps(
+            {
+                "keyfile_dict": key,
+                "project": PROJECT_ID,
+                "scope": "https://www.googleapis.com/auth/cloud-platform, https://www.googleapis.com/auth/doubleclicksearch",
+            }
+        )
+        # conn_extra_json = json.dumps(extras)
+        connection: dict[str, Any] = {"conn_type": "google_cloud_platform", "extra": conn_extra_json}
+        create_airflow_connection(
+            connection_id=connection_id,
+            connection_conf=connection,
+            is_composer=IS_COMPOSER,
+        )
+
+
+    get_search_ads_service_account_key_task = get_search_ads_service_account_key()
+
+    create_connection_search_ads_task = create_connection_search_ads(
+        connection_id=CONN_ID, key=get_search_ads_service_account_key
+    )
+
+
+    @task(task_id="delete_connection_task")
+    def delete_connection_search_ads(connection_id: str) -> None:
+        delete_airflow_connection(connection_id=connection_id, is_composer=IS_COMPOSER)
+
+
+    delete_connection_search_ads_task = delete_connection_search_ads(CONN_ID)
+
     # [START howto_search_ads_search_query_reports]
     query_report = GoogleSearchAdsSearchOperator(
         task_id="query_report",
@@ -99,7 +150,7 @@ with DAG(
     )
     # [END howto_search_ads_list_custom_columns]
 
-    (query_report >> get_field >> search_fields >> get_custom_column >> list_custom_columns)
+    (get_search_ads_service_account_key_task >> create_connection_search_ads_task >>query_report >> get_field >> search_fields >> get_custom_column >> list_custom_columns >> delete_connection_search_ads_task)
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402

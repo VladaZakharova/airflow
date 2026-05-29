@@ -48,33 +48,35 @@ class GoogleSearchAdsReportingHook(GoogleBaseHook):
         super().__init__(gcp_conn_id=gcp_conn_id, **kwargs)
         self.api_version = api_version or self.default_api_version
 
-    def _get_config(self) -> None:
-        """
-        Set up Google Search Ads config from Connection.
-
-        This pulls the connections from db, and uses it to set up
-        ``google_search_ads_client``.
-        """
-        conn = self.get_connection(self.gcp_conn_id)
-        if "google_search_ads_client" not in conn.extra_dejson:
-            raise AirflowException("google_search_ads_client not found in extra field")
-
-        self.google_search_ads_config = conn.extra_dejson["google_search_ads_client"]
-
-    def get_credentials(self) -> Credentials:
-        """Return the credential instance for search ads."""
-        self._get_config()
-        self.logger().info(f"Credential configuration: {self.google_search_ads_config}")
-        return Credentials(**self.google_search_ads_config)
+    # def _get_config(self) -> None:
+    #     """
+    #     Set up Google Search Ads config from Connection.
+    #
+    #     This pulls the connections from db, and uses it to set up
+    #     ``google_search_ads_client``.
+    #     """
+    #     conn = self.get_connection(self.gcp_conn_id)
+    #     if "google_search_ads_client" not in conn.extra_dejson:
+    #         raise AirflowException("google_search_ads_client not found in extra field")
+    #
+    #     self.google_search_ads_config = conn.extra_dejson["google_search_ads_client"]
+    #
+    # def get_credentials(self) -> Credentials:
+    #     """Return the credential instance for search ads."""
+    #     self._get_config()
+    #     self.logger().info(f"Credential configuration: {self.google_search_ads_config}")
+    #     return Credentials(**self.google_search_ads_config)
 
     def get_conn(self) -> Resource:
         if not self._conn:
-            creds = self.get_credentials()
+            # creds = self.get_credentials()
+            http_authorized = self._authorize()
 
             self._conn = build(
                 "searchads360",
                 self.api_version,
-                credentials=creds,
+                # credentials=creds,
+                http=http_authorized,
                 cache_discovery=False,
                 client_options=self.get_client_options(),
             )
