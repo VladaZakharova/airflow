@@ -45,6 +45,20 @@ def _sanitize_for_stdlib_log(value: str) -> str:
     return value.replace("\r", " ").replace("\n", " ")
 
 
+def _get_user_display_name(user) -> str:
+    """Return the most readable identity label available for audit logs."""
+    first_name = (getattr(user, "first_name", None) or "").strip()
+    last_name = (getattr(user, "last_name", None) or "").strip()
+    email = (getattr(user, "email", None) or "").strip()
+    username = user.get_name()
+
+    if first_name and last_name and last_name != "-":
+        return f"{first_name} {last_name}"
+    if email:
+        return email
+    return username
+
+
 def _mask_connection_fields(extra_fields):
     """Mask connection fields."""
     result = {}
@@ -98,7 +112,7 @@ def action_logging(event: str | None = None):
             user_display = ""
         else:
             user_name = user.get_name()
-            user_display = user.get_name()
+            user_display = _get_user_display_name(user)
 
         has_json_body = "application/json" in request.headers.get("content-type", "") and await request.body()
         request_body = {}

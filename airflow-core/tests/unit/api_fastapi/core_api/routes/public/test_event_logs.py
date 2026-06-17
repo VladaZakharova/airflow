@@ -128,6 +128,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
                 {
                     "event": EVENT_WITH_OWNER,
                     "owner": OWNER,
+                    "owner_display_name": OWNER_DISPLAY_NAME,
                 },
             ),
             (
@@ -153,6 +154,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
                     "event": EVENT_WITH_OWNER_AND_TASK_INSTANCE,
                     "map_index": -1,
                     "owner": OWNER,
+                    "owner_display_name": OWNER_DISPLAY_NAME,
                     "run_id": DAG_RUN_ID,
                     "task_id": TASK_ID,
                     "task_display_name": TASK_DISPLAY_NAME,
@@ -185,6 +187,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
             if event_log.logical_date
             else None,
             "owner": expected_body.get("owner"),
+            "owner_display_name": expected_body.get("owner_display_name"),
             "extra": expected_body.get("extra"),
         }
 
@@ -384,6 +387,14 @@ class TestGetEventLogs(TestEventLogsEndpoint):
         resp_json = response.json()
         assert resp_json["total_entries"] == 4
         assert EVENT_WITHOUT_DTTM not in {event_log["event"] for event_log in resp_json["event_logs"]}
+
+    def test_get_event_logs_includes_owner_display_name(self, test_client):
+        response = test_client.get("/eventLogs", params={"event": EVENT_WITH_OWNER})
+        assert response.status_code == 200
+
+        event_log = response.json()["event_logs"][0]
+        assert event_log["owner"] == OWNER
+        assert event_log["owner_display_name"] == OWNER_DISPLAY_NAME
 
     # Ordering of nulls values is DB specific.
     @pytest.mark.backend("sqlite")

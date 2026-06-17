@@ -100,6 +100,7 @@ def get_event_logs(
                     "event",
                     "logical_date",
                     "owner",
+                    "owner_display_name",
                     "extra",
                 ],
                 Log,
