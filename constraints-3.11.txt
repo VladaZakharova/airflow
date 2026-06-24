@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-06-22T12:32:43.810101
+# This constraints file was automatically generated on 2026-06-24T14:04:47.099761
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -62,9 +62,6 @@ WTForms==3.2.2
 Werkzeug==3.1.8
 a2wsgi==1.10.10
 adal==1.2.7
-adbc-driver-manager==1.11.0
-adbc-driver-postgresql==1.11.0
-adbc-driver-sqlite==1.11.0
 adlfs==2026.5.0
 aenum==3.1.17
 aiobotocore==3.7.0
@@ -96,6 +93,7 @@ annotated-doc==0.0.4
 annotated-types==0.7.0
 anyio==4.14.0
 apache-airflow-providers-apache-iceberg==1.4.1
+apache-airflow-providers-databricks==6.13.0
 apache-airflow-providers-google==22.1.0
 apispec==6.10.0
 apprise==1.11.0
@@ -178,7 +176,7 @@ cron_descriptor==2.1.0
 croniter==6.2.2
 cryptography==48.0.1
 curlify==3.0.0
-databricks-sql-connector==4.2.5
+databricks-sql-connector==2.0.2
 dataclasses-json==0.6.7
 datadog==0.52.1
 db-dtypes==1.7.0
@@ -198,11 +196,10 @@ elastic-transport==9.4.2
 elasticsearch==9.4.1
 email-validator==2.3.0
 entrypoints==0.4
-et_xmlfile==2.0.0
 eventlet==0.41.0
 executing==2.2.1
 facebook_business==25.0.2
-fastapi-cli==0.0.26
+fastapi-cli==0.0.27
 fastapi==0.136.3
 fastavro==1.12.2
 fastcore==1.13.6
@@ -283,7 +280,7 @@ graphviz==0.21
 greenback==1.3.0
 greenlet==3.5.2
 gremlinpython==3.8.1
-griffelib==2.0.2
+griffelib==2.1.0
 grpc-google-iam-v1==0.14.4
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
@@ -306,7 +303,7 @@ httpr==0.4.8
 httptools==0.8.0
 httpx2==2.4.0
 httpx==0.28.1
-huggingface_hub==1.16.1
+huggingface_hub==1.20.1
 humanize==4.15.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -316,8 +313,7 @@ idna==3.18
 ijson==3.4.0.post0
 immutabledict==4.3.1
 importlib_metadata==9.0.0
-importlib_resources==7.1.0
-impyla==0.23.0
+impyla==0.24.0
 inflection==0.5.1
 influxdb-client==1.50.0
 influxdb3-python==0.20.0
@@ -380,7 +376,7 @@ mmh3==5.2.1
 more-itertools==11.1.0
 msal-extensions==1.3.1
 msal==1.37.0
-msgpack==1.2.0
+msgpack==1.2.1
 msgraph-core==1.4.0
 msgraphfs==0.4
 msgspec==0.21.1
@@ -399,15 +395,14 @@ nbformat==5.10.4
 neo4j==6.2.0
 nest-asyncio2==1.7.2
 nest-asyncio==1.6.0
-numpy==2.4.6
+numpy==1.26.4
 oauthlib==3.3.1
 openai==2.43.0
 opencensus-context==0.1.3
 opencensus==0.11.4
-openlineage-integration-common==1.49.0
-openlineage-python==1.49.0
-openlineage_sql==1.49.0
-openpyxl==3.1.5
+openlineage-integration-common==1.50.0
+openlineage-python==1.50.0
+openlineage_sql==1.50.0
 opensearch-protobufs==1.2.0
 opensearch-py==3.2.0
 opentelemetry-api==1.42.1
@@ -429,7 +424,7 @@ packaging==26.2
 pagerduty==6.3.0
 pandas-gbq==0.35.0
 pandas-stubs==3.0.3.260530
-pandas==2.3.3
+pandas==2.1.4
 pandocfilters==1.5.1
 papermill==2.7.0
 paramiko==3.5.1
@@ -464,14 +459,13 @@ pyOpenSSL==26.2.0
 pyarrow==24.0.0
 pyasn1==0.6.3
 pyasn1_modules==0.4.2
-pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
 pydantic-ai-slim==1.107.0
 pydantic-extra-types==2.11.1
 pydantic-graph==1.107.0
-pydantic-settings==2.14.1
+pydantic-settings==2.14.2
 pydantic==2.13.4
 pydantic_core==2.46.4
 pydata-google-auth==1.9.1
@@ -485,7 +479,7 @@ pyodbc==5.3.0
 pyodps==0.13.0
 pyparsing==3.3.2
 pypsrp==0.9.1
-pyspark-client==4.1.2
+pyspark-client==4.0.3
 pyspnego==0.12.1
 python-arango==8.3.3
 python-daemon==3.1.2
@@ -530,7 +524,7 @@ s3transfer==0.17.1
 sagemaker_studio==1.0.26
 scikit-learn==1.9.0
 scipy==1.17.1
-scramp==1.4.8
+scramp==1.4.9
 scrapbook==0.5.0
 segment-analytics-python==2.3.6
 sendgrid==6.12.5
@@ -571,7 +565,7 @@ text-unidecode==1.3
 textual==6.2.1
 threadpoolctl==3.6.0
 thrift-sasl==0.4.3
-thrift==0.16.0
+thrift==0.23.0
 tiktoken==0.13.0
 tinycss2==1.5.1
 tokenizers==0.23.1
@@ -581,7 +575,7 @@ tqdm==4.68.3
 traitlets==5.15.1
 trino==0.337.0
 truststore==0.10.4
-typer==0.26.7
+typer==0.25.1
 types-protobuf==7.34.1.20260518
 types-requests==2.33.0.20260518
 typing-inspect==0.9.0
@@ -594,7 +588,7 @@ universal_pathlib==0.3.10
 uritemplate==4.2.0
 urllib3==2.7.0
 uuid6==2025.0.1
-uv==0.11.21
+uv==0.11.23
 uvicorn==0.49.0
 uvloop==0.22.1
 validators==0.35.0
@@ -617,7 +611,7 @@ yandexcloud==0.395.0
 yarl==1.24.2
 ydb-dbapi==0.1.22
 ydb==3.29.4
-zeep==4.3.2
+zeep==4.3.3
 zenpy==2.0.57
 zipp==4.1.0
 zope.event==6.2
