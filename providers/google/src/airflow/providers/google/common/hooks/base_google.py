@@ -427,7 +427,8 @@ class GoogleBaseHook(BaseHook):
                 "and can contain only lowercase letters, digits, and hyphens."
             )
 
-    def is_default_universe(self) -> bool:
+    @staticmethod
+    def is_default_universe() -> bool:
         global_universe_domain = os.getenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN", None)
         if global_universe_domain in ("googleapis.com", "", None):
             return True
