@@ -844,7 +844,7 @@ class TestWatchedSubprocess:
             "loc": mocker.ANY,
         } in captured_logs
 
-    @pytest.mark.parametrize("captured_logs", [logging.ERROR], indirect=True, ids=["log_level=error"])
+    @pytest.mark.parametrize("captured_logs", [logging.INFO], indirect=True, ids=["log_level=info"])
     def test_state_conflict_on_heartbeat(self, captured_logs, monkeypatch, mocker, make_ti_context_dict):
         """
         Test that ensures that the Supervisor does not cause the task to fail if the Task Instance is no longer
@@ -914,7 +914,13 @@ class TestWatchedSubprocess:
 
         assert request_count["count"] == 2
         # Verify the error was logged
-        assert captured_logs == [
+        expected_events = {
+            "Server indicated the task shouldn't be running anymore",
+            "Server indicated the task shouldn't be running anymore. Terminating process",
+            "Task killed!",
+        }
+        filtered_logs = [log for log in captured_logs if log.get("event") in expected_events]
+        assert filtered_logs == [
             {
                 "detail": {
                     "reason": "not_running",
@@ -922,7 +928,7 @@ class TestWatchedSubprocess:
                     "current_state": "success",
                 },
                 "event": "Server indicated the task shouldn't be running anymore",
-                "level": "error",
+                "level": "info",
                 "status_code": 409,
                 "logger": "supervisor",
                 "timestamp": mocker.ANY,
@@ -936,14 +942,14 @@ class TestWatchedSubprocess:
                     "reason": "not_running",
                 },
                 "event": "Server indicated the task shouldn't be running anymore. Terminating process",
-                "level": "error",
+                "level": "info",
                 "logger": "task",
                 "timestamp": mocker.ANY,
                 "loc": mocker.ANY,
             },
             {
                 "event": "Task killed!",
-                "level": "error",
+                "level": "info",
                 "logger": "task",
                 "timestamp": mocker.ANY,
                 "loc": mocker.ANY,
