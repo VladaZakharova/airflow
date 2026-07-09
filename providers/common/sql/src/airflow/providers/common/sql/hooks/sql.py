@@ -23,7 +23,6 @@ from contextlib import closing, contextmanager, suppress
 from datetime import datetime
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar, cast, overload
-from urllib.parse import urlparse
 
 import sqlparse
 from deprecated import deprecated
@@ -290,10 +289,64 @@ class DbApiHook(BaseHook):
 
         :return: the extracted uri.
         """
+        from urllib.parse import parse_qsl, quote, urlencode
+
         conn = self.connection
         if self.__schema:
             conn.schema = self.__schema
-        return conn.get_uri()
+
+        conn_type = conn.conn_type or ""
+        if conn_type:
+            uri = f"{conn_type.lower().replace('_', '-')}://"
+        else:
+            uri = "//"
+
+        host = conn.host or ""
+        if host and "://" in host:
+            protocol, host = host.split("://", 1)
+        else:
+            protocol = None
+
+        if protocol:
+            uri += f"{protocol}://"
+
+        authority_block = ""
+        if conn.login is not None:
+            authority_block += quote(conn.login, safe="")
+
+        if conn.password is not None:
+            authority_block += ":" + quote(conn.password, safe="")
+
+        if authority_block > "":
+            authority_block += "@"
+            uri += authority_block
+
+        host_block = ""
+        if host:
+            host_block += quote(host, safe="")
+
+        if conn.port:
+            if host_block == "" and authority_block == "":
+                host_block += f"@:{conn.port}"
+            else:
+                host_block += f":{conn.port}"
+
+        if conn.schema:
+            host_block += f"/{quote(conn.schema, safe='')}"
+
+        uri += host_block
+
+        if getattr(conn, "extra_dejson", None):
+            try:
+                query: str | None = urlencode(conn.extra_dejson)
+            except TypeError:
+                query = None
+            if query and conn.extra_dejson == dict(parse_qsl(query, keep_blank_values=True)):
+                uri += ("?" if conn.schema else "/?") + query
+            elif getattr(conn, "extra", None):
+                uri += ("?" if conn.schema else "/?") + urlencode({"__extra__": conn.extra})
+
+        return uri
 
     @property
     def sqlalchemy_url(self) -> URL:
@@ -1122,12 +1175,15 @@ class DbApiHook(BaseHook):
 
         :param default_port: (optional) used if no port parsed from connection URI
         """
-        parsed = urlparse(connection.get_uri())
-        port = parsed.port or default_port
+        host = connection.host or ""
+        if host and "://" in host:
+            host = host.split("://", 1)[1]
+
+        port = connection.port or default_port
         if port:
-            authority = f"{parsed.hostname}:{port}"
+            authority = f"{host}:{port}"
         else:
-            authority = parsed.hostname
+            authority = host
         return authority
 
     def get_db_log_messages(self, conn) -> None:
