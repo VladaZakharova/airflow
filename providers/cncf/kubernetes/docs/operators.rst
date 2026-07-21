@@ -197,6 +197,12 @@ alongside the Pod. The Pod must write the XCom value into this location at the `
 .. note::
   An invalid json content will fail, example ``echo 'hello' > /airflow/xcom/return.json`` fail and  ``echo '\"hello\"' > /airflow/xcom/return.json`` work
 
+.. note::
+  In clusters that enforce Pod Security Standards or admission policies (e.g. OPA/Gatekeeper), the injected
+  XCom sidecar container may be rejected unless it declares a security context. Set a cluster-wide default via
+  the ``xcom_sidecar_container_security_context`` field on the Kubernetes connection, or override it per task
+  with the ``xcom_sidecar_container_security_context`` argument of ``KubernetesPodOperator``.
+
 
 See the following example on how this occurs:
 
@@ -712,6 +718,29 @@ Instead of ``template`` parameter for Pod creating this operator uses :class:`~a
 It means that user can use all parameters from :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator` in :class:`~airflow.providers.cncf.kubernetes.operators.job.KubernetesJobOperator`.
 
 More information about the Jobs here: `Kubernetes Job Documentation <https://kubernetes.io/docs/concepts/workloads/controllers/job/>`__
+
+Pod cleanup and ``on_finish_action``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When ``wait_until_job_complete=True``, the operator discovers Job pods via
+``get_pods()`` and streams logs/XCom from those pods while the Job runs.
+
+The inherited ``on_finish_action`` parameter controls what happens to these
+discovered pods at the end of the task:
+
+* ``delete_pod`` (default) — the pod is deleted after the task
+  finishes (success or failure).
+* ``delete_succeeded_pod`` — the pod is deleted only when the task
+  succeeded.
+* ``delete_active_pod`` — the pod is deleted only if it is still
+  active (``Pending`` or ``Running``).
+* ``keep_pod`` — the pod is kept (useful for offline log
+  inspection).
+
+When the task is killed, ``on_kill`` deletes the Job (with foreground cascade).
+For discovered pods, deletion is controlled by ``on_kill_action``:
+``delete_pod`` attempts direct pod deletion and ``keep_pod`` skips it.
+
 
 
 .. _howto/operator:KubernetesDeleteJobOperator:

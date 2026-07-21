@@ -196,9 +196,9 @@ def run_beam_command(
     )
     # Waits for Apache Beam pipeline to complete.
     log.info("Start waiting for Apache Beam process to complete.")
-    reads = [proc.stderr, proc.stdout]
-
+    reads = [fd for fd in (proc.stderr, proc.stdout) if fd is not None]
     on_dataflow_job_id_found_callback_called = False
+
     while True:
         # Wait for at least one available fd.
         readable_fds, _, _ = select.select(reads, [], [], 5)
