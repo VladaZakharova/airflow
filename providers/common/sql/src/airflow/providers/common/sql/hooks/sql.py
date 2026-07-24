@@ -23,7 +23,6 @@ from contextlib import closing, contextmanager, suppress
 from datetime import datetime
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar, cast, overload
-from urllib.parse import urlparse
 
 import sqlparse
 from deprecated import deprecated
@@ -290,10 +289,81 @@ class DbApiHook(BaseHook):
 
         :return: the extracted uri.
         """
+        from urllib.parse import parse_qsl, quote, urlencode
+
         conn = self.connection
         if self.__schema:
             conn.schema = self.__schema
-        return conn.get_uri()
+
+        conn_type = getattr(conn, "conn_type", None)
+        if isinstance(conn_type, str) and conn_type:
+            uri = f"{conn_type.lower().replace('_', '-')}://"
+        elif conn_type:
+            uri = f"{str(conn_type).lower().replace('_', '-')}://"
+        else:
+            uri = "//"
+
+        host = getattr(conn, "host", None)
+        host_to_use: str | None = None
+        protocol_to_add: str | None = None
+
+        if host:
+            host_str = str(host)
+            if "://" in host_str:
+                protocol, host_part = host_str.split("://", 1)
+                if protocol == str(conn_type):
+                    host_to_use = host_str
+                else:
+                    host_to_use = host_part
+                    protocol_to_add = protocol
+            else:
+                host_to_use = host_str
+
+        if protocol_to_add:
+            uri += f"{protocol_to_add}://"
+
+        authority_block = ""
+        login = getattr(conn, "login", None)
+        if login is not None:
+            authority_block += quote(str(login), safe="")
+
+        password = getattr(conn, "password", None)
+        if password is not None:
+            authority_block += ":" + quote(str(password), safe="")
+
+        if authority_block > "":
+            authority_block += "@"
+            uri += authority_block
+
+        host_block = ""
+        if host_to_use:
+            host_block += quote(host_to_use, safe="")
+
+        port = getattr(conn, "port", None)
+        if port:
+            if host_block == "" and authority_block == "":
+                host_block += f"@:{port}"
+            else:
+                host_block += f":{port}"
+
+        schema = getattr(conn, "schema", None)
+        if schema:
+            host_block += f"/{quote(str(schema), safe='')}"
+        uri += host_block
+
+        extra = getattr(conn, "extra", None)
+        if extra:
+            try:
+                extra_dejson = getattr(conn, "extra_dejson", extra)
+                query: str | None = urlencode(extra_dejson)
+            except (TypeError, ValueError):
+                query = None
+            if query and extra_dejson == dict(parse_qsl(query, keep_blank_values=True)):
+                uri += ("?" if schema else "/?") + query
+            else:
+                uri += ("?" if schema else "/?") + urlencode({"__extra__": extra})
+
+        return uri
 
     @property
     def sqlalchemy_url(self) -> URL:
@@ -1122,12 +1192,21 @@ class DbApiHook(BaseHook):
 
         :param default_port: (optional) used if no port parsed from connection URI
         """
-        parsed = urlparse(connection.get_uri())
-        port = parsed.port or default_port
+        port = getattr(connection, "port", None) or default_port
+
+        host = getattr(connection, "host", "") or ""
+        if not host:
+            return None
+
+        host_str = str(host)
+        if "://" in host_str:
+            host_str = host_str.split("://", 1)[1]
+
         if port:
-            authority = f"{parsed.hostname}:{port}"
+            authority = f"{host_str}:{port}"
         else:
-            authority = parsed.hostname
+            authority = host_str
+
         return authority
 
     def get_db_log_messages(self, conn) -> None:
