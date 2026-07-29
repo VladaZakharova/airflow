@@ -261,7 +261,7 @@ class TestBigQueryToPostgresOperator:
             task_id=TASK_ID,
             dataset_table=f"{TEST_DATASET}.{TEST_TABLE_ID}",
             target_table_name="destination",
-            selected_fields=["id", "name"],
+            selected_fields=" id, name, ",
             database="postgresdb",
         )
         op.bigquery_hook = mock_bq_hook
@@ -284,6 +284,7 @@ class TestBigQueryToPostgresOperator:
         output_ds = result.outputs[0]
         assert output_ds.namespace == "postgres://localhost:5432"
         assert output_ds.name == "postgresdb.postgres-schema.destination"
+        assert output_ds.facets["schema"] == input_ds.facets["schema"]
         assert "columnLineage" in output_ds.facets
         col_lineage = output_ds.facets["columnLineage"]
         assert set(col_lineage.fields.keys()) == {"id", "name"}

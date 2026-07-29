@@ -181,9 +181,11 @@ class BigQueryToSqlBaseOperator(BaseOperator):
 
         if self.selected_fields:
             if isinstance(self.selected_fields, str):
-                bigquery_field_names = list(self.selected_fields)
+                bigquery_field_names = [
+                    field.strip() for field in self.selected_fields.split(",") if field.strip()
+                ]
             else:
-                bigquery_field_names = self.selected_fields
+                bigquery_field_names = list(self.selected_fields)
         else:
             bigquery_field_names = [f.name for f in getattr(table_obj, "schema", [])]
 
@@ -192,9 +194,12 @@ class BigQueryToSqlBaseOperator(BaseOperator):
             name=self.source_project_dataset_table,
             facets=get_facets_from_bq_table_for_given_fields(table_obj, bigquery_field_names),
         )
+        input_schema_facet = None
+        if input_dataset.facets:
+            input_schema_facet = input_dataset.facets.get("schema")
 
         sql_hook = self.get_sql_hook()
-        db_info = sql_hook.get_openlineage_database_info(sql_hook.get_conn())
+        db_info = sql_hook.get_openlineage_database_info(sql_hook.connection)
         if db_info is None:
             self.log.debug("OpenLineage: could not get database info from SQL hook %s", type(sql_hook))
             return OperatorLineage()
@@ -231,7 +236,18 @@ class BigQueryToSqlBaseOperator(BaseOperator):
             bigquery_field_names, input_datasets=[input_dataset]
         )
 
-        output_facets = column_lineage_facet or {}
-        output_dataset = Dataset(namespace=namespace, name=output_name, facets=output_facets)
+        output_facets = {}
+
+        if input_schema_facet:
+            output_facets["schema"] = input_schema_facet
+
+        if column_lineage_facet:
+            output_facets.update(column_lineage_facet)
+
+        output_dataset = Dataset(
+            namespace=namespace,
+            name=output_name,
+            facets=output_facets,
+        )
 
         return OperatorLineage(inputs=[input_dataset], outputs=[output_dataset])
