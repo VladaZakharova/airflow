@@ -692,3 +692,27 @@ class TestDbApiHook:
         assert call_kw["context"] is self.db_hook
         assert call_kw["sql"] == sql
         assert call_kw["sql_parameters"] == params
+
+    @pytest.mark.parametrize(
+        ("conn_kwargs", "default_port", "expected"),
+        [
+            # Normal host and port
+            ({"host": "myhost", "port": 1234}, None, "myhost:1234"),
+            # Only host
+            ({"host": "myhost"}, None, "myhost"),
+            # Empty host and no port
+            ({"host": None}, None, None),
+            ({"host": ""}, None, None),
+            # Protocol in host
+            ({"host": "http://myhost", "port": 80}, None, "myhost:80"),
+            ({"host": "mysql://myhost", "port": 3306}, None, "myhost:3306"),
+            # With default port
+            ({"host": "myhost"}, 8080, "myhost:8080"),
+            # Port in connection overrides default port
+            ({"host": "myhost", "port": 1234}, 8080, "myhost:1234"),
+        ],
+    )
+    def test_get_openlineage_authority_part(self, conn_kwargs, default_port, expected):
+        connection = Connection(**conn_kwargs)
+        result = DbApiHook.get_openlineage_authority_part(connection, default_port)
+        assert result == expected
