@@ -1559,6 +1559,7 @@ def _run_task_and_map_outcome(
             return
 
         ti.task.on_kill()
+        raise AirflowTaskTerminated("Task received SIGTERM signal")
 
     signal.signal(signal.SIGTERM, _on_term)
 
