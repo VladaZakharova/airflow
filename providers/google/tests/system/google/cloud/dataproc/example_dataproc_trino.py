@@ -50,18 +50,19 @@ CLUSTER_NAME_FULL = CLUSTER_NAME_BASE + f"-{ENV_ID}".replace("_", "-")
 CLUSTER_NAME = CLUSTER_NAME_BASE if len(CLUSTER_NAME_FULL) >= 33 else CLUSTER_NAME_FULL
 REGION = "europe-west1"
 
+MACHINE_TYPE = os.environ.get("GCP_DATAPROC_MACHINE_TYPE", "e2-standard-4")
 # Cluster definition
 # [START how_to_cloud_dataproc_create_cluster]
 
 CLUSTER_CONFIG = {
     "master_config": {
         "num_instances": 1,
-        "machine_type_uri": "n1-standard-4",
+        "machine_type_uri": MACHINE_TYPE,
         "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 32},
     },
     "worker_config": {
         "num_instances": 2,
-        "machine_type_uri": "n1-standard-4",
+        "machine_type_uri": MACHINE_TYPE,
         "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 32},
     },
     "software_config": {

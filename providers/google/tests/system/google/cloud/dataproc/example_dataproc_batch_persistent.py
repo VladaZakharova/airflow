@@ -52,14 +52,16 @@ CLUSTER_NAME_FULL = CLUSTER_NAME_BASE + f"-{ENV_ID}".replace("_", "-")
 CLUSTER_NAME = CLUSTER_NAME_BASE if len(CLUSTER_NAME_FULL) >= 33 else CLUSTER_NAME_FULL
 BATCH_ID = f"batch-{ENV_ID}-{DAG_ID}".replace("_", "-")
 
+MACHINE_TYPE = os.environ.get("GCP_DATAPROC_MACHINE_TYPE", "e2-standard-4")
+
 CLUSTER_CONFIG_FOR_PHS = {
     "master_config": {
         "num_instances": 1,
-        "machine_type_uri": "n1-standard-4",
+        "machine_type_uri": MACHINE_TYPE,
     },
     "worker_config": {
         "num_instances": 0,
-        "machine_type_uri": "n1-standard-4",
+        "machine_type_uri": MACHINE_TYPE,
     },
     "software_config": {
         "properties": {

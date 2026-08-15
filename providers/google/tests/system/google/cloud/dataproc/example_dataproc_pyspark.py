@@ -61,6 +61,7 @@ JOB_FILE = "dataproc-pyspark-job-pi.py"
 GCS_JOB_FILE = f"gs://{BUCKET_NAME}/dataproc/{JOB_FILE}"
 REGION = "europe-west1"
 
+MACHINE_TYPE = os.environ.get("GCP_DATAPROC_MACHINE_TYPE", "e2-standard-4")
 # Cluster definition
 CLUSTER_CONFIG = {
     "cluster_type": "STANDARD",
@@ -68,12 +69,12 @@ CLUSTER_CONFIG = {
     "engine": "DEFAULT",
     "master_config": {
         "num_instances": 1,
-        "machine_type_uri": "n1-standard-4",
+        "machine_type_uri": MACHINE_TYPE,
         "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 32},
     },
     "worker_config": {
         "num_instances": 2,
-        "machine_type_uri": "n1-standard-4",
+        "machine_type_uri": MACHINE_TYPE,
         "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 32},
     },
 }

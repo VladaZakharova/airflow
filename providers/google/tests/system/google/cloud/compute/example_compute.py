@@ -55,7 +55,7 @@ DAG_ID = "cloud_compute"
 LOCATION = "europe-west2-b"
 REGION = "europe-west2"
 GCE_INSTANCE_NAME = "instance-compute-test"
-SHORT_MACHINE_TYPE_NAME = "n1-standard-1"
+SHORT_MACHINE_TYPE_NAME = os.environ.get("GCP_GCE_MACHINE_TYPE", "e2-standard-2")
 TEMPLATE_NAME = "instance-template"
 
 INSTANCE_TEMPLATE_BODY = {
@@ -70,7 +70,7 @@ INSTANCE_TEMPLATE_BODY = {
                 "initialize_params": {
                     "disk_size_gb": "10",
                     "disk_type": "pd-balanced",
-                    "source_image": "projects/debian-cloud/global/images/debian-12-bookworm-v20240611",
+                    "source_image": "projects/debian-cloud/global/images/family/debian-12",
                 },
             }
         ],
@@ -88,7 +88,7 @@ GCE_INSTANCE_BODY = {
             "initialize_params": {
                 "disk_size_gb": "10",
                 "disk_type": f"zones/{LOCATION}/diskTypes/pd-balanced",
-                "source_image": "projects/debian-cloud/global/images/debian-12-bookworm-v20240611",
+                "source_image": "projects/debian-cloud/global/images/family/debian-12",
             },
         }
     ],
