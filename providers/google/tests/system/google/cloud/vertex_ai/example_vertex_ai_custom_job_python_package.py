@@ -76,7 +76,7 @@ def TABULAR_DATASET(bucket_name):
 CONTAINER_URI = "us-docker.pkg.dev/vertex-ai/training/tf-cpu.2-2:latest"
 MODEL_SERVING_CONTAINER_URI = "us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-2:latest"
 REPLICA_COUNT = 1
-MACHINE_TYPE = "n1-standard-4"
+MACHINE_TYPE = os.environ.get("GCP_GCE_MACHINE_TYPE", "e2-standard-4")
 ACCELERATOR_TYPE = "ACCELERATOR_TYPE_UNSPECIFIED"
 ACCELERATOR_COUNT = 0
 TRAINING_FRACTION_SPLIT = 0.7

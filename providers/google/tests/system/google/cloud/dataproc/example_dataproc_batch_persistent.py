@@ -53,11 +53,13 @@ CLUSTER_NAME_FULL = CLUSTER_NAME_BASE + f"-{ENV_ID}".replace("_", "-")
 CLUSTER_NAME = CLUSTER_NAME_BASE if len(CLUSTER_NAME_FULL) >= 33 else CLUSTER_NAME_FULL
 BATCH_ID = f"batch-{ENV_ID}-{DAG_ID}".replace("_", "-")
 
+MACHINE_TYPE = os.environ.get("GCP_DATAPROC_MACHINE_TYPE", "e2-standard-4")
+
 CLUSTER_GENERATOR_CONFIG_FOR_PHS = ClusterGenerator(
     project_id=PROJECT_ID,
     region=REGION,
-    master_machine_type="n1-standard-4",
-    worker_machine_type="n1-standard-4",
+    master_machine_type=MACHINE_TYPE,
+    worker_machine_type=MACHINE_TYPE,
     num_workers=0,
     properties={
         "spark:spark.history.fs.logDirectory": f"gs://{BUCKET_NAME}",
