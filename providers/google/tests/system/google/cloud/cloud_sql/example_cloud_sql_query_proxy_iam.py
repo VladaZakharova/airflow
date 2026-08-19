@@ -96,6 +96,7 @@ CONNECTION_WITH_PROXY_IAM_KWARGS = {
         "use_proxy": "True",
         "sql_proxy_use_tcp": "True",
         "sql_proxy_enable_iam_login": "True",
+        "sql_proxy_version": "v2.24.1",
     },
 }
 # [END howto_operator_cloudsql_proxy_iam_connections]
