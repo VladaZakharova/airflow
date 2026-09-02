@@ -49,8 +49,8 @@ DAG_ID = "cloud_compute_insert_recreate_if_different"
 LOCATION = "us-central1-a"
 
 INSTANCE_NAME = f"airflow-drift-test-{ENV_ID}"
-MACHINE_TYPE_A = "n1-standard-1"
-MACHINE_TYPE_B = "n1-standard-2"
+MACHINE_TYPE_A = os.environ.get("GCP_GCE_MACHINE_TYPE", "e2-standard-2")
+MACHINE_TYPE_B = os.environ.get("GCP_GCE_MACHINE_TYPE_B", "e2-standard-4")
 
 BASE_BODY = {
     "name": INSTANCE_NAME,
