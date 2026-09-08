@@ -73,15 +73,16 @@ METASTORE_SERVICE = {
 }
 METASTORE_SERVICE_QFN = f"projects/{PROJECT_ID}/locations/{REGION}/services/{METASTORE_SERVICE_ID}"
 DATAPROC_CLUSTER_NAME = f"cluster-{DAG_ID}-{ENV_ID}".replace("_", "-")
+MACHINE_TYPE = os.environ.get("GCP_DATAPROC_MACHINE_TYPE", "e2-standard-2")
 DATAPROC_CLUSTER_CONFIG = {
     "master_config": {
         "num_instances": 1,
-        "machine_type_uri": "n1-standard-2",
+        "machine_type_uri": MACHINE_TYPE,
         "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 1024},
     },
     "worker_config": {
         "num_instances": 2,
-        "machine_type_uri": "n1-standard-2",
+        "machine_type_uri": MACHINE_TYPE,
         "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 1024},
     },
     "metastore_config": {

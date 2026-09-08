@@ -63,14 +63,15 @@ CLUSTER_NAME = CLUSTER_NAME_BASE if len(CLUSTER_NAME_FULL) >= 33 else CLUSTER_NA
 REGION = "us-east4"
 ZONE = "us-east4-a"
 
+MACHINE_TYPE = os.environ.get("GCP_DATAPROC_MACHINE_TYPE", "e2-standard-4")
 # Cluster definition: Generating Cluster Config for DataprocCreateClusterOperator
 # [START how_to_cloud_dataproc_create_cluster_generate_cluster_config]
 CLUSTER_GENERATOR_CONFIG = ClusterGenerator(
     project_id=PROJECT_ID,
     zone=ZONE,
-    master_machine_type="n1-standard-4",
+    master_machine_type=MACHINE_TYPE,
     master_disk_size=32,
-    worker_machine_type="n1-standard-4",
+    worker_machine_type=MACHINE_TYPE,
     worker_disk_size=32,
     num_workers=2,
     storage_bucket=BUCKET_NAME,

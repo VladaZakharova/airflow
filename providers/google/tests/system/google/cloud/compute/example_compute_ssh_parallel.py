@@ -50,7 +50,7 @@ DAG_ID = "cloud_compute_ssh_parallel"
 LOCATION = "europe-west1-b"
 REGION = "europe-west1"
 GCE_INSTANCE_NAME = "inst-ssh-test-parallel"
-SHORT_MACHINE_TYPE_NAME = "n1-standard-1"
+SHORT_MACHINE_TYPE_NAME = os.environ.get("GCP_GCE_MACHINE_TYPE", "e2-standard-2")
 GCE_INSTANCE_BODY = {
     "name": GCE_INSTANCE_NAME,
     "machine_type": f"zones/{LOCATION}/machineTypes/{SHORT_MACHINE_TYPE_NAME}",
@@ -62,7 +62,7 @@ GCE_INSTANCE_BODY = {
             "initialize_params": {
                 "disk_size_gb": "10",
                 "disk_type": f"zones/{LOCATION}/diskTypes/pd-balanced",
-                "source_image": "projects/debian-cloud/global/images/debian-12-bookworm-v20240611",
+                "source_image": "projects/debian-cloud/global/images/family/debian-12",
             },
         }
     ],

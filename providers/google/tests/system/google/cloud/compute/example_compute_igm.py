@@ -51,7 +51,7 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TE
 
 LOCATION = "europe-west1-b"
 REGION = "europe-west1"
-SHORT_MACHINE_TYPE_NAME = "n1-standard-1"
+SHORT_MACHINE_TYPE_NAME = os.environ.get("GCP_GCE_MACHINE_TYPE", "e2-standard-2")
 DAG_ID = "cloud_compute_igm"
 
 # [START howto_operator_compute_template_copy_args]
@@ -70,7 +70,7 @@ INSTANCE_TEMPLATE_BODY = {
                 "initialize_params": {
                     "disk_size_gb": "10",
                     "disk_type": "pd-balanced",
-                    "source_image": "projects/debian-cloud/global/images/debian-12-bookworm-v20240611",
+                    "source_image": "projects/debian-cloud/global/images/family/debian-12",
                 },
             }
         ],
@@ -82,7 +82,7 @@ NEW_DESCRIPTION = "Test new description"
 INSTANCE_TEMPLATE_BODY_UPDATE = {
     "name": NEW_TEMPLATE_NAME,
     "description": NEW_DESCRIPTION,
-    "properties": {"machine_type": "n1-standard-2"},
+    "properties": {"machine_type": os.environ.get("GCP_GCE_MACHINE_TYPE_NEW", "e2-standard-4")},
 }
 # [END howto_operator_compute_template_copy_args]
 
