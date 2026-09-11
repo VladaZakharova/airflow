@@ -1702,11 +1702,12 @@ class TestCloudSqlDatabaseQueryHook:
         assert connection.schema == "testdb"
 
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
-    def test_hook_with_proxy_iam_postgres_tcp(self, get_connection):
+    def test_hook_with_proxy_v2_iam_postgres_tcp(self, get_connection):
         uri = (
             "gcpcloudsql://service-account%40project.iam.gserviceaccount.com:@127.0.0.1:5432/"
             "testdb?database_type=postgres&project_id=example-project&location=europe-west1&"
-            "instance=testdb&use_proxy=True&sql_proxy_use_tcp=True&sql_proxy_enable_iam_login=True"
+            "instance=testdb&use_proxy=True&sql_proxy_use_tcp=True&sql_proxy_enable_iam_login=True&"
+            "sql_proxy_version=v2.24.1"
         )
         get_connection.side_effect = [_connection_from_uri(uri)]
         with mock.patch(
@@ -1725,6 +1726,56 @@ class TestCloudSqlDatabaseQueryHook:
 
         sqlproxy_runner = hook.get_sqlproxy_runner()
         assert sqlproxy_runner.sql_proxy_enable_iam_login is True
+        assert "--auto-iam-authn" in sqlproxy_runner.command_line_parameters
+        assert "--impersonate-service-account" in sqlproxy_runner.command_line_parameters
+        assert "service-account@project.iam.gserviceaccount.com" in sqlproxy_runner.command_line_parameters
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
+    def test_hook_with_proxy_v2_iam_with_impersonation_chain(self, get_connection):
+        uri = (
+            "gcpcloudsql://service-account%40project.iam.gserviceaccount.com:@127.0.0.1:5432/"
+            "testdb?database_type=postgres&project_id=example-project&location=europe-west1&"
+            "instance=testdb&use_proxy=True&sql_proxy_use_tcp=True&sql_proxy_enable_iam_login=True&"
+            "sql_proxy_version=v2.24.1"
+        )
+        get_connection.side_effect = [_connection_from_uri(uri)]
+        hook = CloudSQLDatabaseHook(impersonation_chain="target-sa@project.iam.gserviceaccount.com")
+        hook.create_connection()
+
+        sqlproxy_runner = hook.get_sqlproxy_runner()
+        assert sqlproxy_runner.sql_proxy_enable_iam_login is True
+        assert "--auto-iam-authn" in sqlproxy_runner.command_line_parameters
+        assert "--impersonate-service-account" in sqlproxy_runner.command_line_parameters
+        assert "target-sa@project.iam.gserviceaccount.com" in sqlproxy_runner.command_line_parameters
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
+    def test_hook_with_proxy_v1_iam_postgres_tcp(self, get_connection):
+        uri = (
+            "gcpcloudsql://service-account%40project.iam.gserviceaccount.com:@127.0.0.1:5432/"
+            "testdb?database_type=postgres&project_id=example-project&location=europe-west1&"
+            "instance=testdb&use_proxy=True&sql_proxy_use_tcp=True&sql_proxy_enable_iam_login=True&"
+            "sql_proxy_version=v1.33.9"
+        )
+        get_connection.side_effect = [_connection_from_uri(uri)]
+        with mock.patch(
+            "airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook._generate_login_token",
+            return_value="mock_oauth_token",
+        ) as generate_login_token:
+            hook = CloudSQLDatabaseHook()
+            connection = hook.create_connection()
+
+        assert connection.conn_type == "postgres"
+        assert connection.login == "service-account@project.iam"
+        assert connection.password == "mock_oauth_token"
+        assert connection.host == "127.0.0.1"
+        assert connection.port != 5432
+        assert connection.schema == "testdb"
+        generate_login_token.assert_called_once_with(
+            service_account="service-account@project.iam.gserviceaccount.com"
+        )
+
+        sqlproxy_runner = hook.get_sqlproxy_runner()
+        assert sqlproxy_runner.sql_proxy_enable_iam_login is True
         assert "-enable_iam_login" in sqlproxy_runner.command_line_parameters
 
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
@@ -1732,7 +1783,8 @@ class TestCloudSqlDatabaseQueryHook:
         uri = (
             "gcpcloudsql://service-account%40project.iam.gserviceaccount.com:@127.0.0.1:5432/"
             "testdb?database_type=postgres&project_id=example-project&location=europe-west1&"
-            "instance=testdb&use_proxy=True&sql_proxy_use_tcp=True&sql_proxy_enable_iam_login=True"
+            "instance=testdb&use_proxy=True&sql_proxy_use_tcp=True&sql_proxy_enable_iam_login=True&"
+            "sql_proxy_version=v2.24.1"
         )
         get_connection.side_effect = [_connection_from_uri(uri)]
         hook = CloudSQLDatabaseHook()
@@ -1890,6 +1942,11 @@ class TestCloudSqlProxyRunner:
                 "https://storage.googleapis.com/cloudsql-proxy/v1.23.0-preview.1/cloud_sql_proxy."
                 f"{platform.system().lower()}.{get_processor()}",
             ),
+            (
+                "v2.24.1",
+                "https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.24.1/cloud-sql-proxy."
+                f"{platform.system().lower()}.{get_processor()}",
+            ),
         ],
     )
     def test_cloud_sql_proxy_runner_version_ok(self, version, download_url):
@@ -1927,6 +1984,37 @@ class TestCloudSqlProxyRunner:
 
         assert "-enable_iam_login" in runner.command_line_parameters
 
+    def test_cloud_sql_proxy_runner_adds_auto_iam_authn_flag_for_v2(self):
+        runner = CloudSqlProxyRunner(
+            path_prefix="12345678",
+            instance_specification="project:us-east-1:instance=tcp:5432",
+            sql_proxy_enable_iam_login=True,
+            sql_proxy_version="v2.24.1",
+            impersonate_service_account="sa@project.iam.gserviceaccount.com",
+        )
+
+        assert "--auto-iam-authn" in runner.command_line_parameters
+        assert "--impersonate-service-account" in runner.command_line_parameters
+        assert "sa@project.iam.gserviceaccount.com" in runner.command_line_parameters
+        assert "--address" in runner.command_line_parameters
+        assert "127.0.0.1" in runner.command_line_parameters
+        assert "--port" in runner.command_line_parameters
+        assert "5432" in runner.command_line_parameters
+        assert "project:us-east-1:instance" in runner.command_line_parameters
+
+    def test_cloud_sql_proxy_runner_v2_unix_socket(self):
+        runner = CloudSqlProxyRunner(
+            path_prefix="/tmp/socket_dir",
+            instance_specification="project:us-east-1:instance",
+            sql_proxy_version="v2.24.1",
+        )
+
+        assert runner.command_line_parameters == [
+            "--unix-socket",
+            "/tmp/socket_dir",
+            "project:us-east-1:instance",
+        ]
+
     def test_cloud_sql_proxy_runner_does_not_add_enable_iam_login_by_default(self):
         runner = CloudSqlProxyRunner(
             path_prefix="12345678",
@@ -1934,6 +2022,7 @@ class TestCloudSqlProxyRunner:
         )
 
         assert "-enable_iam_login" not in runner.command_line_parameters
+        assert "--auto-iam-authn" not in runner.command_line_parameters
 
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.GoogleBaseHook.get_connection")
     def test_cloud_sql_proxy_runner_keeps_key_path_credentials_with_iam_login(self, get_connection):
@@ -1953,6 +2042,25 @@ class TestCloudSqlProxyRunner:
 
         assert runner._get_credential_parameters() == ["-credential_file", "/tmp/key.json"]
         assert "-enable_iam_login" in runner.command_line_parameters
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.GoogleBaseHook.get_connection")
+    def test_cloud_sql_proxy_runner_v2_credential_parameters(self, get_connection):
+        connection = Connection(conn_id="google_conn", conn_type="google_cloud_platform")
+        if AIRFLOW_V_3_1_PLUS:
+            connection.extra = json.dumps({"key_path": "/tmp/key.json"})
+        else:
+            connection.set_extra(json.dumps({"key_path": "/tmp/key.json"}))
+        get_connection.return_value = connection
+        runner = CloudSqlProxyRunner(
+            path_prefix="12345678",
+            instance_specification="project:us-east-1:instance",
+            gcp_conn_id="google_conn",
+            sql_proxy_version="v2.24.1",
+            sql_proxy_enable_iam_login=True,
+        )
+
+        assert runner._get_credential_parameters() == ["--credentials-file", "/tmp/key.json"]
+        assert "--auto-iam-authn" in runner.command_line_parameters
 
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.GoogleBaseHook.get_connection")
     def test_credentials_file_from_keyfile_dict_is_chmod_0600(self, get_connection, tmp_path):
