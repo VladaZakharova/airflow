@@ -28,7 +28,7 @@ from typing import Any
 from urllib.parse import quote, urlencode, urljoin
 
 import google.auth
-from aiohttp import ClientSession
+from aiohttp import ClientResponseError, ClientSession
 from gcloud.aio.auth import AioSession, Token
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.discovery import Resource, build
@@ -614,6 +614,10 @@ class DataFusionAsyncHook(GoogleBaseAsyncHook):
                 try:
                     pipeline = await session_aio.get(url=url, headers=headers)
                     break
+                except ClientResponseError as exc:
+                    if exc.status != 404:
+                        raise
+                    await asyncio.sleep(time_to_wait)
                 except ValueError as exc:
                     if "404" in str(exc):
                         await asyncio.sleep(time_to_wait)
