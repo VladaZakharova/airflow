@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import asyncio
-import traceback
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
 
@@ -67,7 +66,7 @@ class BaseDeleteHandler:
 
         for asset_type in self.DELETION_ORDER:
             if asset_type not in categorized_resources:
-                print(f'Unknown asset type: "{asset_type}" in DELETION_ORDER! Passing...')
+                print(f'No resources found for asset type: "{asset_type}". Passing...')
                 continue
 
             resource_list = categorized_resources[asset_type]
@@ -83,8 +82,8 @@ class BaseDeleteHandler:
                 return_exceptions=True,
             )
 
-            # Expose errors silenced by asyncio.gather() call
-            for result in results:
-                if isinstance(result, Exception):
-                    print("Found an error in the handle deletion results: ")
-                    traceback.print_exception(type(result), result, result.__traceback__)
+            errors = [result for result in results if isinstance(result, Exception)]
+            if errors:
+                raise RuntimeError(
+                    f"Failed to delete {len(errors)} resource(s) of type {asset_type}."
+                ) from errors[0]
