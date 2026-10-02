@@ -20,6 +20,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from requests.exceptions import HTTPError, RequestException
 
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 from airflow.providers.google.cloud.hooks.datafusion import PipelineStates
@@ -97,6 +98,50 @@ class TestCloudDataFusionPipelineStateSensor:
             match=f"Pipeline with id '{PIPELINE_ID}' state is: FAILED. Terminating sensor...",
         ):
             task.poke(mock.MagicMock())
+
+    @mock.patch("airflow.providers.google.cloud.sensors.datafusion.DataFusionHook")
+    def test_pipeline_not_visible_yet(self, mock_hook):
+        mock_hook.return_value.get_instance.return_value = {"apiEndpoint": INSTANCE_URL}
+        mock_hook.return_value.get_pipeline_workflow.side_effect = HTTPError()
+
+        task = CloudDataFusionPipelineStateSensor(
+            task_id="test_task_id",
+            pipeline_name=PIPELINE_NAME,
+            pipeline_id=PIPELINE_ID,
+            project_id=PROJECT_ID,
+            expected_statuses={PipelineStates.COMPLETED},
+            failure_statuses=FAILURE_STATUSES,
+            instance_name=INSTANCE_NAME,
+            location=LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        assert task.poke(mock.MagicMock()) is False
+
+    @mock.patch("airflow.providers.google.cloud.sensors.datafusion.DataFusionHook")
+    def test_other_request_error_is_not_suppressed(self, mock_hook):
+        mock_hook.return_value.get_instance.return_value = {"apiEndpoint": INSTANCE_URL}
+        error = RequestException("Retrieving a pipeline state failed with code 500")
+        mock_hook.return_value.get_pipeline_workflow.side_effect = error
+
+        task = CloudDataFusionPipelineStateSensor(
+            task_id="test_task_id",
+            pipeline_name=PIPELINE_NAME,
+            pipeline_id=PIPELINE_ID,
+            project_id=PROJECT_ID,
+            expected_statuses={PipelineStates.COMPLETED},
+            failure_statuses=FAILURE_STATUSES,
+            instance_name=INSTANCE_NAME,
+            location=LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        with pytest.raises(RequestException) as ctx:
+            task.poke(mock.MagicMock())
+
+        assert ctx.value is error
 
     @mock.patch("airflow.providers.google.cloud.sensors.datafusion.DataFusionHook")
     def test_not_found_exception(self, mock_hook):
