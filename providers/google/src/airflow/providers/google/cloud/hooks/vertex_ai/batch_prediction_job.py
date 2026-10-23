@@ -21,9 +21,10 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.cloud import aiplatform
 from google.cloud.aiplatform import BatchPredictionJob, Model, explain
 from google.cloud.aiplatform_v1 import JobServiceAsyncClient, JobServiceClient, JobState, types
 
@@ -58,9 +59,31 @@ class BatchPredictionJobHook(GoogleBaseHook, OperationHelper):
         self,
         region: str | None = None,
     ) -> str | None:
-        if region and region != "global" and self.is_default_universe():
-            return f"{region}-aiplatform.googleapis.com:443"
-        return None
+        if not self.is_default_universe():
+            return None
+        if not region or region == "global":
+            return "aiplatform.googleapis.com"
+        if region in {"us", "eu"}:
+            return f"aiplatform.{region}.rep.googleapis.com"
+        return f"{region}-aiplatform.googleapis.com:443"
+
+    def _init_aiplatform(
+        self,
+        project_id: str,
+        region: str | None,
+        credentials: Any,
+    ) -> None:
+        if region in {"us", "eu"}:
+            aiplatform.constants.base.MREP_JURISDICTIONS |= {"us", "eu"}
+            aiplatform.utils.MREP_JURISDICTIONS = aiplatform.constants.base.MREP_JURISDICTIONS
+        api_endpoint = self._get_api_endpoint(region=region)
+        aiplatform.initializer.global_config._api_endpoint = api_endpoint
+        aiplatform.init(
+            project=project_id,
+            location="global" if region == "global" else None,
+            api_endpoint=api_endpoint,
+            credentials=credentials,
+        )
 
     def get_job_service_client(self, region: str | None = None) -> JobServiceClient:
         """Return JobServiceClient object."""
@@ -211,6 +234,8 @@ class BatchPredictionJobHook(GoogleBaseHook, OperationHelper):
             and the whole operation will fail.
             The default value is same as in the aiplatform's BatchPredictionJob.
         """
+        credentials = self.get_credentials()
+        self._init_aiplatform(project_id=project_id, region=region, credentials=credentials)
         self._batch_prediction_job = BatchPredictionJob.create(
             job_display_name=job_display_name,
             model_name=model_name,
@@ -232,7 +257,7 @@ class BatchPredictionJobHook(GoogleBaseHook, OperationHelper):
             labels=labels,
             project=project_id,
             location=region,
-            credentials=self.get_credentials(),
+            credentials=credentials,
             encryption_spec_key_name=encryption_spec_key_name,
             sync=sync,
             create_request_timeout=create_request_timeout,
@@ -365,6 +390,8 @@ class BatchPredictionJobHook(GoogleBaseHook, OperationHelper):
             and the whole operation will fail.
             The default value is same as in the aiplatform's BatchPredictionJob.
         """
+        credentials = self.get_credentials()
+        self._init_aiplatform(project_id=project_id, region=region, credentials=credentials)
         self._batch_prediction_job = BatchPredictionJob.submit(
             job_display_name=job_display_name,
             model_name=model_name,
@@ -386,7 +413,7 @@ class BatchPredictionJobHook(GoogleBaseHook, OperationHelper):
             labels=labels,
             project=project_id,
             location=region,
-            credentials=self.get_credentials(),
+            credentials=credentials,
             encryption_spec_key_name=encryption_spec_key_name,
             create_request_timeout=create_request_timeout,
             batch_size=batch_size,

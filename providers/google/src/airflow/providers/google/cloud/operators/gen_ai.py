@@ -34,6 +34,7 @@ from airflow.providers.google.cloud.hooks.gen_ai import (
     BatchJobStatus,
     GenAIGeminiAPIHook,
     GenAIGenerativeModelHook,
+    _is_vertexai_batch_job,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.gen_ai import (
@@ -497,7 +498,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
         location: str,
         model: str,
         input_source: list | str,
-        gemini_api_key: str,
+        gemini_api_key: str | None = None,
         create_batch_job_config: CreateBatchJobConfig | dict | None = None,
         results_folder: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -506,6 +507,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
         wait_until_complete: bool = False,
         polling_interval: int = 30,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        vertexai: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -523,6 +525,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
         self.polling_interval = polling_interval
         self.results_folder = results_folder
         self.deferrable = deferrable
+        self.vertexai = vertexai
 
     def _wait_until_complete(self, job, polling_interval: int = 30):
         try:
@@ -567,7 +570,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
                 elif inline_response.error:
                     self.log.warning("Error found in the inline result")
                     results.append(inline_response.error)
-        elif job.dest and job.dest.file_name:
+        elif job.dest and getattr(job.dest, "file_name", None):
             self._validate_results_folder()
             file_content_bytes = self.hook.download_file(file_name=job.dest.file_name)
             file_content = file_content_bytes.decode("utf-8")
@@ -575,11 +578,28 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
             with open(path_to_file, "w") as file_with_results:
                 file_with_results.writelines(file_content.splitlines(True))
             results = path_to_file
+        elif job.dest and getattr(job.dest, "gcs_uri", None):
+            results = job.dest.gcs_uri
+        elif job.dest and getattr(job.dest, "bigquery_uri", None):
+            results = job.dest.bigquery_uri
 
         return results
 
     @property
     def hook(self):
+        if (
+            self.vertexai
+            or not self.gemini_api_key
+            or _is_vertexai_batch_job(self.input_source, self.create_batch_job_config)
+        ):
+            return GenAIGeminiAPIHook(
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+                gemini_api_key=self.gemini_api_key,
+                project_id=self.project_id,
+                location=self.location,
+                vertexai=True,
+            )
         return GenAIGeminiAPIHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -681,9 +701,10 @@ class GenAIGeminiGetBatchJobOperator(GoogleCloudBaseOperator):
         project_id: str,
         location: str,
         job_name: str,
-        gemini_api_key: str,
+        gemini_api_key: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        vertexai: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -694,13 +715,24 @@ class GenAIGeminiGetBatchJobOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.job_name = job_name
         self.gemini_api_key = gemini_api_key
+        self.vertexai = vertexai
 
     def execute(self, context: Context):
-        self.hook = GenAIGeminiAPIHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-            gemini_api_key=self.gemini_api_key,
-        )
+        if self.vertexai or not self.gemini_api_key or self.job_name.startswith("projects/"):
+            self.hook = GenAIGeminiAPIHook(
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+                gemini_api_key=self.gemini_api_key,
+                project_id=self.project_id,
+                location=self.location,
+                vertexai=True,
+            )
+        else:
+            self.hook = GenAIGeminiAPIHook(
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+                gemini_api_key=self.gemini_api_key,
+            )
 
         try:
             job = self.hook.get_batch_job(job_name=self.job_name)
@@ -744,10 +776,11 @@ class GenAIGeminiListBatchJobsOperator(GoogleCloudBaseOperator):
         *,
         project_id: str,
         location: str,
-        gemini_api_key: str,
+        gemini_api_key: str | None = None,
         list_batch_jobs_config: ListBatchJobsConfig | dict | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        vertexai: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -758,13 +791,24 @@ class GenAIGeminiListBatchJobsOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.list_batch_jobs_config = list_batch_jobs_config
         self.gemini_api_key = gemini_api_key
+        self.vertexai = vertexai
 
     def execute(self, context: Context):
-        self.hook = GenAIGeminiAPIHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-            gemini_api_key=self.gemini_api_key,
-        )
+        if self.vertexai or not self.gemini_api_key:
+            self.hook = GenAIGeminiAPIHook(
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+                gemini_api_key=self.gemini_api_key,
+                project_id=self.project_id,
+                location=self.location,
+                vertexai=True,
+            )
+        else:
+            self.hook = GenAIGeminiAPIHook(
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+                gemini_api_key=self.gemini_api_key,
+            )
 
         jobs_list = self.hook.list_batch_jobs(list_batch_jobs_config=self.list_batch_jobs_config)
 
@@ -821,9 +865,10 @@ class GenAIGeminiDeleteBatchJobOperator(GoogleCloudBaseOperator):
         project_id: str,
         location: str,
         job_name: str,
-        gemini_api_key: str,
+        gemini_api_key: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        vertexai: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -834,13 +879,24 @@ class GenAIGeminiDeleteBatchJobOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.job_name = job_name
         self.gemini_api_key = gemini_api_key
+        self.vertexai = vertexai
 
     def execute(self, context: Context):
-        self.hook = GenAIGeminiAPIHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-            gemini_api_key=self.gemini_api_key,
-        )
+        if self.vertexai or not self.gemini_api_key or self.job_name.startswith("projects/"):
+            self.hook = GenAIGeminiAPIHook(
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+                gemini_api_key=self.gemini_api_key,
+                project_id=self.project_id,
+                location=self.location,
+                vertexai=True,
+            )
+        else:
+            self.hook = GenAIGeminiAPIHook(
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+                gemini_api_key=self.gemini_api_key,
+            )
 
         try:
             delete_response = self.hook.delete_batch_job(job_name=self.job_name)
@@ -892,9 +948,10 @@ class GenAIGeminiCancelBatchJobOperator(GoogleCloudBaseOperator):
         project_id: str,
         location: str,
         job_name: str,
-        gemini_api_key: str,
+        gemini_api_key: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        vertexai: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -905,13 +962,24 @@ class GenAIGeminiCancelBatchJobOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.job_name = job_name
         self.gemini_api_key = gemini_api_key
+        self.vertexai = vertexai
 
     def execute(self, context: Context):
-        self.hook = GenAIGeminiAPIHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-            gemini_api_key=self.gemini_api_key,
-        )
+        if self.vertexai or not self.gemini_api_key or self.job_name.startswith("projects/"):
+            self.hook = GenAIGeminiAPIHook(
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+                gemini_api_key=self.gemini_api_key,
+                project_id=self.project_id,
+                location=self.location,
+                vertexai=True,
+            )
+        else:
+            self.hook = GenAIGeminiAPIHook(
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+                gemini_api_key=self.gemini_api_key,
+            )
         self.log.info("Cancelling job with name %s ...", self.job_name)
 
         try:
