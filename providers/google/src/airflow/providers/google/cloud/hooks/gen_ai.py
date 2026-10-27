@@ -220,14 +220,64 @@ class GenAIGenerativeModelHook(GoogleBaseHook):
         return resp.name
 
 
+def _is_vertexai_batch_job(
+    source: Any = None,
+    config: Any = None,
+) -> bool:
+    if isinstance(source, str):
+        if source.startswith(("gs://", "bq://", "projects/")):
+            return True
+    elif isinstance(source, list):
+        if source and all(isinstance(item, str) and item.startswith("gs://") for item in source):
+            return True
+    elif isinstance(source, dict):
+        if any(source.get(key) is not None for key in ("gcs_uri", "bigquery_uri", "vertex_dataset_name")):
+            return True
+    elif source is not None:
+        if any(
+            getattr(source, key, None) is not None
+            for key in ("gcs_uri", "bigquery_uri", "vertex_dataset_name")
+        ):
+            return True
+
+    dest = config.get("dest") if isinstance(config, dict) else getattr(config, "dest", None)
+    if isinstance(dest, str):
+        return dest.startswith(("gs://", "bq://"))
+    if isinstance(dest, dict):
+        return any(dest.get(key) is not None for key in ("gcs_uri", "bigquery_uri", "vertex_dataset"))
+    if dest is not None:
+        return any(
+            getattr(dest, key, None) is not None for key in ("gcs_uri", "bigquery_uri", "vertex_dataset")
+        )
+    return False
+
+
 class GenAIGeminiAPIHook(GoogleBaseHook):
     """Class for Google Cloud Generative AI Gemini Developer API hook."""
 
-    def __init__(self, gemini_api_key: str, **kwargs) -> None:
+    def __init__(
+        self,
+        gemini_api_key: str | None = None,
+        vertexai: bool = False,
+        project_id: str = PROVIDE_PROJECT_ID,
+        location: str | None = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.gemini_api_key = gemini_api_key
+        self.vertexai = vertexai
+        self._project_id = project_id
+        self.location = location
 
     def get_genai_client(self):
+        if getattr(self, "vertexai", False) or not getattr(self, "gemini_api_key", None):
+            project = getattr(self, "_project_id", None) or getattr(self, "project_id", None)
+            return genai.Client(
+                vertexai=True,
+                project=project,
+                location=getattr(self, "location", None),
+                credentials=self.get_credentials(),
+            )
         return genai.Client(
             api_key=self.gemini_api_key,
             vertexai=False,
@@ -242,6 +292,8 @@ class GenAIGeminiAPIHook(GoogleBaseHook):
 
         :param job_name: Required. Batch job name.
         """
+        if isinstance(job_name, str) and job_name.startswith("projects/"):
+            self.vertexai = True
         client = self.get_genai_client()
         resp = client.batches.get(name=job_name)
         return resp
@@ -275,6 +327,8 @@ class GenAIGeminiAPIHook(GoogleBaseHook):
             Can be in format of Inline requests or file name.
         :param create_batch_job_config: Optional. Configuration parameters for batch job.
         """
+        if _is_vertexai_batch_job(source, create_batch_job_config):
+            self.vertexai = True
         client = self.get_genai_client()
         resp = client.batches.create(
             model=model,
@@ -292,6 +346,8 @@ class GenAIGeminiAPIHook(GoogleBaseHook):
 
         :param job_name: Required. Batch job name.
         """
+        if isinstance(job_name, str) and job_name.startswith("projects/"):
+            self.vertexai = True
         client = self.get_genai_client()
         resp = client.batches.delete(name=job_name)
         return resp
@@ -305,6 +361,8 @@ class GenAIGeminiAPIHook(GoogleBaseHook):
 
         :param job_name: Required. Batch job name.
         """
+        if isinstance(job_name, str) and job_name.startswith("projects/"):
+            self.vertexai = True
         client = self.get_genai_client()
         client.batches.cancel(
             name=job_name,
@@ -406,11 +464,30 @@ class GenAIGeminiAPIAsyncHook(GoogleBaseAsyncHook):
 
     sync_hook_class = GenAIGeminiAPIHook
 
-    def __init__(self, gemini_api_key: str, **kwargs) -> None:
+    def __init__(
+        self,
+        gemini_api_key: str | None = None,
+        vertexai: bool = False,
+        project_id: str = PROVIDE_PROJECT_ID,
+        location: str | None = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.gemini_api_key = gemini_api_key
+        self.vertexai = vertexai
+        self._project_id = project_id
+        self.location = location
 
     async def get_async_client(self):
+        if getattr(self, "vertexai", False) or not getattr(self, "gemini_api_key", None):
+            sync_hook = await self.get_sync_hook()
+            project = getattr(self, "_project_id", None) or getattr(sync_hook, "project_id", None)
+            return genai.Client(
+                vertexai=True,
+                project=project,
+                location=getattr(self, "location", None),
+                credentials=sync_hook.get_credentials(),
+            ).aio
         return genai.Client(
             api_key=self.gemini_api_key,
             vertexai=False,
@@ -430,6 +507,8 @@ class GenAIGeminiAPIAsyncHook(GoogleBaseAsyncHook):
             Can be in format of Inline requests or file name.
         :param create_batch_job_config: Optional. Configuration parameters for batch job.
         """
+        if _is_vertexai_batch_job(source, create_batch_job_config):
+            self.vertexai = True
         async_client = await self.get_async_client()
         async_job = await async_client.batches.create(model=model, src=source, config=create_batch_job_config)
         return async_job
@@ -443,6 +522,8 @@ class GenAIGeminiAPIAsyncHook(GoogleBaseAsyncHook):
 
         :param job_name: Required. Batch job name.
         """
+        if isinstance(job_name, str) and job_name.startswith("projects/"):
+            self.vertexai = True
         async_client = await self.get_async_client()
         resp = await async_client.batches.get(name=job_name)
         return resp

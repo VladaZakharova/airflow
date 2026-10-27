@@ -455,3 +455,98 @@ class TestGenAIGeminiAPIAsyncHook:
             src={"inlined_requests": TEST_EMBEDDINGS_JOB_SOURCE_INLINE},
             config=TEST_CREATE_BATCH_JOB_CONFIG,
         )
+
+    @pytest.mark.asyncio
+    @mock.patch("google.genai.Client")
+    async def test_get_async_client_vertexai(self, mock_client):
+        mock_sync_hook = mock.MagicMock()
+        mock_sync_hook.project_id = GCP_PROJECT
+        mock_credentials = mock.Mock()
+        mock_sync_hook.get_credentials.return_value = mock_credentials
+        self.hook.get_sync_hook = AsyncMock(return_value=mock_sync_hook)
+        self.hook.vertexai = True
+        self.hook.location = "global"
+
+        await self.hook.get_async_client()
+
+        mock_client.assert_called_once_with(
+            vertexai=True,
+            project=GCP_PROJECT,
+            location="global",
+            credentials=mock_credentials,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenAIGeminiAPIAsyncHook.get_async_client"))
+    async def test_create_batch_job_with_gcs_enables_vertexai(self, mock_client):
+        mock_async_client = AsyncMock()
+        mock_client.return_value = mock_async_client
+
+        await self.hook.create_batch_job(
+            model=TEST_MODEL,
+            source="gs://test-bucket/input.jsonl",
+            create_batch_job_config={"dest": "gs://test-bucket/output/"},
+        )
+
+        assert self.hook.vertexai is True
+        mock_async_client.batches.create.assert_called_once_with(
+            model=TEST_MODEL,
+            src="gs://test-bucket/input.jsonl",
+            config={"dest": "gs://test-bucket/output/"},
+        )
+
+
+class TestGenAIGeminiAPIHookVertexAI:
+    def setup_method(self):
+        with mock.patch(
+            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+        ):
+            self.hook = GenAIGeminiAPIHook(
+                gcp_conn_id=TEST_GCP_CONN_ID,
+                project_id=GCP_PROJECT,
+                location="global",
+            )
+
+    @mock.patch("google.genai.Client")
+    def test_get_genai_client_vertexai(self, mock_client):
+        mock_credentials = mock.Mock()
+        self.hook.get_credentials = mock.Mock(return_value=mock_credentials)
+
+        self.hook.get_genai_client()
+
+        mock_client.assert_called_once_with(
+            vertexai=True,
+            project=GCP_PROJECT,
+            location="global",
+            credentials=mock_credentials,
+        )
+
+    @pytest.mark.parametrize(
+        ("source", "config"),
+        [
+            ("gs://test-bucket/input.jsonl", {"dest": "gs://test-bucket/output/"}),
+            ("bq://project.dataset.input_table", {"dest": "bq://project.dataset.output_table"}),
+            (["gs://test-bucket/input1.jsonl"], {"dest": {"gcs_uri": "gs://test-bucket/output/"}}),
+        ],
+    )
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenAIGeminiAPIHook.get_genai_client"))
+    def test_create_batch_job_enables_vertexai_for_gcs_and_bq(self, mock_get_client, source, config):
+        with mock.patch(
+            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+        ):
+            hook = GenAIGeminiAPIHook(
+                gemini_api_key=TEST_API_KEY,
+                project_id=GCP_PROJECT,
+                location="global",
+            )
+        hook.create_batch_job(
+            model=TEST_MODEL,
+            source=source,
+            create_batch_job_config=config,
+        )
+        assert hook.vertexai is True
+        mock_get_client.return_value.batches.create.assert_called_once_with(
+            model=TEST_MODEL,
+            src=source,
+            config=config,
+        )

@@ -112,6 +112,7 @@ class TestGenAIGeminiCreateBatchJobTrigger:
                 "retrieve_result": True,
                 "polling_interval": 30,
                 "results_folder": RESULTS_FOLDER,
+                "vertexai": False,
             },
         )
         assert actual_data == expected_data
@@ -173,6 +174,28 @@ class TestGenAIGeminiCreateBatchJobTrigger:
         )
         # cancel the task to suppress test warnings
         task.cancel()
+
+    @mock.patch("airflow.providers.google.cloud.triggers.gen_ai.GenAIGeminiAPIAsyncHook")
+    def test_get_async_hook_vertexai(self, mock_async_hook):
+        trigger = GenAIGeminiCreateBatchJobTrigger(
+            project_id=GCP_PROJECT,
+            location="global",
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            model=GEMINI_MODEL,
+            input_source="gs://test-bucket/input.jsonl",
+            create_batch_job_config={"dest": "gs://test-bucket/output/"},
+            gemini_api_key=GEMINI_API_KEY,
+        )
+        trigger._get_async_hook()
+        mock_async_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=GEMINI_API_KEY,
+            project_id=GCP_PROJECT,
+            location="global",
+            vertexai=True,
+        )
 
 
 class TestGenAIGeminiCreateEmbeddingsBatchJobTrigger:

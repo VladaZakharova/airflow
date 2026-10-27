@@ -169,6 +169,57 @@ class TestBatchPredictionJobWithDefaultProjectIdHook:
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
 
+    @pytest.mark.parametrize(
+        ("region", "expected_endpoint"),
+        [
+            ("global", "aiplatform.googleapis.com"),
+            (None, "aiplatform.googleapis.com"),
+            ("us", "aiplatform.us.rep.googleapis.com"),
+            ("eu", "aiplatform.eu.rep.googleapis.com"),
+            ("us-central1", "us-central1-aiplatform.googleapis.com:443"),
+        ],
+    )
+    def test_get_api_endpoint(self, region, expected_endpoint) -> None:
+        assert self.hook._get_api_endpoint(region=region) == expected_endpoint
+
+    def test_get_api_endpoint_non_default_universe(self) -> None:
+        with mock.patch.object(self.hook, "is_default_universe", return_value=False):
+            assert self.hook._get_api_endpoint(region="global") is None
+
+    @pytest.mark.parametrize(
+        ("region", "expected_endpoint", "expected_init_location"),
+        [
+            ("global", "aiplatform.googleapis.com", "global"),
+            ("us", "aiplatform.us.rep.googleapis.com", None),
+            ("eu", "aiplatform.eu.rep.googleapis.com", None),
+            ("us-central1", "us-central1-aiplatform.googleapis.com:443", None),
+        ],
+    )
+    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("aiplatform.init"))
+    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJob.submit"))
+    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJobHook.get_credentials"))
+    def test_submit_batch_prediction_job_endpoint_routing(
+        self,
+        mock_get_credentials,
+        mock_submit,
+        mock_aiplatform_init,
+        region,
+        expected_endpoint,
+        expected_init_location,
+    ) -> None:
+        invoke_params = deepcopy(TEST_CREATE_BATCH_PREDICTION_JOB_PARAMETERS)
+        invoke_params["region"] = region
+
+        self.hook.submit_batch_prediction_job(**invoke_params)
+
+        mock_aiplatform_init.assert_called_once_with(
+            project=TEST_PROJECT_ID,
+            location=expected_init_location,
+            api_endpoint=expected_endpoint,
+            credentials=mock_get_credentials.return_value,
+        )
+        mock_submit.assert_called_once()
+
 
 class TestBatchPredictionJobWithoutDefaultProjectIdHook:
     def setup_method(self):
@@ -330,3 +381,18 @@ class TestBatchPredictionJobAsyncHook:
                     timeout=None,
                     metadata=(),
                 )
+
+    @pytest.mark.asyncio
+    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("JobServiceAsyncClient"))
+    async def test_get_job_service_client_uses_sync_hook_get_api_endpoint(self, mock_async_client) -> None:
+        sync_hook = mock.MagicMock()
+        sync_hook._get_api_endpoint.return_value = "aiplatform.googleapis.com"
+        self.hook.get_sync_hook = mock.AsyncMock(return_value=sync_hook)
+
+        await self.hook.get_job_service_client(region="global")
+
+        sync_hook._get_api_endpoint.assert_called_once_with(region="global")
+        sync_hook.get_client_options.assert_called_once_with(
+            api_endpoint_override="aiplatform.googleapis.com"
+        )
+        mock_async_client.assert_called_once()

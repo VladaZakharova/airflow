@@ -628,6 +628,59 @@ class TestGenAIGeminiCreateBatchJobOperator:
         with pytest.raises(AirflowException):
             op.execute_complete(context={"ti": mock.MagicMock()}, event=event)
 
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute_with_gcs_source_initializes_vertexai_hook(self, mock_hook):
+        op = GenAIGeminiCreateBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location="global",
+            model=TEST_GEMINI_MODEL,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            input_source="gs://test-bucket/input.jsonl",
+            create_batch_job_config={"dest": "gs://test-bucket/output/"},
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            wait_until_complete=False,
+            retrieve_result=False,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            project_id=GCP_PROJECT,
+            location="global",
+            vertexai=True,
+        )
+        mock_hook.return_value.create_batch_job.assert_called_once_with(
+            source="gs://test-bucket/input.jsonl",
+            model=TEST_GEMINI_MODEL,
+            create_batch_job_config={"dest": "gs://test-bucket/output/"},
+        )
+
+    @pytest.mark.parametrize(
+        ("dest_attr", "expected_uri"),
+        [
+            ("gcs_uri", "gs://test-bucket/output/predictions.jsonl"),
+            ("bigquery_uri", "bq://project.dataset.predictions"),
+        ],
+    )
+    def test_prepare_results_for_xcom_returns_gcs_or_bigquery_uri(self, dest_attr, expected_uri):
+        op = GenAIGeminiCreateBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location="global",
+            model=TEST_GEMINI_MODEL,
+            input_source="gs://test-bucket/input.jsonl",
+        )
+        mock_job = mock.MagicMock()
+        mock_job.dest.inlined_responses = None
+        mock_job.dest.file_name = None
+        mock_job.dest.gcs_uri = expected_uri if dest_attr == "gcs_uri" else None
+        mock_job.dest.bigquery_uri = expected_uri if dest_attr == "bigquery_uri" else None
+
+        assert op._prepare_results_for_xcom(mock_job) == expected_uri
+
 
 class TestGenAIGeminiGetBatchJobOperator:
     @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
