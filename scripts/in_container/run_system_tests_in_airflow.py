@@ -85,7 +85,9 @@ def wait_until_parsed(results: list[TestResult], timeout_seconds: int) -> None:
                     result.details = (import_error.stacktrace or "Import error").strip().splitlines()[-1]
         if all(r.dag_id or r.status == "IMPORT_ERROR" for r in results):
             return
-        time.sleep(5)
+        parsed = sum(1 for r in results if r.dag_id or r.status == "IMPORT_ERROR")
+        print(f"Waiting for the Dags to be parsed: {parsed} of {len(results)} done", flush=True)
+        time.sleep(15)
     for result in results:
         if not result.dag_id and result.status != "IMPORT_ERROR":
             result.status = "IMPORT_ERROR"

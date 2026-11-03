@@ -56,7 +56,7 @@ for test_file in "$@"; do
     fi
 done
 
-# Sourced by breeze inside the container (scripts/in_container/configure_environment.sh).
+# Sourced inside the container by scripts/in_container/run_system_tests_in_airflow.sh.
 # The Google connection has no key, so the machine's credentials are used.
 cat >files/airflow-breeze-config/environment_variables.env <<EOF
 SYSTEM_TESTS_GCP_PROJECT=${SYSTEM_TESTS_GCP_PROJECT}
@@ -64,7 +64,6 @@ SYSTEM_TESTS_ENV_ID=${SYSTEM_TESTS_ENV_ID}
 AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT='{"conn_type": "google_cloud_platform", "extra": {"project": "${SYSTEM_TESTS_GCP_PROJECT}"}}'
 AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
 AIRFLOW__CORE__LOAD_EXAMPLES=False
-PYTHONPATH=/opt/airflow/providers/google/tests
 EOF
 
 echo "Running $# system test(s) in project ${SYSTEM_TESTS_GCP_PROJECT} with env id ${SYSTEM_TESTS_ENV_ID}"
