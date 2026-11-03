@@ -29,4 +29,25 @@ airflow scheduler >"${LOGS_DIR}/scheduler.log" 2>&1 &
 airflow dag-processor >"${LOGS_DIR}/dag-processor.log" 2>&1 &
 airflow triggerer >"${LOGS_DIR}/triggerer.log" 2>&1 &
 
-python /opt/airflow/scripts/in_container/run_system_tests_in_airflow.py "$@"
+KEEP_AIRFLOW_MINUTES=0
+DRIVER_ARGS=()
+while [[ $# -gt 0 ]]; do
+    if [[ $1 == "--keep-airflow-minutes" ]]; then
+        KEEP_AIRFLOW_MINUTES=$2
+        shift 2
+    else
+        DRIVER_ARGS+=("$1")
+        shift
+    fi
+done
+
+set +e
+python /opt/airflow/scripts/in_container/run_system_tests_in_airflow.py "${DRIVER_ARGS[@]}"
+result=$?
+set -e
+
+if [[ ${KEEP_AIRFLOW_MINUTES} -gt 0 ]]; then
+    echo "Tests finished; keeping Airflow running for ${KEEP_AIRFLOW_MINUTES} minutes so the UI can be inspected"
+    sleep $((KEEP_AIRFLOW_MINUTES * 60))
+fi
+exit "${result}"

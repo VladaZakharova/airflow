@@ -24,6 +24,7 @@
 #   SYSTEM_TESTS_GCP_PROJECT  Google Cloud project the tests create resources in (required)
 #   SYSTEM_TESTS_ENV_ID       Unique suffix for created resources (default: random)
 #   TIMEOUT_MINUTES           Per-test timeout (default: 180)
+#   KEEP_AIRFLOW_MINUTES      Keep Airflow (and its UI) running after the tests (default: 0)
 #   PYTHON_VERSION            Breeze Python version (default: 3.11)
 #
 # Google credentials come from the machine: on a GCE VM, the VM's service account.
@@ -36,7 +37,10 @@ fi
 : "${SYSTEM_TESTS_GCP_PROJECT:?Set SYSTEM_TESTS_GCP_PROJECT}"
 SYSTEM_TESTS_ENV_ID="${SYSTEM_TESTS_ENV_ID:-st$(date +%s)}"
 TIMEOUT_MINUTES="${TIMEOUT_MINUTES:-180}"
+KEEP_AIRFLOW_MINUTES="${KEEP_AIRFLOW_MINUTES:-0}"
 PYTHON_VERSION="${PYTHON_VERSION:-3.11}"
+# Forks have no CI image cache of their own; apache/airflow's cache avoids building the image from scratch.
+export GITHUB_REPOSITORY=apache/airflow
 
 AIRFLOW_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "${AIRFLOW_ROOT}"
@@ -65,12 +69,24 @@ EOF
 
 echo "Running $# system test(s) in project ${SYSTEM_TESTS_GCP_PROJECT} with env id ${SYSTEM_TESTS_ENV_ID}"
 
-breeze ci-image build --python "${PYTHON_VERSION}"
+# Building the image downloads OS packages from external mirrors that sometimes rate-limit; retry those.
+for attempt in 1 2 3; do
+    if breeze ci-image build --python "${PYTHON_VERSION}"; then
+        break
+    fi
+    if [[ ${attempt} == 3 ]]; then
+        echo "CI image build failed 3 times, giving up"
+        exit 1
+    fi
+    echo "CI image build failed (attempt ${attempt}), retrying in 60 seconds"
+    sleep 60
+done
 breeze down || true
 
 set +e
 breeze run --python "${PYTHON_VERSION}" --backend postgres --forward-ports --answer no \
-    bash /opt/airflow/scripts/in_container/run_system_tests_in_airflow.sh --timeout-minutes "${TIMEOUT_MINUTES}"
+    bash /opt/airflow/scripts/in_container/run_system_tests_in_airflow.sh \
+    --timeout-minutes "${TIMEOUT_MINUTES}" --keep-airflow-minutes "${KEEP_AIRFLOW_MINUTES}"
 result=$?
 set -e
 
