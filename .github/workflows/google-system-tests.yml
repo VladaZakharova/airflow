@@ -39,6 +39,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Keep Airflow and its UI running this many minutes after the tests"
         required: false
         default: "0"
+      timeout-minutes:
+        description: "Per-test timeout in minutes (manual-only tests can need 240 or more)"
+        required: false
+        default: "180"
 
 permissions:
   contents: read
@@ -92,6 +96,7 @@ jobs:
       SYSTEM_TESTS_GCP_PROJECT: ${{ vars.SYSTEM_TESTS_GCP_PROJECT }}
       SYSTEM_TESTS_ENV_ID: gh${{ github.run_id }}
       KEEP_AIRFLOW_MINUTES: ${{ inputs.keep-airflow-minutes || vars.KEEP_AIRFLOW_MINUTES || '0' }}
+      TIMEOUT_MINUTES: ${{ inputs.timeout-minutes || '180' }}
       TESTS: ${{ join(fromJSON(needs.select-tests.outputs.tests), ' ') }}
     steps:
       - name: "Make files from the previous run removable"

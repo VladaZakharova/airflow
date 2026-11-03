@@ -120,6 +120,11 @@ def get_changed_files(base: str, head: str) -> list[str]:
     return [line for line in output.splitlines() if line.startswith("providers/google/")]
 
 
+def is_manual_only(test_file: str) -> bool:
+    """Tests skipped by pytest unless RUN_MANUAL_GOOGLE_SYSTEM_TESTS is set, e.g. because they run for hours."""
+    return "RUN_MANUAL_GOOGLE_SYSTEM_TESTS" in (ROOT / test_file).read_text()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -131,6 +136,14 @@ def main() -> int:
 
     importers, system_tests = build_import_index()
     tests = find_tests(get_changed_files(args.base, args.head), importers, system_tests)
+    manual_only = sorted(test for test in tests if is_manual_only(test))
+    if manual_only:
+        print(
+            "Skipping manual-only system tests (run them by naming them in a manual workflow run): "
+            + " ".join(manual_only),
+            file=sys.stderr,
+        )
+        tests -= set(manual_only)
 
     if len(tests) > args.max_tests:
         print(
