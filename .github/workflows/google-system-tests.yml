@@ -16,8 +16,9 @@
 # under the License.
 #
 # Runs the Google system tests related to a change in a full Airflow (breeze) on a self-hosted runner
-# in a Google Cloud project. Intended for forks: it runs only on pushes by the fork owner and on manual
-# dispatch, never on pull requests from other people, because the runner has cloud credentials.
+# in a Google Cloud project. Intended for forks: it runs on pull requests between branches of the fork
+# and on manual dispatch, never on pull requests from other repositories, because the runner has cloud
+# credentials.
 #
 # Setup in the fork:
 #   * Self-hosted runner with the label "google-system-tests" on a GCE VM whose service account can
@@ -25,10 +26,9 @@
 #   * Repository variable SYSTEM_TESTS_GCP_PROJECT (Settings -> Secrets and variables -> Variables).
 ---
 name: Google system tests
+run-name: "Google system tests (${{ github.head_ref || github.ref_name }})"
 on:  # yamllint disable-line rule:truthy
-  push:
-    branches-ignore: [main]
-    paths: ["providers/google/**"]
+  pull_request:
   workflow_dispatch:
     inputs:
       tests:
@@ -40,13 +40,16 @@ permissions:
   contents: read
 
 concurrency:
-  group: google-system-tests-${{ github.ref }}
+  group: google-system-tests-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
   select-tests:
     name: "Select system tests"
-    if: github.repository != 'apache/airflow'
+    if: >-
+      github.repository != 'apache/airflow' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     outputs:
       tests: ${{ steps.select.outputs.tests }}
