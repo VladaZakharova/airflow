@@ -81,6 +81,9 @@ for attempt in 1 2 3; do
     echo "CI image build failed (attempt ${attempt}), retrying in 60 seconds"
     sleep 60
 done
+# `breeze start-airflow` builds the UI from sources before starting; `breeze run` does not, and without the
+# built UI the api-server answers every page with "Internal Server Error".
+breeze ui compile-assets
 breeze down || true
 
 set +e
