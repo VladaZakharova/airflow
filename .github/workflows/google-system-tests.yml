@@ -1,0 +1,110 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# Runs the Google system tests related to a change in a full Airflow (breeze) on a self-hosted runner
+# in a Google Cloud project. Intended for forks: it runs only on pushes by the fork owner and on manual
+# dispatch, never on pull requests from other people, because the runner has cloud credentials.
+#
+# Setup in the fork:
+#   * Self-hosted runner with the label "google-system-tests" on a GCE VM whose service account can
+#     create the resources the system tests need, with Docker and breeze installed.
+#   * Repository variable SYSTEM_TESTS_GCP_PROJECT (Settings -> Secrets and variables -> Variables).
+---
+name: Google system tests
+on:  # yamllint disable-line rule:truthy
+  push:
+    branches-ignore: [main]
+    paths: ["providers/google/**"]
+  workflow_dispatch:
+    inputs:
+      tests:
+        description: "Space-separated system test files (empty = find them from the changes)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: google-system-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  select-tests:
+    name: "Select system tests"
+    if: github.repository != 'apache/airflow'
+    runs-on: ubuntu-latest
+    outputs:
+      tests: ${{ steps.select.outputs.tests }}
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: "Find system tests related to the changes"
+        id: select
+        env:
+          INPUT_TESTS: ${{ inputs.tests }}
+        run: |
+          if [[ -n "${INPUT_TESTS}" ]]; then
+            tests=$(python3 -c 'import json, os; print(json.dumps(os.environ["INPUT_TESTS"].split()))')
+          else
+            git fetch --no-tags https://github.com/apache/airflow.git main:refs/remotes/upstream/main
+            base=$(git merge-base refs/remotes/upstream/main HEAD)
+            tests=$(python3 scripts/ci/testing/find_google_system_tests.py --base "${base}" --head HEAD)
+          fi
+          echo "Selected system tests: ${tests}"
+          echo "tests=${tests}" >> "${GITHUB_OUTPUT}"
+
+  run-tests:
+    name: "Run system tests in Airflow"
+    needs: select-tests
+    if: needs.select-tests.outputs.tests != '[]'
+    runs-on: [self-hosted, google-system-tests]
+    timeout-minutes: 600
+    env:
+      SYSTEM_TESTS_GCP_PROJECT: ${{ vars.SYSTEM_TESTS_GCP_PROJECT }}
+      SYSTEM_TESTS_ENV_ID: gh${{ github.run_id }}
+      TESTS: ${{ join(fromJSON(needs.select-tests.outputs.tests), ' ') }}
+    steps:
+      - name: "Make files from the previous run removable"
+        run: sudo chown -R "$(id -u):$(id -g)" "${GITHUB_WORKSPACE}" || true
+      - name: "Checkout"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "How to open the Airflow UI while the tests run"
+        run: |
+          echo "On your laptop:"
+          echo "  gcloud compute ssh $(hostname) --project ${SYSTEM_TESTS_GCP_PROJECT} \\"
+          echo "    --tunnel-through-iap -- -N -L 8080:localhost:28080"
+          echo "then open http://localhost:8080"
+      - name: "Run system tests"
+        run: scripts/ci/testing/run_google_system_tests.sh ${TESTS}
+      - name: "Summary"
+        if: always()
+        run: cat files/system-tests-results/summary.md >> "${GITHUB_STEP_SUMMARY}" || true
+      - name: "Upload logs"
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: google-system-tests-logs
+          path: |
+            files/system-tests-results/
+            logs/
+          if-no-files-found: ignore
