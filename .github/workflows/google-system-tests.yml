@@ -54,10 +54,14 @@ jobs:
       github.repository != 'apache/airflow' &&
       (github.event_name != 'pull_request' ||
        github.event.pull_request.head.repo.full_name == github.repository)
-    runs-on: ubuntu-latest
+    # On the self-hosted runner too, so the workflow does not wait for GitHub-hosted runners that the
+    # regular CI of the fork keeps busy.
+    runs-on: [self-hosted, google-system-tests]
     outputs:
       tests: ${{ steps.select.outputs.tests }}
     steps:
+      - name: "Make files from the previous run removable"
+        run: sudo chown -R "$(id -u):$(id -g)" "${GITHUB_WORKSPACE}" || true
       - name: "Checkout"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
