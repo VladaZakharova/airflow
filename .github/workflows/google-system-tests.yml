@@ -35,6 +35,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Space-separated system test files (empty = find them from the changes)"
         required: false
         default: ""
+      keep-airflow-minutes:
+        description: "Keep Airflow and its UI running this many minutes after the tests"
+        required: false
+        default: "0"
 
 permissions:
   contents: read
@@ -83,6 +87,7 @@ jobs:
     env:
       SYSTEM_TESTS_GCP_PROJECT: ${{ vars.SYSTEM_TESTS_GCP_PROJECT }}
       SYSTEM_TESTS_ENV_ID: gh${{ github.run_id }}
+      KEEP_AIRFLOW_MINUTES: ${{ inputs.keep-airflow-minutes || vars.KEEP_AIRFLOW_MINUTES || '0' }}
       TESTS: ${{ join(fromJSON(needs.select-tests.outputs.tests), ' ') }}
     steps:
       - name: "Make files from the previous run removable"
@@ -93,8 +98,10 @@ jobs:
           persist-credentials: false
       - name: "How to open the Airflow UI while the tests run"
         run: |
+          zone=$(curl -s -H "Metadata-Flavor: Google" \
+            http://metadata.google.internal/computeMetadata/v1/instance/zone | awk -F/ '{print $NF}')
           echo "On your laptop:"
-          echo "  gcloud compute ssh $(hostname) --project ${SYSTEM_TESTS_GCP_PROJECT} \\"
+          echo "  gcloud compute ssh $(hostname) --project ${SYSTEM_TESTS_GCP_PROJECT} --zone ${zone} \\"
           echo "    --tunnel-through-iap -- -N -L 8080:localhost:28080"
           echo "then open http://localhost:8080"
       - name: "Run system tests"
