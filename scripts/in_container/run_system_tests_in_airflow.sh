@@ -21,6 +21,17 @@ set -euo pipefail
 LOGS_DIR=/files/system-tests-results/components
 mkdir -p "${LOGS_DIR}"
 
+# `breeze run` skips the breeze entrypoint initialization (configure_environment.sh), which normally sets
+# the Dags folder and sources the variables file, so both are done here.
+export AIRFLOW__CORE__DAGS_FOLDER=/files/dags
+set -o allexport
+# shellcheck source=/dev/null
+source /files/airflow-breeze-config/environment_variables.env
+set +o allexport
+# The system tests import helpers from the "system" package of the Google provider tests.
+export PYTHONPATH="${PYTHONPATH:-}:/opt/airflow/providers/google/tests"
+echo "Dags folder: ${AIRFLOW__CORE__DAGS_FOLDER}, project: ${SYSTEM_TESTS_GCP_PROJECT}, env id: ${SYSTEM_TESTS_ENV_ID}"
+
 airflow db migrate
 
 # The same components as `breeze start-airflow`, started without the interactive terminal.
@@ -45,6 +56,13 @@ set +e
 python /opt/airflow/scripts/in_container/run_system_tests_in_airflow.py "${DRIVER_ARGS[@]}"
 result=$?
 set -e
+
+if [[ ${result} != 0 ]]; then
+    echo "Import errors:"
+    airflow dags list-import-errors || true
+    echo "Last lines of the Dag processor log:"
+    tail -50 "${LOGS_DIR}/dag-processor.log" || true
+fi
 
 if [[ ${KEEP_AIRFLOW_MINUTES} -gt 0 ]]; then
     echo "Tests finished; keeping Airflow running for ${KEEP_AIRFLOW_MINUTES} minutes so the UI can be inspected"
