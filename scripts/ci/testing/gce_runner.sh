@@ -32,6 +32,7 @@
 #   GITHUB_TOKEN              workflow token (stop, cleanup)
 #   RUNNER_ZONE, RUNNER_MACHINE_TYPE, RUNNER_DISK_SIZE, RUNNER_SERVICE_ACCOUNT  optional overrides;
 #   zone and service account default to the manager VM's own.
+#   MAX_RUNNING_TEST_VMS      test VMs running at the same time (default: 4)
 set -euo pipefail
 
 : "${SYSTEM_TESTS_GCP_PROJECT:?Set SYSTEM_TESTS_GCP_PROJECT}"
@@ -40,6 +41,9 @@ PROJECT="${SYSTEM_TESTS_GCP_PROJECT}"
 MY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ONLINE_TIMEOUT_SECONDS=1500
 BRANCH_VM_MAX_AGE_DAYS=3
+# Test VMs running at the same time; more wait for a free slot (stopped VMs do not count).
+MAX_RUNNING_VMS="${MAX_RUNNING_TEST_VMS:-4}"
+SLOT_WAIT_SECONDS=7200
 
 # On Ubuntu GCE images gcloud is a snap in /snap/bin, which is not on the PATH of the runner service.
 export PATH="${PATH}:/snap/bin:/usr/lib/google-cloud-sdk/bin"
@@ -95,12 +99,35 @@ wait_until_runner_online() {
     return 1
 }
 
+wait_for_free_slot() {
+    local name=$1 running
+    local deadline=$((SECONDS + SLOT_WAIT_SECONDS))
+    while true; do
+        running=$(gcloud compute instances list --project "${PROJECT}" \
+            --filter "labels.gst-managed=true AND status:(RUNNING PROVISIONING STAGING) AND name!=${name}" \
+            --format 'value(name)' | wc -l)
+        if ((running < MAX_RUNNING_VMS)); then
+            echo "${running} of ${MAX_RUNNING_VMS} test VMs are running; starting ${name}"
+            return 0
+        fi
+        if ((SECONDS >= deadline)); then
+            echo "No free test VM slot after $((SLOT_WAIT_SECONDS / 60)) minutes; raise MAX_RUNNING_TEST_VMS or retry"
+            return 1
+        fi
+        echo "${running} of ${MAX_RUNNING_VMS} test VMs are busy; waiting for a free slot..."
+        sleep 60
+    done
+}
+
 ensure_vm() {
     local name=$1 pr=${2:-}
     local status labels="purpose=airflow-system-tests,gst-managed=true"
     [[ -n "${pr}" ]] && labels="${labels},gst-pr=${pr}"
     status=$(get_vm_status "${name}")
     echo "VM ${name}: ${status:-does not exist}"
+    if [[ "${status}" != "RUNNING" ]]; then
+        wait_for_free_slot "${name}"
+    fi
     case "${status}" in
         "")
             gcloud compute instances create "${name}" --project "${PROJECT}" --zone "${ZONE}" \
