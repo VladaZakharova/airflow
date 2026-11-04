@@ -118,12 +118,16 @@ jobs:
       - name: "Summary"
         if: always()
         run: cat files/system-tests-results/summary.md >> "${GITHUB_STEP_SUMMARY}" || true
+      - name: "Pack logs"
+        if: always()
+        # Airflow task log paths contain ":" (run IDs), which upload-artifact rejects: upload one archive.
+        run: >-
+          tar -czf google-system-tests-logs.tar.gz --ignore-failed-read
+          files/system-tests-results logs || true
       - name: "Upload logs"
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: google-system-tests-logs
-          path: |
-            files/system-tests-results/
-            logs/
+          path: google-system-tests-logs.tar.gz
           if-no-files-found: ignore
