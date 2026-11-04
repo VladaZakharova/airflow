@@ -41,6 +41,13 @@ MY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ONLINE_TIMEOUT_SECONDS=1500
 BRANCH_VM_MAX_AGE_DAYS=3
 
+# On Ubuntu GCE images gcloud is a snap in /snap/bin, which is not on the PATH of the runner service.
+export PATH="${PATH}:/snap/bin:/usr/lib/google-cloud-sdk/bin"
+if ! command -v gcloud >/dev/null; then
+    echo "gcloud is not installed on this runner: https://cloud.google.com/sdk/docs/install"
+    exit 1
+fi
+
 get_vm_metadata() {
     curl -sf -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/$1"
 }
