@@ -120,10 +120,12 @@ ensure_vm() {
             ;;
     esac
     if [[ -n "${status}" && -z "$(get_runner_field "${name}" id)" ]]; then
-        # GitHub removes runners that were offline for a long time; register the existing VM again.
+        # GitHub removes runners that were offline for a long time; register the existing VM again,
+        # with the current startup script (the VM keeps the one it was created with).
         echo "Runner ${name} is not registered in GitHub; registering it again"
         gcloud compute instances add-metadata "${name}" --project "${PROJECT}" --zone "${ZONE}" \
-            --metadata "runner-force-register=true,runner-registration-token=$(get_registration_token)"
+            --metadata "runner-force-register=true,runner-registration-token=$(get_registration_token)" \
+            --metadata-from-file "startup-script=${MY_DIR}/gce_runner_startup.sh"
         gcloud compute instances reset "${name}" --project "${PROJECT}" --zone "${ZONE}"
     fi
     wait_until_runner_online "${name}"

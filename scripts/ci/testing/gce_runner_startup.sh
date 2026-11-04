@@ -61,7 +61,7 @@ if [[ ! -f .runner || -n "$(get_metadata runner-force-register)" ]]; then
     sudo -u "${RUNNER_USER}" ./config.sh --unattended --replace \
         --url "https://github.com/$(get_metadata github-repo)" \
         --token "$(get_metadata runner-registration-token)" \
-        --name "$(hostname)" \
+        --name "$(hostname -s)" \
         --labels "$(get_metadata runner-labels)" \
         --work _work
     ./svc.sh install "${RUNNER_USER}"
