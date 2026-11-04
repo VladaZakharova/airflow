@@ -48,7 +48,7 @@ cd "${AIRFLOW_ROOT}"
 # Fresh runner VMs (gce_runner_startup.sh) have uv but not breeze.
 export PATH="${HOME}/.local/bin:${PATH}"
 if ! command -v breeze >/dev/null; then
-    scripts/tools/setup_breeze
+    ANSWER=yes scripts/tools/setup_breeze
 fi
 
 # breeze mounts files/ as /files in the container; /files/dags is Airflow's Dags folder.
