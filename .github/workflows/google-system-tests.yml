@@ -15,20 +15,28 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-# Runs the Google system tests related to a change in a full Airflow (breeze) on a self-hosted runner
-# in a Google Cloud project. Intended for forks: it runs on pull requests between branches of the fork
-# and on manual dispatch, never on pull requests from other repositories, because the runner has cloud
+# Runs the Google system tests related to a change in a full Airflow (breeze) on a GCE VM created for
+# the pull request. Intended for forks: it runs on pull requests between branches of the fork and on
+# manual dispatch, never on pull requests from other repositories, because the VMs have cloud
 # credentials.
 #
+# Flow: select tests -> approval (environment "google-system-tests") -> create or start the PR's VM
+# -> run the tests on it -> stop the VM. Closing the PR deletes its VM; a nightly job deletes VMs of
+# closed PRs and old manual-run VMs.
+#
 # Setup in the fork:
-#   * Self-hosted runner with the label "google-system-tests" on a GCE VM whose service account can
-#     create the resources the system tests need, with Docker and breeze installed.
-#   * Repository variable SYSTEM_TESTS_GCP_PROJECT (Settings -> Secrets and variables -> Variables).
+#   * "Manager" self-hosted runner with the label "google-system-tests" on a GCE VM whose service
+#     account can create VMs and act as itself (the PR VMs use the same service account).
+#   * Environment "google-system-tests" with required reviewers (Settings -> Environments).
+#   * Secret RUNNER_ADMIN_TOKEN: fine-grained token with "Administration: Read and write" on the repo,
+#     used to register the PR VMs as runners.
+#   * Variable SYSTEM_TESTS_GCP_PROJECT; optional RUNNER_MACHINE_TYPE, RUNNER_DISK_SIZE.
 ---
 name: Google system tests
 run-name: "Google system tests (${{ github.head_ref || github.ref_name }})"
 on:  # yamllint disable-line rule:truthy
   pull_request:
+    types: [opened, synchronize, reopened, closed]
   workflow_dispatch:
     inputs:
       tests:
@@ -43,6 +51,8 @@ on:  # yamllint disable-line rule:truthy
         description: "Per-test timeout in minutes (manual-only tests can need 240 or more)"
         required: false
         default: "180"
+  schedule:
+    - cron: "17 3 * * *"
 
 permissions:
   contents: read
@@ -51,18 +61,21 @@ concurrency:
   group: google-system-tests-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
+env:
+  SYSTEM_TESTS_GCP_PROJECT: ${{ vars.SYSTEM_TESTS_GCP_PROJECT }}
+
 jobs:
   select-tests:
     name: "Select system tests"
     if: >-
       github.repository != 'apache/airflow' &&
+      github.event_name != 'schedule' && github.event.action != 'closed' &&
       (github.event_name != 'pull_request' ||
        github.event.pull_request.head.repo.full_name == github.repository)
-    # On the self-hosted runner too, so the workflow does not wait for GitHub-hosted runners that the
-    # regular CI of the fork keeps busy.
     runs-on: [self-hosted, google-system-tests]
     outputs:
       tests: ${{ steps.select.outputs.tests }}
+      vm-name: ${{ steps.vm.outputs.name }}
     steps:
       - name: "Make files from the previous run removable"
         run: sudo chown -R "$(id -u):$(id -g)" "${GITHUB_WORKSPACE}" || true
@@ -85,15 +98,50 @@ jobs:
           fi
           echo "Selected system tests: ${tests}"
           echo "tests=${tests}" >> "${GITHUB_OUTPUT}"
+      - name: "Name the test VM"
+        id: vm
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          if [[ -n "${PR_NUMBER}" ]]; then
+            name="gst-pr-${PR_NUMBER}"
+          else
+            slug=$(echo "${BRANCH}" | tr 'A-Z' 'a-z' | sed 's/[^a-z0-9-]/-/g' | cut -c1-40 | sed 's/-*$//')
+            name="gst-br-${slug}"
+          fi
+          echo "Test VM: ${name}"
+          echo "name=${name}" >> "${GITHUB_OUTPUT}"
+
+  prepare-vm:
+    name: "Start the test VM (after approval)"
+    needs: select-tests
+    if: needs.select-tests.outputs.tests != '[]'
+    environment: google-system-tests
+    runs-on: [self-hosted, google-system-tests]
+    timeout-minutes: 40
+    env:
+      VM_NAME: ${{ needs.select-tests.outputs.vm-name }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      RUNNER_ADMIN_TOKEN: ${{ secrets.RUNNER_ADMIN_TOKEN }}
+      RUNNER_MACHINE_TYPE: ${{ vars.RUNNER_MACHINE_TYPE }}
+      RUNNER_DISK_SIZE: ${{ vars.RUNNER_DISK_SIZE }}
+    steps:
+      - name: "Make files from the previous run removable"
+        run: sudo chown -R "$(id -u):$(id -g)" "${GITHUB_WORKSPACE}" || true
+      - name: "Checkout"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Create, start or reuse the VM of this PR"
+        run: scripts/ci/testing/gce_runner.sh ensure "${VM_NAME}" "${PR_NUMBER}"
 
   run-tests:
     name: "Run system tests in Airflow"
-    needs: select-tests
-    if: needs.select-tests.outputs.tests != '[]'
-    runs-on: [self-hosted, google-system-tests]
+    needs: [select-tests, prepare-vm]
+    runs-on: ${{ needs.select-tests.outputs.vm-name }}
     timeout-minutes: 600
     env:
-      SYSTEM_TESTS_GCP_PROJECT: ${{ vars.SYSTEM_TESTS_GCP_PROJECT }}
       SYSTEM_TESTS_ENV_ID: gh${{ github.run_id }}
       KEEP_AIRFLOW_MINUTES: ${{ inputs.keep-airflow-minutes || vars.KEEP_AIRFLOW_MINUTES || '0' }}
       TIMEOUT_MINUTES: ${{ inputs.timeout-minutes || '180' }}
@@ -131,3 +179,59 @@ jobs:
           name: google-system-tests-logs
           path: google-system-tests-logs.tar.gz
           if-no-files-found: ignore
+
+  stop-vm:
+    name: "Stop the test VM"
+    needs: [select-tests, prepare-vm, run-tests]
+    if: always() && needs.prepare-vm.result == 'success'
+    runs-on: [self-hosted, google-system-tests]
+    permissions:
+      contents: read
+      actions: read
+    env:
+      VM_NAME: ${{ needs.select-tests.outputs.vm-name }}
+      BRANCH: ${{ github.head_ref || github.ref_name }}
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Stop the VM (it is started again on the next run)"
+        run: scripts/ci/testing/gce_runner.sh stop "${VM_NAME}"
+
+  delete-vm:
+    name: "Delete the test VM of the closed PR"
+    if: >-
+      github.repository != 'apache/airflow' &&
+      github.event_name == 'pull_request' && github.event.action == 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, google-system-tests]
+    env:
+      VM_NAME: gst-pr-${{ github.event.pull_request.number }}
+      RUNNER_ADMIN_TOKEN: ${{ secrets.RUNNER_ADMIN_TOKEN }}
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Delete the VM and unregister its runner"
+        run: scripts/ci/testing/gce_runner.sh delete "${VM_NAME}"
+
+  cleanup-vms:
+    name: "Delete VMs of closed PRs and old manual-run VMs"
+    if: github.repository != 'apache/airflow' && github.event_name == 'schedule'
+    runs-on: [self-hosted, google-system-tests]
+    permissions:
+      contents: read
+      pull-requests: read
+    env:
+      RUNNER_ADMIN_TOKEN: ${{ secrets.RUNNER_ADMIN_TOKEN }}
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Clean up"
+        run: scripts/ci/testing/gce_runner.sh cleanup

@@ -45,6 +45,12 @@ export GITHUB_REPOSITORY=apache/airflow
 AIRFLOW_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "${AIRFLOW_ROOT}"
 
+# Fresh runner VMs (gce_runner_startup.sh) have uv but not breeze.
+export PATH="${HOME}/.local/bin:${PATH}"
+if ! command -v breeze >/dev/null; then
+    scripts/tools/setup_breeze
+fi
+
 # breeze mounts files/ as /files in the container; /files/dags is Airflow's Dags folder.
 rm -rf files/dags files/system-tests-results
 mkdir -p files/dags files/airflow-breeze-config
