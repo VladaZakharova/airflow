@@ -64,8 +64,9 @@ if [[ ${result} != 0 ]]; then
     tail -50 "${LOGS_DIR}/dag-processor.log" || true
 fi
 
-if [[ ${KEEP_AIRFLOW_MINUTES} -gt 0 ]]; then
-    echo "Tests finished; keeping Airflow running for ${KEEP_AIRFLOW_MINUTES} minutes so the UI can be inspected"
+if [[ ${KEEP_AIRFLOW_MINUTES} -gt 0 && (${result} != 0 || ${KEEP_AIRFLOW_ON_SUCCESS:-false} == "true") ]]; then
+    echo "Keeping Airflow running for ${KEEP_AIRFLOW_MINUTES} minutes so the UI can be inspected;" \
+        "cancel the workflow run to stop earlier"
     sleep $((KEEP_AIRFLOW_MINUTES * 60))
 fi
 exit "${result}"
