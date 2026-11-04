@@ -44,9 +44,13 @@ on:  # yamllint disable-line rule:truthy
         required: false
         default: ""
       keep-airflow-minutes:
-        description: "Keep Airflow and its UI running this many minutes after the tests"
+        description: "Keep Airflow and its UI running this many minutes after failed tests"
         required: false
         default: "0"
+      keep-airflow-on-success:
+        description: "Keep Airflow running after successful tests too"
+        type: boolean
+        default: false
       timeout-minutes:
         description: "Per-test timeout in minutes (manual-only tests can need 240 or more)"
         required: false
@@ -144,6 +148,7 @@ jobs:
     env:
       SYSTEM_TESTS_ENV_ID: gh${{ github.run_id }}
       KEEP_AIRFLOW_MINUTES: ${{ inputs.keep-airflow-minutes || vars.KEEP_AIRFLOW_MINUTES || '0' }}
+      KEEP_AIRFLOW_ON_SUCCESS: ${{ inputs.keep-airflow-on-success && 'true' || 'false' }}
       TIMEOUT_MINUTES: ${{ inputs.timeout-minutes || '180' }}
       TESTS: ${{ join(fromJSON(needs.select-tests.outputs.tests), ' ') }}
     steps:

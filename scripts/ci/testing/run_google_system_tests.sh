@@ -24,7 +24,8 @@
 #   SYSTEM_TESTS_GCP_PROJECT  Google Cloud project the tests create resources in (required)
 #   SYSTEM_TESTS_ENV_ID       Unique suffix for created resources (default: random)
 #   TIMEOUT_MINUTES           Per-test timeout (default: 180)
-#   KEEP_AIRFLOW_MINUTES      Keep Airflow (and its UI) running after the tests (default: 0)
+#   KEEP_AIRFLOW_MINUTES      Keep Airflow (and its UI) running after failed tests (default: 0)
+#   KEEP_AIRFLOW_ON_SUCCESS   "true" to keep it running after successful tests too (default: false)
 #   PYTHON_VERSION            Breeze Python version (default: 3.11)
 #
 # Google credentials come from the machine: on a GCE VM, the VM's service account.
@@ -70,6 +71,7 @@ SYSTEM_TESTS_ENV_ID=${SYSTEM_TESTS_ENV_ID}
 AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT='{"conn_type": "google_cloud_platform", "extra": {"project": "${SYSTEM_TESTS_GCP_PROJECT}"}}'
 AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
 AIRFLOW__CORE__LOAD_EXAMPLES=False
+KEEP_AIRFLOW_ON_SUCCESS=${KEEP_AIRFLOW_ON_SUCCESS:-false}
 EOF
 
 echo "Running $# system test(s) in project ${SYSTEM_TESTS_GCP_PROJECT} with env id ${SYSTEM_TESTS_ENV_ID}"
