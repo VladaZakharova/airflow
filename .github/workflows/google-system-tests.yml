@@ -95,13 +95,15 @@ jobs:
         id: select
         env:
           INPUT_TESTS: ${{ inputs.tests }}
+          MAX_SYSTEM_TESTS_PER_RUN: ${{ vars.MAX_SYSTEM_TESTS_PER_RUN }}
         run: |
           if [[ -n "${INPUT_TESTS}" ]]; then
             tests=$(python3 -c 'import json, os; print(json.dumps(os.environ["INPUT_TESTS"].split()))')
           else
             git fetch --no-tags https://github.com/apache/airflow.git main:refs/remotes/upstream/main
             base=$(git merge-base refs/remotes/upstream/main HEAD)
-            tests=$(python3 scripts/ci/testing/find_google_system_tests.py --base "${base}" --head HEAD)
+            tests=$(python3 scripts/ci/testing/find_google_system_tests.py --base "${base}" --head HEAD \
+              --max-tests "${MAX_SYSTEM_TESTS_PER_RUN:-10}")
           fi
           echo "Selected system tests: ${tests}"
           echo "tests=${tests}" >> "${GITHUB_OUTPUT}"
