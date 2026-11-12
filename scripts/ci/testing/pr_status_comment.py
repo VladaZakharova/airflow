@@ -137,8 +137,11 @@ def update(args: argparse.Namespace) -> None:
         match = DATA_RE.search(comment["body"])
         if match:
             data = json.loads(match.group(1))
-    if data.get("run_id") and args.run_id and str(data["run_id"]) != str(args.run_id):
-        data = {}  # a new run of the PR starts a fresh status
+    if comment and data.get("run_id") and args.run_id and str(data["run_id"]) != str(args.run_id):
+        # A new run posts a fresh comment at the bottom of the PR: GitHub keeps an edited comment at its
+        # original place in the conversation, where nobody notices the update.
+        call_github("DELETE", f"/repos/{repo}/issues/comments/{comment['id']}")
+        comment, data = None, {}
     data["state"] = args.state
     for key in ("risk", "run_id", "run_url", "vm", "note"):
         if getattr(args, key) is not None:
