@@ -119,7 +119,11 @@ def render(data: dict) -> str:
         lines.append(
             f"[All queued runs]({server}/{repo}/actions/workflows/{WORKFLOW_FILE}?query=is%3Ain_progress) · "
             f"[Waiting for approval]({server}/{repo}/actions/workflows/{WORKFLOW_FILE}?query=is%3Awaiting) · "
-            f"[Emergency stop]({server}/{repo}/actions/workflows/google-system-tests-emergency.yml)"
+            f"[Emergency stop runs]({server}/{repo}/actions/workflows/google-system-tests-emergency.yml)"
+        )
+        lines.append("")
+        lines.append(
+            "🛑 Emergency stop: add the label `gst-stop` to this PR (or `gst-stop-all` to stop all runs)"
         )
     lines.append(f"<!-- gst-data {json.dumps(data)} -->")
     return "\n".join(lines) + "\n"

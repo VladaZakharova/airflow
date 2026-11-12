@@ -79,6 +79,24 @@ grant_manager() {
 }
 
 create_network() {
+    # A project can only have one Cloud NAT for the same subnets; reuse an existing one.
+    if [[ -n "$(gcloud compute routers list --project "${PROJECT}" --filter "region:${REGION} AND nats:*" \
+        --format 'value(name)')" ]]; then
+        echo "    Cloud NAT already exists in ${REGION}; reusing it"
+    else
+        create_nat
+    fi
+    if [[ -n "$(gcloud compute firewall-rules list --project "${PROJECT}" \
+        --filter "direction=INGRESS AND allowed[].ports:22 AND sourceRanges:(35.235.240.0/20 0.0.0.0/0)" \
+        --format 'value(name)')" ]]; then
+        echo "    SSH from IAP is already allowed; reusing the existing firewall rule"
+    else
+        gcloud compute firewall-rules create gst-allow-iap-ssh --project "${PROJECT}" --network default \
+            --direction INGRESS --allow tcp:22 --source-ranges 35.235.240.0/20
+    fi
+}
+
+create_nat() {
     gcloud compute routers describe gst-router --project "${PROJECT}" --region "${REGION}" &>/dev/null ||
         gcloud compute routers create gst-router --project "${PROJECT}" --region "${REGION}" --network default
     gcloud compute routers nats describe gst-nat --router gst-router --project "${PROJECT}" \
@@ -86,9 +104,6 @@ create_network() {
         gcloud compute routers nats create gst-nat --router gst-router --project "${PROJECT}" \
             --region "${REGION}" --auto-allocate-nat-external-ips --nat-all-subnet-ip-ranges \
             --enable-logging --log-filter ERRORS_ONLY
-    gcloud compute firewall-rules describe gst-allow-iap-ssh --project "${PROJECT}" &>/dev/null ||
-        gcloud compute firewall-rules create gst-allow-iap-ssh --project "${PROJECT}" --network default \
-            --direction INGRESS --allow tcp:22 --source-ranges 35.235.240.0/20
 }
 
 enable_iam_data_access_logs() {

@@ -20,6 +20,7 @@
 #
 # Usage:
 #   gst_emergency.sh stop-run <github-run-id> [<pr-number>]   Tier 1: stop one run and clean up after it
+#   gst_emergency.sh stop-pr <pr-number>                       Tier 1 for all active runs of a PR
 #   gst_emergency.sh stop-all                                  Tier 2: stop everything, revoke cloud access
 #   gst_emergency.sh restore                                   undo Tier 2 after the incident
 #
@@ -146,6 +147,25 @@ stop_all() {
     report "Run 'restore' after the incident is resolved"
 }
 
+stop_pr() {
+    # Tier 1 for every active run of a PR (used by the "gst-stop" label).
+    local pr=$1 branch
+    branch=$(github GET "/pulls/${pr}" | python3 -c 'import json, sys; print(json.load(sys.stdin)["head"]["ref"])')
+    local run_ids
+    run_ids=$(github GET "/actions/workflows/${WORKFLOW_FILE}/runs?branch=${branch}&per_page=20" | python3 -c '
+import json, sys
+runs = json.load(sys.stdin)["workflow_runs"]
+print(" ".join(str(r["id"]) for r in runs if r["status"] in ("queued", "in_progress", "waiting", "pending", "requested")))')
+    if [[ -z "${run_ids}" ]]; then
+        report "No active Google system tests run for PR #${pr}; deleting its VM and cleaning up the latest run"
+        run_ids=$(github GET "/actions/workflows/${WORKFLOW_FILE}/runs?branch=${branch}&per_page=1" |
+            python3 -c 'import json, sys; r = json.load(sys.stdin)["workflow_runs"]; print(r[0]["id"] if r else "")')
+    fi
+    for run_id in ${run_ids}; do
+        stop_run "${run_id}" "${pr}"
+    done
+}
+
 restore() {
     if [[ -n "${RUNNER_SERVICE_ACCOUNT:-}" ]]; then
         gcloud iam service-accounts enable "${RUNNER_SERVICE_ACCOUNT}" --project "${PROJECT}" --quiet &&
@@ -156,10 +176,11 @@ restore() {
 
 case "${1:-}" in
     stop-run) stop_run "${2:?GitHub run id}" "${3:-}" ;;
+    stop-pr) stop_pr "${2:?PR number}" ;;
     stop-all) stop_all ;;
     restore) restore ;;
     *)
-        echo "Usage: $0 stop-run <github-run-id> [<pr-number>] | stop-all | restore"
+        echo "Usage: $0 stop-run <github-run-id> [<pr-number>] | stop-pr <pr-number> | stop-all | restore"
         exit 2
         ;;
 esac
