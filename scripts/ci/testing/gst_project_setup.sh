@@ -32,6 +32,9 @@ MANAGER_SA="${2:?manager service account email (the VM running the manager runne
 ALERT_EMAIL="${3:?email address for alerts}"
 REGION="${4:-us-central1}"
 RUNNER_SA="gst-runner@${PROJECT}.iam.gserviceaccount.com"
+# Never stop for questions, and bill API quota to the test project (not the caller's default project).
+export CLOUDSDK_CORE_DISABLE_PROMPTS=1
+export CLOUDSDK_BILLING_QUOTA_PROJECT="${PROJECT}"
 MY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FAILED_STEPS=()
 
@@ -60,17 +63,26 @@ create_runner_identity() {
     # Broad role for the proof of concept, so all system tests can run; production uses the narrow set of
     # roles the selected tests need.
     for role in roles/editor roles/logging.logWriter roles/monitoring.metricWriter; do
-        gcloud projects add-iam-policy-binding "${PROJECT}" --quiet --condition=None \
-            --member "serviceAccount:${RUNNER_SA}" --role "${role}" >/dev/null
+        add_project_binding "serviceAccount:${RUNNER_SA}" "${role}" || return 1
     done
+}
+
+add_project_binding() {
+    # A new service account takes a few seconds before IAM accepts it in bindings; retry.
+    local member=$1 role=$2
+    for _ in 1 2 3 4 5 6; do
+        gcloud projects add-iam-policy-binding "${PROJECT}" --quiet --condition=None \
+            --member "${member}" --role "${role}" >/dev/null && return 0
+        sleep 10
+    done
+    return 1
 }
 
 grant_manager() {
     # The manager creates/starts/stops/deletes test VMs, attaches gst-runner to them, lists resources for
     # cleanup and can disable gst-runner in an emergency (Tier 2).
     for role in roles/compute.instanceAdmin.v1 roles/cloudasset.viewer roles/editor; do
-        gcloud projects add-iam-policy-binding "${PROJECT}" --quiet --condition=None \
-            --member "serviceAccount:${MANAGER_SA}" --role "${role}" >/dev/null
+        add_project_binding "serviceAccount:${MANAGER_SA}" "${role}" || return 1
     done
     gcloud iam service-accounts add-iam-policy-binding "${RUNNER_SA}" --project "${PROJECT}" --quiet \
         --member "serviceAccount:${MANAGER_SA}" --role roles/iam.serviceAccountUser >/dev/null
@@ -86,9 +98,16 @@ create_network() {
     else
         create_nat
     fi
-    if [[ -n "$(gcloud compute firewall-rules list --project "${PROJECT}" \
-        --filter "direction=INGRESS AND allowed[].ports:22 AND sourceRanges:(35.235.240.0/20 0.0.0.0/0)" \
-        --format 'value(name)')" ]]; then
+    if gcloud compute firewall-rules list --project "${PROJECT}" --format json | python3 -c '
+import json, sys
+rules = json.load(sys.stdin)
+ssh_from_iap = [
+    r for r in rules
+    if r.get("direction") == "INGRESS" and not r.get("disabled")
+    and any(a.get("IPProtocol") in ("tcp", "all") and (not a.get("ports") or "22" in a["ports"]) for a in r.get("allowed", []))
+    and set(r.get("sourceRanges", [])) & {"35.235.240.0/20", "0.0.0.0/0"}
+]
+sys.exit(0 if ssh_from_iap else 1)'; then
         echo "    SSH from IAP is already allowed; reusing the existing firewall rule"
     else
         gcloud compute firewall-rules create gst-allow-iap-ssh --project "${PROJECT}" --network default \
@@ -147,14 +166,23 @@ EOF
 }
 
 set_gpu_quota_zero() {
-    gcloud beta quotas preferences create --project "${PROJECT}" --service compute.googleapis.com \
+    # Lowering a quota by more than 10% needs an explicit safety-check override.
+    local output
+    output=$(gcloud beta quotas preferences create --project "${PROJECT}" --service compute.googleapis.com \
         --quota-id GPUS-ALL-REGIONS-per-project --preferred-value 0 --preference-id gst-no-gpus \
-        --justification "System tests do not use GPUs" --quiet 2>&1 | grep -v "already exists" || true
+        --allow-high-percentage-quota-decrease \
+        --justification "System tests do not use GPUs" --quiet 2>&1) && return 0
+    if grep -q "already exists" <<<"${output}"; then
+        echo "    GPU quota preference already exists"
+        return 0
+    fi
+    echo "${output}" | head -5
+    return 1
 }
 
 create_alert_channel() {
     CHANNEL=$(gcloud beta monitoring channels list --project "${PROJECT}" \
-        --filter "labels.email_address=${ALERT_EMAIL}" --format "value(name)" | head -1)
+        --filter "labels.email_address=\"${ALERT_EMAIL}\"" --format "value(name)" | head -1)
     if [[ -z "${CHANNEL}" ]]; then
         CHANNEL=$(gcloud beta monitoring channels create --project "${PROJECT}" --type email \
             --display-name "Google system tests alerts" --channel-labels "email_address=${ALERT_EMAIL}" \
