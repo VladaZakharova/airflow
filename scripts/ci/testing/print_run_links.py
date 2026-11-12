@@ -50,6 +50,7 @@ def main() -> None:
     parser.add_argument("--vm", required=True)
     parser.add_argument("--zone", required=True)
     parser.add_argument("--hours", type=int, default=12, help="Length of the time range in the links")
+    parser.add_argument("--output-file", help="Also write the links (Markdown list) to this file")
     args = parser.parse_args()
 
     start = datetime.datetime.now(datetime.UTC) - datetime.timedelta(minutes=5)
@@ -87,9 +88,17 @@ def main() -> None:
     lines += [
         f"- [{name}]({build_logs_url(args.project, query, start, args.hours)})" for name, query in links
     ]
-    lines += [f"- [VM {args.vm}: CPU, memory, disk]({vm_url})", ""]
+    dashboards_url = f"https://console.cloud.google.com/monitoring/dashboards?project={args.project}"
+    lines += [
+        f"- [VM {args.vm}: CPU, memory, disk]({vm_url})",
+        f"- [Dashboard 'Google system tests on PRs': all test VMs, results, alerts]({dashboards_url})",
+        "",
+    ]
     text = "\n".join(lines) + "\n"
     print(text)
+    if args.output_file:
+        with open(args.output_file, "w") as f:
+            f.write("\n".join(line for line in lines if line.startswith("- ")) + "\n")
     summary_file = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary_file:
         with open(summary_file, "a") as f:

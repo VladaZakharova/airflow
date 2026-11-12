@@ -99,6 +99,16 @@ wait_until_runner_online() {
     return 1
 }
 
+report_queue_position() {
+    # Show the run's place in the queue in the PR status comment (only for PR runs in GitHub Actions).
+    [[ -n "${GST_PR:-}" && -n "${GITHUB_TOKEN:-}" && -n "${GITHUB_RUN_ID:-}" ]] || return 0
+    local position waiting
+    read -r position waiting < <(python3 "${MY_DIR}/pr_status_comment.py" position --run-id "${GITHUB_RUN_ID}") || return 0
+    echo "Position in the queue: ${position} of ${waiting}"
+    python3 "${MY_DIR}/pr_status_comment.py" update --pr "${GST_PR}" --run-id "${GITHUB_RUN_ID}" \
+        --state queued --position "${position}" --waiting "${waiting}" || true
+}
+
 wait_for_free_slot() {
     local name=$1 running
     local deadline=$((SECONDS + SLOT_WAIT_SECONDS))
@@ -115,6 +125,7 @@ wait_for_free_slot() {
             return 1
         fi
         echo "${running} of ${MAX_RUNNING_VMS} test VMs are busy; waiting for a free slot..."
+        report_queue_position
         sleep 60
     done
 }
@@ -157,6 +168,11 @@ ensure_vm() {
             --metadata "runner-force-register=true,runner-registration-token=$(get_registration_token)" \
             --metadata-from-file "startup-script=${MY_DIR}/gce_runner_startup.sh"
         gcloud compute instances reset "${name}" --project "${PROJECT}" --zone "${ZONE}"
+    fi
+    if [[ -n "${GITHUB_RUN_ID:-}" ]]; then
+        # Lets the emergency stop find the VM of a run.
+        gcloud compute instances add-labels "${name}" --project "${PROJECT}" --zone "${ZONE}" \
+            --labels "gst-run=${GITHUB_RUN_ID}" || true
     fi
     wait_until_runner_online "${name}"
     gcloud compute instances remove-metadata "${name}" --project "${PROJECT}" --zone "${ZONE}" \

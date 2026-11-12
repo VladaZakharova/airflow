@@ -1,0 +1,70 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# Emergency stop ("red button") for Google system tests on PRs: Actions -> this workflow -> Run workflow.
+# Protected by the same "google-system-tests" environment, so only its reviewers can run it.
+---
+name: Google system tests emergency stop
+run-name: "Emergency stop: ${{ inputs.action }} ${{ inputs.run-id }}"
+on:  # yamllint disable-line rule:truthy
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "stop-run = one run (Tier 1); stop-all = everything + revoke access (Tier 2); restore"
+        required: true
+        type: choice
+        options: [stop-run, stop-all, restore]
+      run-id:
+        description: "GitHub run id to stop (for stop-run; the number in the run's URL)"
+        required: false
+        default: ""
+      pr:
+        description: "PR number of that run (optional, for stop-run)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  emergency:
+    name: "Emergency ${{ inputs.action }}"
+    if: github.repository != 'apache/airflow'
+    environment: google-system-tests
+    runs-on: [self-hosted, google-system-tests]
+    permissions:
+      contents: read
+      actions: write
+      pull-requests: write
+    env:
+      SYSTEM_TESTS_GCP_PROJECT: ${{ vars.SYSTEM_TESTS_GCP_PROJECT }}
+      RUNNER_SERVICE_ACCOUNT: ${{ vars.RUNNER_SERVICE_ACCOUNT }}
+      RUNNER_ZONE: ${{ vars.RUNNER_ZONE }}
+      RUNNER_ADMIN_TOKEN: ${{ secrets.RUNNER_ADMIN_TOKEN }}
+      GITHUB_TOKEN: ${{ github.token }}
+      ACTION: ${{ inputs.action }}
+      RUN_ID: ${{ inputs.run-id }}
+      PR_NUMBER: ${{ inputs.pr }}
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Run the emergency action"
+        run: |
+          echo "## Emergency ${ACTION} by ${GITHUB_ACTOR}" >> "${GITHUB_STEP_SUMMARY}"
+          scripts/ci/testing/gst_emergency.sh "${ACTION}" ${RUN_ID:+"${RUN_ID}"} ${PR_NUMBER:+"${PR_NUMBER}"}
