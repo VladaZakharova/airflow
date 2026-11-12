@@ -201,7 +201,19 @@ jobs:
           echo "  gcloud compute ssh $(hostname -s) --project ${SYSTEM_TESTS_GCP_PROJECT} --zone ${zone} \\"
           echo "    --tunnel-through-iap -- -N -L 8080:localhost:28080"
           echo "then open http://localhost:8080"
+      - name: "Links to the logs and monitoring of this run"
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          zone=$(curl -s -H "Metadata-Flavor: Google" \
+            http://metadata.google.internal/computeMetadata/v1/instance/zone | awk -F/ '{print $NF}')
+          python3 scripts/ci/testing/print_run_links.py --project "${SYSTEM_TESTS_GCP_PROJECT}" \
+            --env-id "${SYSTEM_TESTS_ENV_ID}" --run-id "${GITHUB_RUN_ID}" --pr "${PR_NUMBER}" \
+            --vm "$(hostname -s)" --zone "${zone}"
       - name: "Run system tests"
+        env:
+          GST_PR: ${{ github.event.pull_request.number }}
+          GST_REPOSITORY: ${{ github.repository }}
         run: scripts/ci/testing/run_google_system_tests.sh ${TESTS}
       - name: "Summary"
         if: always()

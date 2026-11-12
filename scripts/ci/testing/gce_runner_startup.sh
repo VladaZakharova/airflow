@@ -51,6 +51,51 @@ if [[ ! -f /var/lib/gst-runner-installed ]]; then
     touch /var/lib/gst-runner-installed
 fi
 
+# Ship the logs of every run (files/system-tests-results/<env id>/) to Cloud Logging, so one run can be
+# found by its file path: Airflow components, task logs and the test driver's events.
+# Logging is best effort: a failed agent installation must not stop the runner registration below.
+if ! dpkg -s google-cloud-ops-agent &>/dev/null; then
+    curl -sSfo /tmp/add-ops-agent-repo.sh https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh &&
+        bash /tmp/add-ops-agent-repo.sh --also-install ||
+        echo "WARNING: could not install the Ops Agent; run logs will not be in Cloud Logging"
+fi
+mkdir -p /etc/google-cloud-ops-agent
+RESULTS="${RUNNER_DIR}/_work/*/*/files/system-tests-results/*"
+cat >/etc/google-cloud-ops-agent/config.yaml <<OPS_AGENT_CONFIG
+logging:
+  receivers:
+    gst-components:
+      type: files
+      include_paths: ["${RESULTS}/components/*.log"]
+      record_log_file_path: true
+    gst-task-logs:
+      type: files
+      include_paths: ["${RESULTS}/task-logs/*/*/*/*.log", "${RESULTS}/task-logs/*/*/*/*/*.log"]
+      record_log_file_path: true
+    gst-events:
+      type: files
+      include_paths: ["${RESULTS}/events.jsonl"]
+      record_log_file_path: true
+  processors:
+    gst-parse-events:
+      type: parse_json
+    gst-event-severity:
+      type: modify_fields
+      fields:
+        severity:
+          move_from: jsonPayload.severity
+  service:
+    pipelines:
+      gst-components:
+        receivers: [gst-components]
+      gst-task-logs:
+        receivers: [gst-task-logs]
+      gst-events:
+        receivers: [gst-events]
+        processors: [gst-parse-events, gst-event-severity]
+OPS_AGENT_CONFIG
+systemctl restart google-cloud-ops-agent || true
+
 cd "${RUNNER_DIR}"
 if [[ ! -f .runner || -n "$(get_metadata runner-force-register)" ]]; then
     if [[ -f .runner ]]; then

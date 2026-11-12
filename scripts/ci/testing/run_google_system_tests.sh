@@ -63,6 +63,8 @@ for test_file in "$@"; do
     fi
 done
 
+# All logs of one run (Airflow components, task logs, test events) go to
+# files/system-tests-results/<SYSTEM_TESTS_ENV_ID>/, so Cloud Logging can show one run by its file path.
 # Sourced inside the container by scripts/in_container/run_system_tests_in_airflow.sh.
 # The Google connection has no key, so the machine's credentials are used.
 cat >files/airflow-breeze-config/environment_variables.env <<EOF
@@ -72,6 +74,11 @@ AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT='{"conn_type": "google_cloud_platform", "extra
 AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=True
 AIRFLOW__CORE__LOAD_EXAMPLES=False
 KEEP_AIRFLOW_ON_SUCCESS=${KEEP_AIRFLOW_ON_SUCCESS:-false}
+AIRFLOW__LOGGING__BASE_LOG_FOLDER=/files/system-tests-results/${SYSTEM_TESTS_ENV_ID}/task-logs
+GST_RUN_ID=${GITHUB_RUN_ID:-}
+GST_PR=${GST_PR:-}
+GST_SHA=${GITHUB_SHA:-}
+GST_REPOSITORY=${GST_REPOSITORY:-}
 EOF
 
 echo "Running $# system test(s) in project ${SYSTEM_TESTS_GCP_PROJECT} with env id ${SYSTEM_TESTS_ENV_ID}"
