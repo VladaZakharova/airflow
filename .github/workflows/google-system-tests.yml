@@ -117,10 +117,43 @@ jobs:
           echo "Test VM: ${name}"
           echo "name=${name}" >> "${GITHUB_OUTPUT}"
 
-  prepare-vm:
-    name: "Start the test VM (after approval)"
+  security-review:
+    name: "Security review (before approval)"
     needs: select-tests
     if: needs.select-tests.outputs.tests != '[]'
+    runs-on: [self-hosted, google-system-tests]
+    timeout-minutes: 15
+    outputs:
+      risk: ${{ steps.review.outputs.risk }}
+    steps:
+      - name: "Make files from the previous run removable"
+        run: sudo chown -R "$(id -u):$(id -g)" "${GITHUB_WORKSPACE}" || true
+      - name: "Checkout"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: "Review the change: diff rules, static patterns and AI (advisory, never blocks)"
+        id: review
+        run: |
+          export PATH="${HOME}/.local/bin:${PATH}"
+          git fetch --no-tags https://github.com/apache/airflow.git main:refs/remotes/upstream/main
+          base=$(git merge-base refs/remotes/upstream/main HEAD)
+          # The system tests CI files are carried in this fork branch only for testing; leave them out.
+          uv run --no-project --with google-genai python scripts/ci/testing/review_pr_security.py \
+            --base "${base}" \
+            --ignore-path .github/workflows/google-system-tests.yml \
+            --ignore-path scripts/ci/testing \
+            --ignore-path scripts/in_container/run_system_tests_in_airflow.sh \
+            --ignore-path scripts/in_container/run_system_tests_in_airflow.py
+
+  prepare-vm:
+    name: "Start the test VM (after approval)"
+    needs: [select-tests, security-review]
+    # The security review is advisory: its result is shown before approval, even if it failed.
+    if: >-
+      !cancelled() && needs.select-tests.result == 'success' &&
+      needs.select-tests.outputs.tests != '[]'
     environment: google-system-tests
     runs-on: [self-hosted, google-system-tests]
     # Waiting for a free test VM slot (MAX_RUNNING_TEST_VMS) can take up to 2 hours.
