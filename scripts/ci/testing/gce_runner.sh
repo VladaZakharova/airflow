@@ -99,6 +99,35 @@ wait_until_runner_online() {
     return 1
 }
 
+count_busy_vms() {
+    # A running test VM holds a slot only while its run's tests are not finished: once "Run system tests
+    # in Airflow" completed, the VM is about to be stopped, and waiting for its stop job could deadlock
+    # (the stop job may be queued behind this waiting job on the manager runner).
+    local name=$1
+    gcloud compute instances list --project "${PROJECT}" \
+        --filter "labels.gst-managed=true AND status:(RUNNING PROVISIONING STAGING) AND name!=${name}" \
+        --format json | python3 -c '
+import json, os, sys, urllib.request
+
+def run_tests_finished(run_id):
+    token, repo = os.environ.get("GITHUB_TOKEN"), os.environ.get("GITHUB_REPOSITORY")
+    if not (token and repo and run_id):
+        return False
+    request = urllib.request.Request(
+        f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/jobs",
+        headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
+    )
+    try:
+        jobs = json.load(urllib.request.urlopen(request, timeout=30))["jobs"]
+    except Exception:
+        return False
+    return any(j["name"].startswith("Run system tests") and j["status"] == "completed" for j in jobs)
+
+vms = json.load(sys.stdin)
+print(sum(1 for vm in vms if not run_tests_finished((vm.get("labels") or {}).get("gst-run"))))
+'
+}
+
 report_queue_position() {
     # Show the run's place in the queue in the PR status comment (only for PR runs in GitHub Actions).
     [[ -n "${GST_PR:-}" && -n "${GITHUB_TOKEN:-}" && -n "${GITHUB_RUN_ID:-}" ]] || return 0
@@ -113,9 +142,7 @@ wait_for_free_slot() {
     local name=$1 running
     local deadline=$((SECONDS + SLOT_WAIT_SECONDS))
     while true; do
-        running=$(gcloud compute instances list --project "${PROJECT}" \
-            --filter "labels.gst-managed=true AND status:(RUNNING PROVISIONING STAGING) AND name!=${name}" \
-            --format 'value(name)' | wc -l)
+        running=$(count_busy_vms "${name}")
         if ((running < MAX_RUNNING_VMS)); then
             echo "${running} of ${MAX_RUNNING_VMS} test VMs are running; starting ${name}"
             return 0

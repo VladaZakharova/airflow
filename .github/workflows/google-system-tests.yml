@@ -151,6 +151,7 @@ jobs:
           uv run --no-project --with google-genai python scripts/ci/testing/review_pr_security.py \
             --base "${base}" \
             --ignore-path .github/workflows/google-system-tests.yml \
+            --ignore-path .github/workflows/google-system-tests-emergency.yml \
             --ignore-path scripts/ci/testing \
             --ignore-path scripts/in_container/run_system_tests_in_airflow.sh \
             --ignore-path scripts/in_container/run_system_tests_in_airflow.py
