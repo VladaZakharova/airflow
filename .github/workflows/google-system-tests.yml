@@ -67,6 +67,9 @@ concurrency:
 
 env:
   SYSTEM_TESTS_GCP_PROJECT: ${{ vars.SYSTEM_TESTS_GCP_PROJECT }}
+  RUNNER_SERVICE_ACCOUNT: ${{ vars.RUNNER_SERVICE_ACCOUNT }}
+  RUNNER_ZONE: ${{ vars.RUNNER_ZONE }}
+  GST_PR: ${{ github.event.pull_request.number }}
 
 jobs:
   select-tests:
@@ -123,6 +126,9 @@ jobs:
     if: needs.select-tests.outputs.tests != '[]'
     runs-on: [self-hosted, google-system-tests]
     timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
     outputs:
       risk: ${{ steps.review.outputs.risk }}
     steps:
@@ -146,6 +152,17 @@ jobs:
             --ignore-path scripts/ci/testing \
             --ignore-path scripts/in_container/run_system_tests_in_airflow.sh \
             --ignore-path scripts/in_container/run_system_tests_in_airflow.py
+      - name: "Show the risk level and 'waiting for approval' on the PR"
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RISK: ${{ steps.review.outputs.risk }}
+          TESTS: ${{ join(fromJSON(needs.select-tests.outputs.tests), ' ') }}
+        run: >-
+          python3 scripts/ci/testing/pr_status_comment.py update --pr "${GST_PR}"
+          --state waiting-approval --risk "${RISK:-UNKNOWN}" --tests "${TESTS}"
+          --run-id "${GITHUB_RUN_ID}"
+          --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
   prepare-vm:
     name: "Start the test VM (after approval)"
@@ -158,6 +175,10 @@ jobs:
     runs-on: [self-hosted, google-system-tests]
     # Waiting for a free test VM slot (MAX_RUNNING_TEST_VMS) can take up to 2 hours.
     timeout-minutes: 160
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
     env:
       VM_NAME: ${{ needs.select-tests.outputs.vm-name }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -165,6 +186,7 @@ jobs:
       RUNNER_MACHINE_TYPE: ${{ vars.RUNNER_MACHINE_TYPE }}
       RUNNER_DISK_SIZE: ${{ vars.RUNNER_DISK_SIZE }}
       MAX_RUNNING_TEST_VMS: ${{ vars.MAX_RUNNING_TEST_VMS }}
+      GITHUB_TOKEN: ${{ github.token }}
     steps:
       - name: "Make files from the previous run removable"
         run: sudo chown -R "$(id -u):$(id -g)" "${GITHUB_WORKSPACE}" || true
@@ -173,13 +195,20 @@ jobs:
         with:
           persist-credentials: false
       - name: "Create, start or reuse the VM of this PR"
-        run: scripts/ci/testing/gce_runner.sh ensure "${VM_NAME}" "${PR_NUMBER}"
+        run: |
+          python3 scripts/ci/testing/pr_status_comment.py update \
+            --pr "${GST_PR}" --run-id "${GITHUB_RUN_ID}" \
+            --state starting --vm "${VM_NAME}" || true
+          scripts/ci/testing/gce_runner.sh ensure "${VM_NAME}" "${PR_NUMBER}"
 
   run-tests:
     name: "Run system tests in Airflow"
     needs: [select-tests, prepare-vm]
     runs-on: ${{ needs.select-tests.outputs.vm-name }}
     timeout-minutes: 600
+    permissions:
+      contents: read
+      pull-requests: write
     env:
       SYSTEM_TESTS_ENV_ID: gh${{ github.run_id }}
       KEEP_AIRFLOW_MINUTES: ${{ inputs.keep-airflow-minutes || vars.KEEP_AIRFLOW_MINUTES || '0' }}
@@ -204,17 +233,35 @@ jobs:
       - name: "Links to the logs and monitoring of this run"
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           zone=$(curl -s -H "Metadata-Flavor: Google" \
             http://metadata.google.internal/computeMetadata/v1/instance/zone | awk -F/ '{print $NF}')
           python3 scripts/ci/testing/print_run_links.py --project "${SYSTEM_TESTS_GCP_PROJECT}" \
             --env-id "${SYSTEM_TESTS_ENV_ID}" --run-id "${GITHUB_RUN_ID}" --pr "${PR_NUMBER}" \
-            --vm "$(hostname -s)" --zone "${zone}"
+            --vm "$(hostname -s)" --zone "${zone}" --output-file "${RUNNER_TEMP}/gst-links.md"
+          python3 scripts/ci/testing/pr_status_comment.py update \
+            --pr "${GST_PR}" --run-id "${GITHUB_RUN_ID}" \
+            --state running --vm "$(hostname -s)" --links-file "${RUNNER_TEMP}/gst-links.md" || true
       - name: "Run system tests"
+        id: run
         env:
-          GST_PR: ${{ github.event.pull_request.number }}
           GST_REPOSITORY: ${{ github.repository }}
         run: scripts/ci/testing/run_google_system_tests.sh ${TESTS}
+      - name: "Show the result on the PR"
+        if: always()
+        env:
+          OUTCOME: ${{ steps.run.outcome }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          case "${OUTCOME}" in
+            success) state=passed ;;
+            cancelled) state=cancelled ;;
+            *) state=failed ;;
+          esac
+          python3 scripts/ci/testing/pr_status_comment.py update \
+            --pr "${GST_PR}" --run-id "${GITHUB_RUN_ID}" \
+            --state "${state}" --links-file "${RUNNER_TEMP}/gst-links.md" || true
       - name: "Summary"
         if: always()
         run: cat files/system-tests-results/summary.md >> "${GITHUB_STEP_SUMMARY}" || true
