@@ -140,6 +140,9 @@ ensure_vm() {
                 --metadata-from-file "startup-script=${MY_DIR}/gce_runner_startup.sh"
             ;;
         TERMINATED | STOPPING)
+            # The VM keeps the startup script it was created with; refresh it so changes apply on boot.
+            gcloud compute instances add-metadata "${name}" --project "${PROJECT}" --zone "${ZONE}" \
+                --metadata-from-file "startup-script=${MY_DIR}/gce_runner_startup.sh"
             gcloud compute instances start "${name}" --project "${PROJECT}" --zone "${ZONE}"
             ;;
         SUSPENDED | SUSPENDING)

@@ -29,7 +29,9 @@ Exit code 1 when any test failed, timed out or could not be loaded.
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
+import os
 import subprocess
 import sys
 import time
@@ -58,6 +60,30 @@ class TestResult:
     duration_minutes: float | None = None
     failed_tasks: list[str] = field(default_factory=list)
     details: str = ""
+
+
+def emit_event(event: str, severity: str = "INFO", **fields) -> None:
+    """
+    Append a structured event to SYSTEM_TESTS_EVENTS_FILE, which the VM's logging agent ships to Cloud Logging.
+
+    Every event carries the GitHub run id, PR and commit, so one query shows the results of one PR's run.
+    """
+    events_file = os.environ.get("SYSTEM_TESTS_EVENTS_FILE")
+    if not events_file:
+        return
+    record = {
+        "time": datetime.datetime.now(datetime.UTC).isoformat(),
+        "severity": severity,
+        "event": event,
+        "run_id": os.environ.get("GST_RUN_ID", ""),
+        "pr": os.environ.get("GST_PR", ""),
+        "commit": os.environ.get("GST_SHA", ""),
+        "repository": os.environ.get("GST_REPOSITORY", ""),
+        "env_id": os.environ.get("SYSTEM_TESTS_ENV_ID", ""),
+        **fields,
+    }
+    with open(events_file, "a") as f:
+        f.write(json.dumps(record) + "\n")
 
 
 def run_airflow_cli(*args: str) -> None:
@@ -177,23 +203,49 @@ def main() -> int:
         print(f"No system tests found in {args.dags_folder}")
         return 1
 
+    emit_event("run_started", tests=[r.file for r in results])
     wait_until_parsed(results, args.parse_timeout_minutes * 60)
+    for result in results:
+        if result.status == "IMPORT_ERROR":
+            emit_event(
+                "test_finished", "ERROR", test=result.file, status=result.status, details=result.details
+            )
     timeout_seconds = args.timeout_minutes * 60
     while True:
         running = [r for r in results if r.status == "RUNNING"]
         for result in running:
             update_running(result, timeout_seconds)
+            if result.status != "RUNNING":
+                emit_event(
+                    "test_finished",
+                    "INFO" if result.status == "SUCCESS" else "ERROR",
+                    test=result.file,
+                    dag_id=result.dag_id,
+                    dag_run_id=result.run_id,
+                    status=result.status,
+                    minutes=result.duration_minutes,
+                    failed_tasks=result.failed_tasks,
+                    details=result.details,
+                )
         running = [r for r in results if r.status == "RUNNING"]
         for result in [r for r in results if r.status == "PENDING"][: args.max_parallel - len(running)]:
             print(f"Starting {result.dag_id} ({result.file})")
             start_dag_run(result)
+            emit_event("test_started", test=result.file, dag_id=result.dag_id)
         if all(r.status not in ("PENDING", "RUNNING") for r in results):
             break
         print(", ".join(f"{r.dag_id or r.file}: {r.status}" for r in results), flush=True)
         time.sleep(POLL_SECONDS)
 
     write_summary(results, args.output_dir)
-    return 0 if all(r.status == "SUCCESS" for r in results) else 1
+    passed = all(r.status == "SUCCESS" for r in results)
+    emit_event(
+        "run_finished",
+        "INFO" if passed else "ERROR",
+        status="SUCCESS" if passed else "FAILED",
+        results={r.file: r.status for r in results},
+    )
+    return 0 if passed else 1
 
 
 if __name__ == "__main__":

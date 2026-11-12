@@ -18,9 +18,6 @@
 # Runs inside the breeze container: start a full Airflow, then run the system tests in /files/dags.
 set -euo pipefail
 
-LOGS_DIR=/files/system-tests-results/components
-mkdir -p "${LOGS_DIR}"
-
 # `breeze run` skips the breeze entrypoint initialization (configure_environment.sh), which normally sets
 # the Dags folder and sources the variables file, so both are done here.
 export AIRFLOW__CORE__DAGS_FOLDER=/files/dags
@@ -31,6 +28,12 @@ set +o allexport
 # The system tests import helpers from the "system" package of the Google provider tests.
 export PYTHONPATH="${PYTHONPATH:-}:/opt/airflow/providers/google/tests"
 echo "Dags folder: ${AIRFLOW__CORE__DAGS_FOLDER}, project: ${SYSTEM_TESTS_GCP_PROJECT}, env id: ${SYSTEM_TESTS_ENV_ID}"
+
+# One folder per run: the VM's logging agent ships it to Cloud Logging, filtered by this path.
+RUN_LOGS_DIR="/files/system-tests-results/${SYSTEM_TESTS_ENV_ID}"
+LOGS_DIR="${RUN_LOGS_DIR}/components"
+mkdir -p "${LOGS_DIR}" "${AIRFLOW__LOGGING__BASE_LOG_FOLDER}"
+export SYSTEM_TESTS_EVENTS_FILE="${RUN_LOGS_DIR}/events.jsonl"
 
 airflow db migrate
 
