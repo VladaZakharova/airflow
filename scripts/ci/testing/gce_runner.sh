@@ -85,13 +85,17 @@ get_registration_token() {
 
 wait_until_runner_online() {
     local name=$1
-    local deadline=$((SECONDS + ONLINE_TIMEOUT_SECONDS))
+    local deadline=$((SECONDS + ONLINE_TIMEOUT_SECONDS)) checks=0
     while ((SECONDS < deadline)); do
         if [[ "$(get_runner_field "${name}" status)" == "online" ]]; then
             echo "Runner ${name} is online"
             return 0
         fi
         echo "Waiting for runner ${name} to come online..."
+        # Refresh the queue shown on other PRs about once a minute (GitHub API rate limits).
+        if ((++checks % 3 == 1)); then
+            refresh_queue_comments
+        fi
         sleep 20
     done
     echo "Runner ${name} did not come online in ${ONLINE_TIMEOUT_SECONDS}s; see the VM serial console:"
@@ -128,14 +132,15 @@ print(sum(1 for vm in vms if not run_tests_finished((vm.get("labels") or {}).get
 '
 }
 
-report_queue_position() {
-    # Show the run's place in the queue in the PR status comment (only for PR runs in GitHub Actions).
-    [[ -n "${GST_PR:-}" && -n "${GITHUB_TOKEN:-}" && -n "${GITHUB_RUN_ID:-}" ]] || return 0
-    local position waiting
-    read -r position waiting < <(python3 "${MY_DIR}/pr_status_comment.py" position --run-id "${GITHUB_RUN_ID}") || return 0
-    echo "Position in the queue: ${position} of ${waiting}"
-    python3 "${MY_DIR}/pr_status_comment.py" update --pr "${GST_PR}" --run-id "${GITHUB_RUN_ID}" \
-        --state queued --position "${position}" --waiting "${waiting}" || true
+refresh_queue_comments() {
+    # Show "approved, position N of M" on every waiting PR. Any manager job refreshes all of them, so an
+    # approved PR whose own job still waits for a manager runner is not shown as waiting for approval.
+    [[ -n "${GITHUB_TOKEN:-}" && -n "${GITHUB_REPOSITORY:-}" ]] || return 0
+    local holding
+    holding=$(gcloud compute instances list --project "${PROJECT}" \
+        --filter "labels.gst-managed=true AND status:(RUNNING PROVISIONING STAGING)" \
+        --format 'value(labels.gst-run)' | tr '\n' ' ')
+    python3 "${MY_DIR}/pr_status_comment.py" refresh-queue --holding-slot "${holding}" || true
 }
 
 wait_for_free_slot() {
@@ -152,7 +157,7 @@ wait_for_free_slot() {
             return 1
         fi
         echo "${running} of ${MAX_RUNNING_VMS} test VMs are busy; waiting for a free slot..."
-        report_queue_position
+        refresh_queue_comments
         sleep 60
     done
 }
@@ -222,6 +227,7 @@ sys.exit(0 if pending else 1)
 
 stop_vm() {
     local name=$1
+    refresh_queue_comments
     if has_newer_pending_run; then
         echo "A newer run of this branch is pending; leaving ${name} running for it"
         return 0

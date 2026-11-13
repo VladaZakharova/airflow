@@ -290,6 +290,7 @@ jobs:
     permissions:
       contents: read
       actions: read
+      pull-requests: write
     env:
       VM_NAME: ${{ needs.select-tests.outputs.vm-name }}
       BRANCH: ${{ github.head_ref || github.ref_name }}
