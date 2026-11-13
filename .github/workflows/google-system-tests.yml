@@ -154,7 +154,33 @@ jobs:
             --ignore-path .github/workflows/google-system-tests-emergency.yml \
             --ignore-path scripts/ci/testing \
             --ignore-path scripts/in_container/run_system_tests_in_airflow.sh \
-            --ignore-path scripts/in_container/run_system_tests_in_airflow.py
+            --ignore-path scripts/in_container/run_system_tests_in_airflow.py \
+            --record-file "${RUNNER_TEMP}/security-review.json"
+      - name: "Record the review in Cloud Logging (HIGH risk sends an email alert)"
+        if: always()
+        env:
+          RISK: ${{ steps.review.outputs.risk }}
+        run: |
+          export PATH="${PATH}:/snap/bin"
+          record="${RUNNER_TEMP}/security-review.json"
+          [[ -f "${record}" ]] || exit 0
+          python3 - "${record}" <<'PYTHON' > "${RUNNER_TEMP}/security-review-log.json"
+          import json, os, sys
+          record = json.load(open(sys.argv[1]))
+          env = os.environ
+          repo_url = f"{env['GITHUB_SERVER_URL']}/{env['GITHUB_REPOSITORY']}"
+          record.update(
+              pr=env.get("GST_PR", ""),
+              run_id=env["GITHUB_RUN_ID"],
+              run_url=f"{repo_url}/actions/runs/{env['GITHUB_RUN_ID']}",
+              repository=env["GITHUB_REPOSITORY"],
+              commit=env["GITHUB_SHA"],
+          )
+          print(json.dumps(record))
+          PYTHON
+          case "${RISK}" in HIGH) severity=ERROR ;; MEDIUM) severity=WARNING ;; *) severity=INFO ;; esac
+          gcloud logging write gst-security-review "$(cat "${RUNNER_TEMP}/security-review-log.json")" \
+            --payload-type=json --severity="${severity}" --project "${SYSTEM_TESTS_GCP_PROJECT}" || true
       - name: "Show the risk level and 'waiting for approval' on the PR"
         if: always()
         env:

@@ -172,7 +172,7 @@ set_gpu_quota_zero() {
         --quota-id GPUS-ALL-REGIONS-per-project --preferred-value 0 --preference-id gst-no-gpus \
         --allow-high-percentage-quota-decrease \
         --justification "System tests do not use GPUs" --quiet 2>&1) && return 0
-    if grep -q "already exists" <<<"${output}"; then
+    if grep -qE "already exists?" <<<"${output}"; then
         echo "    GPU quota preference already exists"
         return 0
     fi
@@ -218,7 +218,10 @@ PYTHON
 }
 
 create_anomaly_alerts() {
-    local stop="If this is not expected, open the 'Google system tests emergency stop' workflow in GitHub."
+    local stop="If this is not expected, add the label gst-stop to the PR (or gst-stop-all) in GitHub."
+    create_log_alert high_risk "HIGH risk PR waiting for approval" \
+        'logName="projects/'"${PROJECT}"'/logs/gst-security-review" AND jsonPayload.risk="HIGH"' \
+        "The security review rated a PR as HIGH risk before its Google system tests run. Open the run (jsonPayload.run_url in the log entry), read the findings and approve only if you accept the risk."
     create_log_alert gpu "GPU, TPU or large VM created" \
         'protoPayload.methodName=~"compute.instances.insert" AND (protoPayload.request.guestAccelerators:* OR protoPayload.request.machineType=~"(a2|a3|g2|m1|m2|m3|n2-highmem-(64|80|96|128)|n2-standard-(64|80|96|128)|c2-standard-60)")' \
         "A VM with accelerators or a very large machine type was created. System tests do not need them. ${stop}"
