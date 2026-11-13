@@ -19,8 +19,9 @@
 Keep one status comment per PR for its Google system tests run, and compute queue positions.
 
 Commands:
-  update   create or edit the PR's status comment (state, risk, queue position, links)
-  position print "<position> <waiting>" of a run among runs waiting for a test VM
+  update         create or edit the PR's status comment (state, risk, queue position, links)
+  position       print "<position> <waiting>" of a run among runs waiting for a test VM
+  refresh-queue  show the current queue position on every approved, waiting PR
 
 The comment carries its data in a hidden JSON block, so each update keeps what earlier steps wrote
 (e.g. the risk level from the security review).
@@ -153,27 +154,66 @@ def update(args: argparse.Namespace) -> None:
     if args.links_file and os.path.exists(args.links_file):
         data["links"] = open(args.links_file).read().strip()
     body = render(data)
+    if comment and comment["body"] == body:
+        return
     if comment:
         call_github("PATCH", f"/repos/{repo}/issues/comments/{comment['id']}", {"body": body})
     else:
         call_github("POST", f"/repos/{repo}/issues/{args.pr}/comments", {"body": body})
 
 
-def position(args: argparse.Namespace) -> None:
-    """Runs waiting for a VM have their prepare job in progress; order them by when that job started."""
-    repo = os.environ["GITHUB_REPOSITORY"]
-    runs = call_github(
-        "GET", f"/repos/{repo}/actions/workflows/{WORKFLOW_FILE}/runs?status=in_progress&per_page=50"
-    )["workflow_runs"]
+def compute_queue(repo: str, holding_slot: set[str]) -> list[tuple[int, str]]:
+    """
+    Return [(run id, PR number)] of approved runs waiting for a test VM, in queue order.
+
+    An approved run's prepare job is "queued" (waiting for a manager runner) or "in_progress" (waiting for a
+    free slot); runs that wait for approval have it "waiting". Runs in ``holding_slot`` already got a VM.
+    """
     waiting = []
-    for run in runs:
-        for job in call_github("GET", f"/repos/{repo}/actions/runs/{run['id']}/jobs")["jobs"]:
-            if job["name"].startswith(PREPARE_JOB_PREFIX) and job["status"] == "in_progress":
-                waiting.append((job["started_at"], run["id"]))
+    for status in ("in_progress", "queued"):
+        runs = call_github(
+            "GET", f"/repos/{repo}/actions/workflows/{WORKFLOW_FILE}/runs?status={status}&per_page=50"
+        )["workflow_runs"]
+        for run in runs:
+            if str(run["id"]) in holding_slot:
+                continue
+            for job in call_github("GET", f"/repos/{repo}/actions/runs/{run['id']}/jobs")["jobs"]:
+                if job["name"].startswith(PREPARE_JOB_PREFIX) and job["status"] in ("queued", "in_progress"):
+                    prs = run.get("pull_requests") or []
+                    waiting.append((job["created_at"], run["id"], str(prs[0]["number"]) if prs else ""))
     waiting.sort()
-    ids = [run_id for _, run_id in waiting]
+    return [(run_id, pr) for _, run_id, pr in waiting]
+
+
+def position(args: argparse.Namespace) -> None:
+    queue = compute_queue(os.environ["GITHUB_REPOSITORY"], set(args.holding_slot.split()))
+    ids = [run_id for run_id, _ in queue]
     pos = ids.index(int(args.run_id)) + 1 if int(args.run_id) in ids else 0
     print(pos, len(ids))
+
+
+def refresh_queue(args: argparse.Namespace) -> None:
+    """Show the queue position on every waiting PR, so approved PRs are not shown as waiting for approval."""
+    queue = compute_queue(os.environ["GITHUB_REPOSITORY"], set(args.holding_slot.split()))
+    for index, (run_id, pr) in enumerate(queue, 1):
+        if not pr:
+            continue
+        update(
+            argparse.Namespace(
+                pr=pr,
+                state="queued",
+                run_id=str(run_id),
+                risk=None,
+                run_url=None,
+                vm=None,
+                note=None,
+                tests=None,
+                position=index,
+                waiting=len(queue),
+                links_file=None,
+            )
+        )
+    print(f"Queue: {len(queue)} approved run(s) waiting for a test VM")
 
 
 def main() -> int:
@@ -195,13 +235,18 @@ def main() -> int:
     p_update.add_argument("--links-file")
     p_position = sub.add_parser("position")
     p_position.add_argument("--run-id", required=True)
+    p_position.add_argument("--holding-slot", default="", help="Run ids that already have a test VM")
+    p_refresh = sub.add_parser("refresh-queue")
+    p_refresh.add_argument("--holding-slot", default="", help="Run ids that already have a test VM")
     args = parser.parse_args()
     if args.command == "update":
         if not args.pr:
             return 0  # manual runs without a PR have no comment
         update(args)
-    else:
+    elif args.command == "position":
         position(args)
+    else:
+        refresh_queue(args)
     return 0
 
 
