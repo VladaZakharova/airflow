@@ -1,0 +1,114 @@
+{
+  "displayName": "Google system tests on PRs",
+  "gridLayout": {
+    "columns": "2",
+    "widgets": [
+      {
+        "title": "Test VMs running",
+        "scorecard": {
+          "timeSeriesQuery": {
+            "timeSeriesFilter": {
+              "filter": "metric.type=\"compute.googleapis.com/instance/uptime\" resource.type=\"gce_instance\" metadata.user_labels.\"gst-managed\"=\"true\"",
+              "aggregation": {
+                "alignmentPeriod": "60s",
+                "perSeriesAligner": "ALIGN_RATE",
+                "crossSeriesReducer": "REDUCE_COUNT"
+              }
+            }
+          }
+        }
+      },
+      {
+        "title": "CPU utilization per test VM",
+        "xyChart": {
+          "dataSets": [
+            {
+              "plotType": "LINE",
+              "timeSeriesQuery": {
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"compute.googleapis.com/instance/cpu/utilization\" resource.type=\"gce_instance\" metadata.user_labels.\"gst-managed\"=\"true\"",
+                  "aggregation": {
+                    "alignmentPeriod": "60s",
+                    "perSeriesAligner": "ALIGN_MEAN",
+                    "groupByFields": [
+                      "metadata.system_labels.\"name\""
+                    ],
+                    "crossSeriesReducer": "REDUCE_MEAN"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "title": "Memory used per test VM (%)",
+        "xyChart": {
+          "dataSets": [
+            {
+              "plotType": "LINE",
+              "timeSeriesQuery": {
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"agent.googleapis.com/memory/percent_used\" resource.type=\"gce_instance\" metric.label.state=\"used\" metadata.user_labels.\"gst-managed\"=\"true\"",
+                  "aggregation": {
+                    "alignmentPeriod": "60s",
+                    "perSeriesAligner": "ALIGN_MEAN",
+                    "groupByFields": [
+                      "metadata.system_labels.\"name\""
+                    ],
+                    "crossSeriesReducer": "REDUCE_MEAN"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "title": "Outbound traffic per test VM (bytes/s)",
+        "xyChart": {
+          "dataSets": [
+            {
+              "plotType": "LINE",
+              "timeSeriesQuery": {
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"compute.googleapis.com/instance/network/sent_bytes_count\" resource.type=\"gce_instance\" metadata.user_labels.\"gst-managed\"=\"true\"",
+                  "aggregation": {
+                    "alignmentPeriod": "60s",
+                    "perSeriesAligner": "ALIGN_RATE",
+                    "groupByFields": [
+                      "metadata.system_labels.\"name\""
+                    ],
+                    "crossSeriesReducer": "REDUCE_SUM"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "title": "Test results (events of all runs)",
+        "logsPanel": {
+          "filter": "logName=\"projects/__PROJECT__/logs/gst-events\" jsonPayload.event=(\"test_finished\" OR \"run_finished\")",
+          "resourceNames": [
+            "projects/__PROJECT__"
+          ]
+        }
+      },
+      {
+        "title": "Errors from Airflow components and tasks",
+        "logsPanel": {
+          "filter": "logName=~\"projects/__PROJECT__/logs/gst-\" severity>=ERROR",
+          "resourceNames": [
+            "projects/__PROJECT__"
+          ]
+        }
+      },
+      {
+        "title": "Open alerts (incidents)",
+        "incidentList": {}
+      }
+    ]
+  }
+}
