@@ -253,6 +253,7 @@ def main() -> int:
     parser.add_argument("--location", default="global")
     parser.add_argument("--model", default=os.environ.get("SECURITY_REVIEW_MODEL", "gemini-3.7-flash"))
     parser.add_argument("--no-ai", action="store_true")
+    parser.add_argument("--record-file", help="Also write the result as JSON (for Cloud Logging and alerts)")
     parser.add_argument(
         "--ignore-path",
         action="append",
@@ -279,6 +280,17 @@ def main() -> int:
     if summary_file:
         with open(summary_file, "a") as f:
             f.write(text)
+    if args.record_file:
+        record = {
+            "event": "security_review",
+            "risk": report.risk,
+            "ai_status": report.ai_status,
+            "ai_summary": report.ai_summary,
+            "findings": [f"{f.level} {f.check} {f.location}: {f.reason}" for f in report.findings][:20],
+            "changed_files": len(changed_files),
+        }
+        with open(args.record_file, "w") as f:
+            json.dump(record, f)
     output_file = os.environ.get("GITHUB_OUTPUT")
     if output_file:
         with open(output_file, "a") as f:
