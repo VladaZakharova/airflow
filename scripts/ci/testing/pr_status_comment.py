@@ -45,7 +45,7 @@ WORKFLOW_FILE = "google-system-tests.yml"
 
 STATES = {
     "waiting-approval": ("⏸️", "Waiting for approval by a trusted approver"),
-    "queued": ("⏳", "Approved, waiting for a free test VM"),
+    "queued": ("⏳", "Approved, in the queue"),
     "starting": ("🚀", "Starting the test VM"),
     "running": ("🏃", "Running the system tests"),
     "passed": ("✅", "All system tests passed"),
