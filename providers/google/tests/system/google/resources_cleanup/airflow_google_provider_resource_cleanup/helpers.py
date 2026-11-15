@@ -21,11 +21,24 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import shlex
+import subprocess
+import threading
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import airflow_google_provider_resource_cleanup.constants as c
+import google.auth
+from google.auth.transport.requests import Request
+
+if TYPE_CHECKING:
+    from google.auth.credentials import Credentials
+
+GOOGLE_CLOUD_PLATFORM_SCOPE = "https://www.googleapis.com/auth/cloud-platform"
+
+_google_credentials: Credentials | None = None
+_google_credentials_lock = threading.Lock()
 
 
 def run_command(cmd: str, log_prefix: str = ""):
@@ -33,19 +46,45 @@ def run_command(cmd: str, log_prefix: str = ""):
     os.system(cmd)
 
 
-async def run_command_async(cmd: str, log_prefix: str = ""):
+async def run_command_async(
+    cmd: str,
+    log_prefix: str = "",
+    *,
+    env: dict[str, str] | None = None,
+    check: bool = False,
+    ignore_not_found: bool = False,
+) -> bool | None:
     print(f'{log_prefix}Executing the command: "{cmd}"...')
     process = await asyncio.create_subprocess_shell(
         cmd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
+        env=env,
     )
     stdout, stderr = await process.communicate()
     print(f"{log_prefix}Command exited with code: {process.returncode}")
-    if stdout:
-        print(f"{log_prefix}Stdout:\n{stdout.decode().strip()}")
-    if stderr:
-        print(f"{log_prefix}Stderr:\n{stderr.decode().strip()}")
+    stdout_text = (stdout or b"").decode().strip()
+    stderr_text = (stderr or b"").decode().strip()
+    if stdout_text:
+        print(f"{log_prefix}Stdout:\n{stdout_text}")
+    if stderr_text:
+        print(f"{log_prefix}Stderr:\n{stderr_text}")
+    if process.returncode:
+        if ignore_not_found and any(
+            marker in stderr_text.lower()
+            for marker in ("not_found", "not found", "does not exist", "matched no objects or buckets")
+        ):
+            print(f"{log_prefix}Resource no longer exists.")
+            return False
+        if check:
+            raise subprocess.CalledProcessError(
+                process.returncode,
+                cmd,
+                output=stdout_text,
+                stderr=stderr_text,
+            )
+
+    return None
 
 
 def get_resources_file(
@@ -139,16 +178,51 @@ def get_resource_name_for_compute(resource: dict) -> str:
     return resource_path.replace("//compute.googleapis.com/", "")
 
 
-async def curl(url, method="DELETE", log_prefix=""):
-    cmd = f"""
-        curl -X {method} \
-            -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-            "{url}"
-    """
-    try:
-        await run_command_async(cmd)
-    except Exception as e:
-        print(f'{log_prefix}Error while running the curl command: "{cmd}"!', e)
+def _get_access_token() -> str:
+    global _google_credentials
+
+    with _google_credentials_lock:
+        if _google_credentials is None:
+            _google_credentials, _ = google.auth.default(scopes=[GOOGLE_CLOUD_PLATFORM_SCOPE])
+        if not _google_credentials.valid:
+            _google_credentials.refresh(Request())
+        if not _google_credentials.token:
+            raise RuntimeError("Google credentials did not provide an access token.")
+        return _google_credentials.token
+
+
+async def curl(
+    url: str,
+    method: str = "DELETE",
+    log_prefix: str = "",
+    data: dict[str, Any] | None = None,
+) -> bool | None:
+    access_token = await asyncio.to_thread(_get_access_token)
+    env = os.environ.copy()
+    env["GOOGLE_OAUTH_ACCESS_TOKEN"] = access_token
+    command = [
+        "curl",
+        "--fail",
+        "--silent",
+        "--show-error",
+        "--http1.1",
+        "--retry",
+        "5",
+        "--retry-delay",
+        "5",
+        "--retry-max-time",
+        "120",
+        "-X",
+        shlex.quote(method),
+        '-H "Authorization: Bearer $GOOGLE_OAUTH_ACCESS_TOKEN"',
+        '-H "Content-Type: application/json; charset=utf-8"',
+    ]
+    if data is not None:
+        command.extend(("--data", shlex.quote(json.dumps(data))))
+    command.append(shlex.quote(url))
+
+    cmd = " ".join(command)
+    return await run_command_async(cmd, log_prefix, env=env, check=True, ignore_not_found=True)
 
 
 def dump_json(file_path: Path, data: JsonData) -> None:

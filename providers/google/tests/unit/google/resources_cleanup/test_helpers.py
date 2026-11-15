@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import subprocess
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -241,10 +242,102 @@ async def test_run_command_async():
     process = MagicMock()
     process.returncode = 0
     process.communicate = AsyncMock(return_value=(b"out", b"err"))
+    env = {"TEST_ENV": "value"}
 
     with patch.object(
         helpers.asyncio, "create_subprocess_shell", AsyncMock(return_value=process)
     ) as mock_create:
-        await helpers.run_command_async("echo test")
+        result = await helpers.run_command_async("echo test", env=env)
 
-    mock_create.assert_awaited_once()
+    assert result is None
+    mock_create.assert_awaited_once_with(
+        "echo test",
+        stdout=helpers.asyncio.subprocess.PIPE,
+        stderr=helpers.asyncio.subprocess.PIPE,
+        env=env,
+    )
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("stdout", [b"", None])
+@pytest.mark.parametrize(
+    "stderr",
+    [
+        "NOT_FOUND: resource is gone",
+        "resource was not found",
+        "resource does not exist",
+        "matched no objects or buckets",
+    ],
+)
+async def test_checked_command_accepts_resource_that_is_already_gone(stdout, stderr):
+    process = MagicMock(returncode=1)
+    process.communicate = AsyncMock(return_value=(stdout, stderr.encode()))
+
+    with patch.object(helpers.asyncio, "create_subprocess_shell", return_value=process):
+        result = await helpers.run_command_async("delete command", check=True, ignore_not_found=True)
+
+    assert result is False
+
+
+@pytest.mark.anyio
+async def test_checked_command_raises_for_real_delete_failure():
+    process = MagicMock(returncode=1)
+    process.communicate = AsyncMock(return_value=(b"", b"PERMISSION_DENIED"))
+
+    with (
+        patch.object(helpers.asyncio, "create_subprocess_shell", return_value=process),
+        pytest.raises(subprocess.CalledProcessError),
+    ):
+        await helpers.run_command_async("delete command", check=True, ignore_not_found=True)
+
+
+def test_get_access_token_refreshes_and_reuses_credentials(monkeypatch):
+    credentials = MagicMock(valid=False, token=None)
+
+    def refresh(_request):
+        credentials.valid = True
+        credentials.token = "test-token"
+
+    credentials.refresh.side_effect = refresh
+    mock_default = MagicMock(return_value=(credentials, None))
+    monkeypatch.setattr(helpers, "_google_credentials", None)
+    monkeypatch.setattr(helpers.google.auth, "default", mock_default)
+
+    assert helpers._get_access_token() == "test-token"
+    assert helpers._get_access_token() == "test-token"
+
+    mock_default.assert_called_once_with(scopes=[helpers.GOOGLE_CLOUD_PLATFORM_SCOPE])
+    credentials.refresh.assert_called_once()
+
+
+def test_get_access_token_requires_token(monkeypatch):
+    credentials = MagicMock(valid=True, token=None)
+    monkeypatch.setattr(helpers, "_google_credentials", credentials)
+
+    with pytest.raises(RuntimeError, match="did not provide an access token"):
+        helpers._get_access_token()
+
+
+@pytest.mark.anyio
+async def test_curl_uses_http1_and_retries():
+    url = "https://dlp.googleapis.com/v2/projects/test-project/locations/global/dlpJobs/test-job"
+    data = {"key": "value"}
+
+    with (
+        patch.object(helpers, "_get_access_token", return_value="test-token") as mock_get_token,
+        patch.object(helpers, "run_command_async", AsyncMock(return_value=None)) as mock_run,
+    ):
+        await helpers.curl(url, method="PUT", log_prefix="[1/1] ", data=data)
+
+    command = mock_run.await_args.args[0]
+    assert command.startswith("curl --fail --silent --show-error --http1.1")
+    assert "--retry 5 --retry-delay 5 --retry-max-time 120" in command
+    assert "-X PUT" in command
+    assert "Authorization: Bearer $GOOGLE_OAUTH_ACCESS_TOKEN" in command
+    assert "--data" in command
+    assert url in command
+    assert "test-token" not in command
+    assert mock_run.await_args.kwargs["env"]["GOOGLE_OAUTH_ACCESS_TOKEN"] == "test-token"
+    assert mock_run.await_args.kwargs["check"] is True
+    assert mock_run.await_args.kwargs["ignore_not_found"] is True
+    mock_get_token.assert_called_once_with()

@@ -178,9 +178,13 @@ def test_get_delete_handlers_registers_implemented_handlers():
         "dataflow",
         "datafusion",
         "dataproc_metastore",
+        "dlp",
         "gke",
         "kafka",
         "spanner",
+        "sqladmin",
+        "storage",
+        "storagetransfer",
     ]:
         assert asset_type in handlers
 
