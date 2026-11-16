@@ -19,7 +19,7 @@
 # One-time setup of a dedicated Google Cloud project for Google system tests on PRs (proof of concept).
 # Idempotent: safe to run again. Run it as a project owner of the new project.
 #
-# Usage: gst_project_setup.sh <project-id> <manager-service-account> <alert-email> [region]
+# Usage: gst_project_setup.sh <project-id> <manager-service-account> <alert-email> [region] [github-repo]
 #
 # Sets up: APIs, the test identity (service account gst-runner), permissions for the manager runner,
 # network (Cloud Router + NAT, IAP SSH firewall), Data Access audit logs for IAM, project Org Policies
@@ -31,6 +31,7 @@ PROJECT="${1:?project id}"
 MANAGER_SA="${2:?manager service account email (the VM running the manager runner)}"
 ALERT_EMAIL="${3:?email address for alerts}"
 REGION="${4:-us-central1}"
+GITHUB_REPO="${5:-VladaZakharova/airflow}"
 RUNNER_SA="gst-runner@${PROJECT}.iam.gserviceaccount.com"
 # Never stop for questions, and bill API quota to the test project (not the caller's default project).
 export CLOUDSDK_CORE_DISABLE_PROMPTS=1
@@ -192,18 +193,23 @@ create_alert_channel() {
 }
 
 create_log_alert() {
-    local id=$1 title=$2 filter=$3 doc=$4 tmp
+    # Arguments: title, log filter, email subject, email body (Markdown), label extractors (JSON object).
+    # Extracted labels are shown in the email via ${log.extracted_label.<name>}.
+    local title=$1 filter=$2 subject=$3 doc=$4 extractors=$5 tmp
     tmp=$(mktemp)
-    python3 - "${tmp}" "${title}" "${filter}" "${doc}" "${CHANNEL}" <<'PYTHON'
+    python3 - "${tmp}" "${title}" "${filter}" "${subject}" "${doc}" "${extractors}" "${CHANNEL}" <<'PYTHON'
 import json, sys
-path, title, log_filter, doc, channel = sys.argv[1:]
+path, title, log_filter, subject, doc, extractors, channel = sys.argv[1:]
 json.dump({
     "displayName": f"[gst] {title}",
     "combiner": "OR",
-    "conditions": [{"displayName": title, "conditionMatchedLog": {"filter": log_filter}}],
+    "conditions": [{
+        "displayName": title,
+        "conditionMatchedLog": {"filter": log_filter, "labelExtractors": json.loads(extractors)},
+    }],
     "alertStrategy": {"notificationRateLimit": {"period": "300s"}, "autoClose": "1800s"},
     "notificationChannels": [channel],
-    "documentation": {"mimeType": "text/markdown", "content": doc},
+    "documentation": {"mimeType": "text/markdown", "subject": subject[:255], "content": doc},
 }, open(path, "w"))
 PYTHON
     local existing
@@ -214,29 +220,57 @@ PYTHON
     else
         gcloud alpha monitoring policies create --project "${PROJECT}" --policy-from-file "${tmp}" >/dev/null
     fi
-    echo "    alert: ${title} (${id})"
+    echo "    alert: ${title}"
 }
 
+# The ${log.extracted_label.*} placeholders are filled in by Cloud Monitoring, not by the shell.
+# shellcheck disable=SC2016
 create_anomaly_alerts() {
-    local stop="If this is not expected, add the label gst-stop to the PR (or gst-stop-all) in GitHub."
-    create_log_alert high_risk "HIGH risk PR waiting for approval" \
-        'logName="projects/'"${PROJECT}"'/logs/gst-security-review" AND jsonPayload.risk="HIGH"' \
-        "The security review rated a PR as HIGH risk before its Google system tests run. Open the run (jsonPayload.run_url in the log entry), read the findings and approve only if you accept the risk."
-    create_log_alert gpu "GPU, TPU or large VM created" \
-        'protoPayload.methodName=~"compute.instances.insert" AND (protoPayload.request.guestAccelerators:* OR protoPayload.request.machineType=~"(a2|a3|g2|m1|m2|m3|n2-highmem-(64|80|96|128)|n2-standard-(64|80|96|128)|c2-standard-60)")' \
-        "A VM with accelerators or a very large machine type was created. System tests do not need them. ${stop}"
-    create_log_alert iam "IAM policy change or service-account key creation" \
-        'protoPayload.methodName=("SetIamPolicy" OR "google.iam.admin.v1.CreateServiceAccountKey" OR "google.iam.admin.v1.CreateServiceAccount" OR "google.iam.admin.v1.CreateRole") AND NOT protoPayload.authenticationInfo.principalEmail=~"^(user:)?[^@]+@(google\.com)$"' \
-        "IAM was changed by a non-human identity (possibly a test run). ${stop}"
-    create_log_alert public_ip "Public IP assigned to a VM" \
-        'protoPayload.methodName=~"compute.instances.(insert|addAccessConfig)" AND protoPayload.request.networkInterfaces.accessConfigs:*' \
-        "A VM got a public IP. Expected only for the compute system tests (example_compute*.py); otherwise investigate. ${stop}"
-    create_log_alert firewall "Firewall rule created or changed" \
-        'protoPayload.methodName=~"compute.firewalls.(insert|patch|update)" AND NOT protoPayload.request.name="gst-allow-iap-ssh"' \
-        "A firewall rule was created or changed in the test project. ${stop}"
-    create_log_alert sensitive_api "Sensitive API used (Secret Manager, KMS, Billing, Org Policy)" \
+    local runs="https://github.com/${GITHUB_REPO}/actions/runs"
+    # Only PR test runs: calls by the test identity, or resources whose name contains a PR run's env id
+    # (gh<GitHub run id>, also for VMs that GKE/Dataflow/Dataproc create on a test's behalf). Without this
+    # scope the alerts also fire for the nightly dashboard runs in a shared project.
+    local scope='(protoPayload.authenticationInfo.principalEmail="'"${RUNNER_SA}"'" OR protoPayload.resourceName=~"gh[0-9]{9,}")'
+    local audit_labels='{"principal": "EXTRACT(protoPayload.authenticationInfo.principalEmail)", "method": "EXTRACT(protoPayload.methodName)", "resource": "EXTRACT(protoPayload.resourceName)", "run_id": "REGEXP_EXTRACT(protoPayload.resourceName, \"gh([0-9]{9,})\")"}'
+    local audit_body='**What happened:** `${log.extracted_label.method}` on `${log.extracted_label.resource}`
+
+**By:** `${log.extracted_label.principal}`
+
+**PR test run:** '"${runs}"'/${log.extracted_label.run_id} (the PR is linked at the top of the run page)
+
+If this is not expected for that PR, add the label `gst-stop` to the PR in GitHub (stops the run and cleans up its resources).'
+
+    create_log_alert "HIGH risk PR waiting for approval" \
+        'logName="projects/'"${PROJECT}"'/logs/gst-security-review" AND jsonPayload.risk="HIGH" AND jsonPayload.first_alert=true' \
+        'HIGH risk PR #${log.extracted_label.pr}: do not approve without reviewing' \
+        '**PR:** ${log.extracted_label.pr_url}
+
+**Security review run:** ${log.extracted_label.run_url}
+
+**AI summary:** ${log.extracted_label.summary}
+
+**Top findings:** ${log.extracted_label.findings}
+
+The Google system tests run of this PR waits for approval. Approve it only if you accept the risk; otherwise reject it in GitHub ("Review deployments" → Reject). You get this email once per PR; it is sent again only if the PR stops being HIGH risk and becomes HIGH again.' \
+        '{"pr": "EXTRACT(jsonPayload.pr)", "pr_url": "EXTRACT(jsonPayload.pr_url)", "run_url": "EXTRACT(jsonPayload.run_url)", "summary": "EXTRACT(jsonPayload.ai_summary)", "findings": "EXTRACT(jsonPayload.top_findings)"}'
+    create_log_alert "GPU, TPU or large VM created" \
+        'protoPayload.methodName=~"compute.instances.insert" AND (protoPayload.request.guestAccelerators:* OR protoPayload.request.machineType=~"(a2|a3|g2|m1|m2|m3|n2-highmem-(64|80|96|128)|n2-standard-(64|80|96|128)|c2-standard-60)") AND '"${scope}" \
+        'PR test created a GPU/large VM: ${log.extracted_label.resource}' "${audit_body}" "${audit_labels}"
+    create_log_alert "IAM policy change or service-account key creation" \
+        'protoPayload.methodName=("SetIamPolicy" OR "google.iam.admin.v1.CreateServiceAccountKey" OR "google.iam.admin.v1.CreateServiceAccount" OR "google.iam.admin.v1.CreateRole") AND '"${scope}" \
+        'PR test changed IAM: ${log.extracted_label.method}' "${audit_body}" "${audit_labels}"
+    create_log_alert "Public IP assigned to a VM" \
+        'protoPayload.methodName=~"compute.instances.(insert|addAccessConfig)" AND protoPayload.request.networkInterfaces.accessConfigs:* AND '"${scope}" \
+        'PR test created a VM with a public IP: ${log.extracted_label.resource}' \
+        "${audit_body}
+
+Expected only for the compute system tests (example_compute*.py)." "${audit_labels}"
+    create_log_alert "Firewall rule created or changed" \
+        'protoPayload.methodName=~"compute.firewalls.(insert|patch|update)" AND '"${scope}" \
+        'PR test changed a firewall rule: ${log.extracted_label.resource}' "${audit_body}" "${audit_labels}"
+    create_log_alert "Sensitive API used (Secret Manager, KMS, Billing, Org Policy)" \
         'protoPayload.serviceName=("secretmanager.googleapis.com" OR "cloudkms.googleapis.com" OR "cloudbilling.googleapis.com" OR "orgpolicy.googleapis.com") AND protoPayload.authenticationInfo.principalEmail="'"${RUNNER_SA}"'"' \
-        "A test VM called a sensitive API. ${stop}"
+        'PR test called a sensitive API: ${log.extracted_label.method}' "${audit_body}" "${audit_labels}"
 }
 
 create_dashboard() {
