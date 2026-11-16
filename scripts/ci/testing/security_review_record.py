@@ -43,7 +43,7 @@ LEVEL_ORDER = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
 
 def format_findings(items: list[dict]) -> str:
     """
-    Return the findings as a short Markdown list for the email, most severe first.
+    Return the findings as a short numbered plain-text list (alert labels are not Markdown), most severe first.
 
     Findings with the same level, file and reason are merged into one line with all their line numbers.
     """
@@ -61,13 +61,13 @@ def format_findings(items: list[dict]) -> str:
     for (level, file, reason, source), lines in sorted(
         groups.items(), key=lambda g: LEVEL_ORDER.get(g[0][0], 3)
     ):
-        where = f"`{file}`" if file not in ("", "-") else "whole PR"
+        where = file if file not in ("", "-") else "whole PR"
         if lines:
             where += f" line{'s' if len(lines) > 1 else ''} {', '.join(lines)}"
-        rows.append(f"- **{level}**: {where}: {reason}{source}")
+        rows.append(f"{len(rows) + 1}) {level}: {where}: {reason}{source}")
     text = ""
     for count, row in enumerate(rows):
-        more = f"\n- … and {len(rows) - count} more, see the run"
+        more = f"\n… and {len(rows) - count} more, see the review run"
         if len(text) + len(row) + len(more) + 1 > MAX_FINDINGS_CHARS:
             return text + more
         text += ("\n" if text else "") + row

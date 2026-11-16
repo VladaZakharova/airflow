@@ -232,41 +232,13 @@ create_anomaly_alerts() {
     # scope the alerts also fire for the nightly dashboard runs in a shared project.
     local scope='(protoPayload.authenticationInfo.principalEmail="'"${RUNNER_SA}"'" OR protoPayload.resourceName=~"gh[0-9]{9,}")'
     local audit_labels='{"principal": "EXTRACT(protoPayload.authenticationInfo.principalEmail)", "method": "EXTRACT(protoPayload.methodName)", "resource": "EXTRACT(protoPayload.resourceName)", "run_id": "REGEXP_EXTRACT(protoPayload.resourceName, \"gh([0-9]{9,})\")"}'
-    local audit_body='**What happened:** `${log.extracted_label.method}` on `${log.extracted_label.resource}`
-
-**By:** `${log.extracted_label.principal}`
-
-**PR test run:** '"${runs}"'/${log.extracted_label.run_id} (the PR is linked at the top of the run page)
-
-If this is not expected for that PR, add the label `gst-stop` to the PR in GitHub (stops the run and cleans up its resources).'
+    local audit_body='A PR test run did something unusual: the call (`method`), the resource and who did it (`principal`) are in the labels of this alert. PR test run: '"${runs}"'/${log.extracted_label.run_id} (the PR is linked at the top of the run page). If it is not expected, add the label `gst-stop` to the PR (stops the run and cleans up).'
 
     create_log_alert "HIGH risk PR waiting for approval" \
         'logName="projects/'"${PROJECT}"'/logs/gst-security-review" AND jsonPayload.risk="HIGH" AND jsonPayload.send_alert=true' \
         'HIGH risk PR #${log.extracted_label.pr} (commit ${log.extracted_label.commit}): do not approve without reviewing' \
-        '## PR #${log.extracted_label.pr} is HIGH risk
-
-**PR:** ${log.extracted_label.pr_url}
-
-**Reviewed commit:** ${log.extracted_label.commit_url}
-
-**Review run:** ${log.extracted_label.run_url}
-
-**Findings:** ${log.extracted_label.counts}
-
-### What was found
-
-${log.extracted_label.findings}
-
-### AI summary
-
-${log.extracted_label.summary}
-
----
-
-The Google system tests run of this PR waits for approval. Approve it only if you accept the risk; otherwise reject it in GitHub ("Review deployments" → Reject).
-
-You get this email for every new HIGH-risk commit of the PR (also after an earlier approval), but not for re-runs of the same commit. The PR has the label `gst-high-risk` while it is HIGH risk.' \
-        '{"pr": "EXTRACT(jsonPayload.pr)", "pr_url": "EXTRACT(jsonPayload.pr_url)", "run_url": "EXTRACT(jsonPayload.run_url)", "summary": "EXTRACT(jsonPayload.ai_summary)", "counts": "EXTRACT(jsonPayload.finding_counts)", "commit": "EXTRACT(jsonPayload.commit_short)", "commit_url": "EXTRACT(jsonPayload.commit_url)", "findings": "EXTRACT(jsonPayload.top_findings)"}'
+        'A new commit of this PR is **HIGH risk**: the PR, commit, findings and AI summary are in the labels of this alert. Approve the run only if you accept the risk, otherwise reject it in GitHub. You get one email per new HIGH-risk commit (not for re-runs).' \
+        '{"pr": "EXTRACT(jsonPayload.pr)", "commit": "EXTRACT(jsonPayload.commit_short)", "pr_link": "EXTRACT(jsonPayload.pr_url)", "commit_link": "EXTRACT(jsonPayload.commit_url)", "review_run": "EXTRACT(jsonPayload.run_url)", "finding_counts": "EXTRACT(jsonPayload.finding_counts)", "findings": "EXTRACT(jsonPayload.top_findings)", "ai_summary": "EXTRACT(jsonPayload.ai_summary)"}'
     create_log_alert "GPU, TPU or large VM created" \
         'protoPayload.methodName=~"compute.instances.insert" AND (protoPayload.request.guestAccelerators:* OR protoPayload.request.machineType=~"(a2|a3|g2|m1|m2|m3|n2-highmem-(64|80|96|128)|n2-standard-(64|80|96|128)|c2-standard-60)") AND '"${scope}" \
         'PR test created a GPU/large VM: ${log.extracted_label.resource}' "${audit_body}" "${audit_labels}"
