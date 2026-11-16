@@ -287,6 +287,10 @@ def main() -> int:
             "ai_status": report.ai_status,
             "ai_summary": report.ai_summary,
             "findings": [f"{f.level} {f.check} {f.location}: {f.reason}" for f in report.findings][:20],
+            "finding_items": [
+                {"level": f.level, "check": f.check, "location": f.location, "reason": f.reason}
+                for f in report.findings
+            ],
             "changed_files": len(changed_files),
         }
         with open(args.record_file, "w") as f:
