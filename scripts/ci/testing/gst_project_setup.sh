@@ -1,0 +1,295 @@
+#!/usr/bin/env bash
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# One-time setup of a dedicated Google Cloud project for Google system tests on PRs (proof of concept).
+# Idempotent: safe to run again. Run it as a project owner of the new project.
+#
+# Usage: gst_project_setup.sh <project-id> <manager-service-account> <alert-email> [region] [github-repo]
+#
+# Sets up: APIs, the test identity (service account gst-runner), permissions for the manager runner,
+# network (Cloud Router + NAT, IAP SSH firewall), Data Access audit logs for IAM, project Org Policies
+# that are safe for the current system tests, GPU quota 0, log-based anomaly alerts sent by email, and a
+# Cloud Monitoring dashboard. Steps that need more rights than available are reported and skipped.
+set -uo pipefail
+
+PROJECT="${1:?project id}"
+MANAGER_SA="${2:?manager service account email (the VM running the manager runner)}"
+ALERT_EMAIL="${3:?email address for alerts}"
+REGION="${4:-us-central1}"
+GITHUB_REPO="${5:-VladaZakharova/airflow}"
+RUNNER_SA="gst-runner@${PROJECT}.iam.gserviceaccount.com"
+# Never stop for questions, and bill API quota to the test project (not the caller's default project).
+export CLOUDSDK_CORE_DISABLE_PROMPTS=1
+export CLOUDSDK_BILLING_QUOTA_PROJECT="${PROJECT}"
+MY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FAILED_STEPS=()
+
+step() {
+    local name=$1
+    shift
+    echo "==> ${name}"
+    if ! "$@"; then
+        echo "    !! ${name} failed (see above); continuing"
+        FAILED_STEPS+=("${name}")
+    fi
+}
+
+enable_apis() {
+    gcloud services enable --project "${PROJECT}" \
+        compute.googleapis.com iam.googleapis.com iamcredentials.googleapis.com logging.googleapis.com \
+        monitoring.googleapis.com cloudasset.googleapis.com orgpolicy.googleapis.com \
+        cloudquotas.googleapis.com aiplatform.googleapis.com bigquery.googleapis.com \
+        pubsub.googleapis.com storage.googleapis.com
+}
+
+create_runner_identity() {
+    gcloud iam service-accounts describe "${RUNNER_SA}" --project "${PROJECT}" &>/dev/null ||
+        gcloud iam service-accounts create gst-runner --project "${PROJECT}" \
+            --display-name "Google system tests on PRs (test VMs)"
+    # Broad role for the proof of concept, so all system tests can run; production uses the narrow set of
+    # roles the selected tests need.
+    for role in roles/editor roles/logging.logWriter roles/monitoring.metricWriter; do
+        add_project_binding "serviceAccount:${RUNNER_SA}" "${role}" || return 1
+    done
+}
+
+add_project_binding() {
+    # A new service account takes a few seconds before IAM accepts it in bindings; retry.
+    local member=$1 role=$2
+    for _ in 1 2 3 4 5 6; do
+        gcloud projects add-iam-policy-binding "${PROJECT}" --quiet --condition=None \
+            --member "${member}" --role "${role}" >/dev/null && return 0
+        sleep 10
+    done
+    return 1
+}
+
+grant_manager() {
+    # The manager creates/starts/stops/deletes test VMs, attaches gst-runner to them, lists resources for
+    # cleanup and can disable gst-runner in an emergency (Tier 2).
+    for role in roles/compute.instanceAdmin.v1 roles/cloudasset.viewer roles/editor; do
+        add_project_binding "serviceAccount:${MANAGER_SA}" "${role}" || return 1
+    done
+    gcloud iam service-accounts add-iam-policy-binding "${RUNNER_SA}" --project "${PROJECT}" --quiet \
+        --member "serviceAccount:${MANAGER_SA}" --role roles/iam.serviceAccountUser >/dev/null
+    gcloud iam service-accounts add-iam-policy-binding "${RUNNER_SA}" --project "${PROJECT}" --quiet \
+        --member "serviceAccount:${MANAGER_SA}" --role roles/iam.serviceAccountAdmin >/dev/null
+}
+
+create_network() {
+    # A project can only have one Cloud NAT for the same subnets; reuse an existing one.
+    if [[ -n "$(gcloud compute routers list --project "${PROJECT}" --filter "region:${REGION} AND nats:*" \
+        --format 'value(name)')" ]]; then
+        echo "    Cloud NAT already exists in ${REGION}; reusing it"
+    else
+        create_nat
+    fi
+    if gcloud compute firewall-rules list --project "${PROJECT}" --format json | python3 -c '
+import json, sys
+rules = json.load(sys.stdin)
+ssh_from_iap = [
+    r for r in rules
+    if r.get("direction") == "INGRESS" and not r.get("disabled")
+    and any(a.get("IPProtocol") in ("tcp", "all") and (not a.get("ports") or "22" in a["ports"]) for a in r.get("allowed", []))
+    and set(r.get("sourceRanges", [])) & {"35.235.240.0/20", "0.0.0.0/0"}
+]
+sys.exit(0 if ssh_from_iap else 1)'; then
+        echo "    SSH from IAP is already allowed; reusing the existing firewall rule"
+    else
+        gcloud compute firewall-rules create gst-allow-iap-ssh --project "${PROJECT}" --network default \
+            --direction INGRESS --allow tcp:22 --source-ranges 35.235.240.0/20
+    fi
+}
+
+create_nat() {
+    gcloud compute routers describe gst-router --project "${PROJECT}" --region "${REGION}" &>/dev/null ||
+        gcloud compute routers create gst-router --project "${PROJECT}" --region "${REGION}" --network default
+    gcloud compute routers nats describe gst-nat --router gst-router --project "${PROJECT}" \
+        --region "${REGION}" &>/dev/null ||
+        gcloud compute routers nats create gst-nat --router gst-router --project "${PROJECT}" \
+            --region "${REGION}" --auto-allocate-nat-external-ips --nat-all-subnet-ip-ranges \
+            --enable-logging --log-filter ERRORS_ONLY
+}
+
+enable_iam_data_access_logs() {
+    local policy
+    policy=$(mktemp)
+    gcloud projects get-iam-policy "${PROJECT}" --format json >"${policy}" &&
+        python3 - "${policy}" <<'PYTHON' &&
+import json, sys
+path = sys.argv[1]
+policy = json.load(open(path))
+configs = [c for c in policy.get("auditConfigs", []) if c.get("service") != "iam.googleapis.com"]
+configs.append({"service": "iam.googleapis.com", "auditLogConfigs": [{"logType": "ADMIN_READ"}, {"logType": "DATA_WRITE"}]})
+policy["auditConfigs"] = configs
+json.dump(policy, open(path, "w"))
+PYTHON
+        gcloud projects set-iam-policy "${PROJECT}" "${policy}" --quiet >/dev/null
+}
+
+set_org_policies() {
+    # Only policies that do not break the current system tests (checked against the test code):
+    # no test creates service-account keys, and tests only use US and EU locations.
+    # Not enforced, because existing tests need them: no external VM IPs (compute tests), no public
+    # Cloud SQL IP (Cloud SQL tests), public access prevention (GCS ACL test). Those are detected instead.
+    local tmp
+    tmp=$(mktemp)
+    cat >"${tmp}" <<EOF
+name: projects/${PROJECT}/policies/iam.disableServiceAccountKeyCreation
+spec:
+  rules:
+    - enforce: true
+EOF
+    gcloud org-policies set-policy "${tmp}" || return 1
+    cat >"${tmp}" <<EOF
+name: projects/${PROJECT}/policies/gcp.resourceLocations
+spec:
+  rules:
+    - values:
+        allowedValues: ["in:us-locations", "in:eu-locations", "global"]
+EOF
+    gcloud org-policies set-policy "${tmp}"
+}
+
+set_gpu_quota_zero() {
+    # Lowering a quota by more than 10% needs an explicit safety-check override.
+    local output
+    output=$(gcloud beta quotas preferences create --project "${PROJECT}" --service compute.googleapis.com \
+        --quota-id GPUS-ALL-REGIONS-per-project --preferred-value 0 --preference-id gst-no-gpus \
+        --allow-high-percentage-quota-decrease \
+        --justification "System tests do not use GPUs" --quiet 2>&1) && return 0
+    if grep -qE "already exists?" <<<"${output}"; then
+        echo "    GPU quota preference already exists"
+        return 0
+    fi
+    echo "${output}" | head -5
+    return 1
+}
+
+create_alert_channel() {
+    CHANNEL=$(gcloud beta monitoring channels list --project "${PROJECT}" \
+        --filter "labels.email_address=\"${ALERT_EMAIL}\"" --format "value(name)" | head -1)
+    if [[ -z "${CHANNEL}" ]]; then
+        CHANNEL=$(gcloud beta monitoring channels create --project "${PROJECT}" --type email \
+            --display-name "Google system tests alerts" --channel-labels "email_address=${ALERT_EMAIL}" \
+            --format "value(name)")
+    fi
+    echo "    notification channel: ${CHANNEL}"
+}
+
+create_log_alert() {
+    # Arguments: title, log filter, email subject, email body (Markdown), label extractors (JSON object).
+    # Extracted labels are shown in the email via ${log.extracted_label.<name>}.
+    local title=$1 filter=$2 subject=$3 doc=$4 extractors=$5 tmp
+    tmp=$(mktemp)
+    python3 - "${tmp}" "${title}" "${filter}" "${subject}" "${doc}" "${extractors}" "${CHANNEL}" <<'PYTHON'
+import json, sys
+path, title, log_filter, subject, doc, extractors, channel = sys.argv[1:]
+json.dump({
+    "displayName": f"[gst] {title}",
+    "combiner": "OR",
+    "conditions": [{
+        "displayName": title,
+        "conditionMatchedLog": {"filter": log_filter, "labelExtractors": json.loads(extractors)},
+    }],
+    "alertStrategy": {"notificationRateLimit": {"period": "300s"}, "autoClose": "1800s"},
+    "notificationChannels": [channel],
+    "documentation": {"mimeType": "text/markdown", "subject": subject[:255], "content": doc},
+}, open(path, "w"))
+PYTHON
+    local existing
+    existing=$(gcloud alpha monitoring policies list --project "${PROJECT}" \
+        --filter "displayName=\"[gst] ${title}\"" --format "value(name)" | head -1)
+    if [[ -n "${existing}" ]]; then
+        gcloud alpha monitoring policies update "${existing}" --project "${PROJECT}" --policy-from-file "${tmp}" >/dev/null
+    else
+        gcloud alpha monitoring policies create --project "${PROJECT}" --policy-from-file "${tmp}" >/dev/null
+    fi
+    echo "    alert: ${title}"
+}
+
+# The ${log.extracted_label.*} placeholders are filled in by Cloud Monitoring, not by the shell.
+# shellcheck disable=SC2016
+create_anomaly_alerts() {
+    local runs="https://github.com/${GITHUB_REPO}/actions/runs"
+    # Only PR test runs: calls by the test identity, or resources whose name contains a PR run's env id
+    # (gh<GitHub run id>, also for VMs that GKE/Dataflow/Dataproc create on a test's behalf). Without this
+    # scope the alerts also fire for the nightly dashboard runs in a shared project.
+    local scope='(protoPayload.authenticationInfo.principalEmail="'"${RUNNER_SA}"'" OR protoPayload.resourceName=~"gh[0-9]{9,}")'
+    local audit_labels='{"principal": "EXTRACT(protoPayload.authenticationInfo.principalEmail)", "method": "EXTRACT(protoPayload.methodName)", "resource": "EXTRACT(protoPayload.resourceName)", "run_id": "REGEXP_EXTRACT(protoPayload.resourceName, \"gh([0-9]{9,})\")"}'
+    local audit_body='A PR test run did something unusual: the call (`method`), the resource and who did it (`principal`) are in the labels of this alert. PR test run: '"${runs}"'/${log.extracted_label.run_id} (the PR is linked at the top of the run page). If it is not expected, add the label `gst-stop` to the PR (stops the run and cleans up).'
+
+    create_log_alert "HIGH risk PR waiting for approval" \
+        'logName="projects/'"${PROJECT}"'/logs/gst-security-review" AND jsonPayload.risk="HIGH" AND jsonPayload.send_alert=true' \
+        'HIGH risk PR #${log.extracted_label.pr} (commit ${log.extracted_label.commit}): do not approve without reviewing' \
+        'A new commit of this PR is **HIGH risk**: the PR, commit, findings (`finding_1`, `finding_2`, …) and AI summary are in the labels of this alert. Approve the run only if you accept the risk, otherwise reject it in GitHub. You get one email per new HIGH-risk commit (not for re-runs).' \
+        '{"pr": "EXTRACT(jsonPayload.pr)", "commit": "EXTRACT(jsonPayload.commit_short)", "pr_link": "EXTRACT(jsonPayload.pr_url)", "commit_link": "EXTRACT(jsonPayload.commit_url)", "review_run": "EXTRACT(jsonPayload.run_url)", "finding_counts": "EXTRACT(jsonPayload.finding_counts)", "finding_1": "EXTRACT(jsonPayload.finding_1)", "finding_2": "EXTRACT(jsonPayload.finding_2)", "finding_3": "EXTRACT(jsonPayload.finding_3)", "finding_4": "EXTRACT(jsonPayload.finding_4)", "finding_5": "EXTRACT(jsonPayload.finding_5)", "finding_6": "EXTRACT(jsonPayload.finding_6)", "ai_summary": "EXTRACT(jsonPayload.ai_summary)"}'
+    create_log_alert "GPU, TPU or large VM created" \
+        'protoPayload.methodName=~"compute.instances.insert" AND (protoPayload.request.guestAccelerators:* OR protoPayload.request.machineType=~"(a2|a3|g2|m1|m2|m3|n2-highmem-(64|80|96|128)|n2-standard-(64|80|96|128)|c2-standard-60)") AND '"${scope}" \
+        'PR test created a GPU/large VM: ${log.extracted_label.resource}' "${audit_body}" "${audit_labels}"
+    create_log_alert "IAM policy change or service-account key creation" \
+        'protoPayload.methodName=("SetIamPolicy" OR "google.iam.admin.v1.CreateServiceAccountKey" OR "google.iam.admin.v1.CreateServiceAccount" OR "google.iam.admin.v1.CreateRole") AND '"${scope}" \
+        'PR test changed IAM: ${log.extracted_label.method}' "${audit_body}" "${audit_labels}"
+    create_log_alert "Public IP assigned to a VM" \
+        'protoPayload.methodName=~"compute.instances.(insert|addAccessConfig)" AND protoPayload.request.networkInterfaces.accessConfigs:* AND '"${scope}" \
+        'PR test created a VM with a public IP: ${log.extracted_label.resource}' \
+        "${audit_body}
+
+Expected only for the compute system tests (example_compute*.py)." "${audit_labels}"
+    create_log_alert "Firewall rule created or changed" \
+        'protoPayload.methodName=~"compute.firewalls.(insert|patch|update)" AND '"${scope}" \
+        'PR test changed a firewall rule: ${log.extracted_label.resource}' "${audit_body}" "${audit_labels}"
+    create_log_alert "Sensitive API used (Secret Manager, KMS, Billing, Org Policy)" \
+        'protoPayload.serviceName=("secretmanager.googleapis.com" OR "cloudkms.googleapis.com" OR "cloudbilling.googleapis.com" OR "orgpolicy.googleapis.com") AND protoPayload.authenticationInfo.principalEmail="'"${RUNNER_SA}"'"' \
+        'PR test called a sensitive API: ${log.extracted_label.method}' "${audit_body}" "${audit_labels}"
+}
+
+create_dashboard() {
+    local tmp
+    tmp=$(mktemp)
+    sed "s/__PROJECT__/${PROJECT}/g" "${MY_DIR}/gst_dashboard.json" >"${tmp}"
+    local existing
+    existing=$(gcloud monitoring dashboards list --project "${PROJECT}" \
+        --filter 'displayName="Google system tests on PRs"' --format "value(name)" | head -1)
+    if [[ -z "${existing}" ]]; then
+        gcloud monitoring dashboards create --project "${PROJECT}" --config-from-file "${tmp}" >/dev/null
+    fi
+    echo "    https://console.cloud.google.com/monitoring/dashboards?project=${PROJECT}"
+}
+
+step "Enable APIs" enable_apis
+step "Create the test identity gst-runner" create_runner_identity
+step "Grant the manager runner access" grant_manager
+step "Create Cloud Router, NAT and IAP firewall" create_network
+step "Enable Data Access audit logs for IAM" enable_iam_data_access_logs
+step "Set Org Policies (needs Org Policy Administrator)" set_org_policies
+step "Set GPU quota to 0" set_gpu_quota_zero
+step "Create the email notification channel" create_alert_channel
+step "Create anomaly alerts" create_anomaly_alerts
+step "Create the monitoring dashboard" create_dashboard
+
+echo
+echo "Then set in GitHub (Settings -> Secrets and variables -> Actions -> Variables):"
+echo "  SYSTEM_TESTS_GCP_PROJECT = ${PROJECT}"
+echo "  RUNNER_SERVICE_ACCOUNT   = ${RUNNER_SA}"
+echo "  RUNNER_ZONE              = ${REGION}-a"
+if ((${#FAILED_STEPS[@]})); then
+    echo
+    echo "Steps that failed (usually missing permissions, e.g. Org Policies need an organization admin):"
+    printf '  - %s\n' "${FAILED_STEPS[@]}"
+fi
