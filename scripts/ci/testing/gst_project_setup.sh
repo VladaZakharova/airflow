@@ -243,16 +243,28 @@ If this is not expected for that PR, add the label `gst-stop` to the PR in GitHu
     create_log_alert "HIGH risk PR waiting for approval" \
         'logName="projects/'"${PROJECT}"'/logs/gst-security-review" AND jsonPayload.risk="HIGH" AND jsonPayload.first_alert=true' \
         'HIGH risk PR #${log.extracted_label.pr}: do not approve without reviewing' \
-        '**PR:** ${log.extracted_label.pr_url}
+        '## PR #${log.extracted_label.pr} is HIGH risk
 
-**Security review run:** ${log.extracted_label.run_url}
+**PR:** ${log.extracted_label.pr_url}
 
-**AI summary:** ${log.extracted_label.summary}
+**Review run:** ${log.extracted_label.run_url}
 
-**Top findings:** ${log.extracted_label.findings}
+**Findings:** ${log.extracted_label.counts}
 
-The Google system tests run of this PR waits for approval. Approve it only if you accept the risk; otherwise reject it in GitHub ("Review deployments" → Reject). You get this email once per PR; it is sent again only if the PR stops being HIGH risk and becomes HIGH again.' \
-        '{"pr": "EXTRACT(jsonPayload.pr)", "pr_url": "EXTRACT(jsonPayload.pr_url)", "run_url": "EXTRACT(jsonPayload.run_url)", "summary": "EXTRACT(jsonPayload.ai_summary)", "findings": "EXTRACT(jsonPayload.top_findings)"}'
+### What was found
+
+${log.extracted_label.findings}
+
+### AI summary
+
+${log.extracted_label.summary}
+
+---
+
+The Google system tests run of this PR waits for approval. Approve it only if you accept the risk; otherwise reject it in GitHub ("Review deployments" → Reject).
+
+You get this email once per PR (the PR gets the label `gst-high-risk`).' \
+        '{"pr": "EXTRACT(jsonPayload.pr)", "pr_url": "EXTRACT(jsonPayload.pr_url)", "run_url": "EXTRACT(jsonPayload.run_url)", "summary": "EXTRACT(jsonPayload.ai_summary)", "counts": "EXTRACT(jsonPayload.finding_counts)", "findings": "EXTRACT(jsonPayload.top_findings)"}'
     create_log_alert "GPU, TPU or large VM created" \
         'protoPayload.methodName=~"compute.instances.insert" AND (protoPayload.request.guestAccelerators:* OR protoPayload.request.machineType=~"(a2|a3|g2|m1|m2|m3|n2-highmem-(64|80|96|128)|n2-standard-(64|80|96|128)|c2-standard-60)") AND '"${scope}" \
         'PR test created a GPU/large VM: ${log.extracted_label.resource}' "${audit_body}" "${audit_labels}"

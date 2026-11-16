@@ -36,6 +36,40 @@ import urllib.request
 
 LABEL = "gst-high-risk"
 MAX_FINDINGS_CHARS = 900  # extracted alert labels are limited in size
+LEVEL_ORDER = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
+
+
+def format_findings(items: list[dict]) -> str:
+    """
+    Return the findings as a short Markdown list for the email, most severe first.
+
+    Findings with the same level, file and reason are merged into one line with all their line numbers.
+    """
+    groups: dict[tuple[str, str, str, str], list[str]] = {}
+    for item in items:
+        path, _, line = item["location"].rpartition(":")
+        if not line.isdigit():
+            path, line = item["location"], ""
+        source = " (AI review)" if item["check"] == "AI review" else ""
+        key = (item["level"], os.path.basename(path) or path, item["reason"], source)
+        lines = groups.setdefault(key, [])
+        if line:
+            lines.append(line)
+    rows = []
+    for (level, file, reason, source), lines in sorted(
+        groups.items(), key=lambda g: LEVEL_ORDER.get(g[0][0], 3)
+    ):
+        where = f"`{file}`" if file not in ("", "-") else "whole PR"
+        if lines:
+            where += f" line{'s' if len(lines) > 1 else ''} {', '.join(lines)}"
+        rows.append(f"- **{level}**: {where}: {reason}{source}")
+    text = ""
+    for count, row in enumerate(rows):
+        more = f"\n- … and {len(rows) - count} more, see the run"
+        if len(text) + len(row) + len(more) + 1 > MAX_FINDINGS_CHARS:
+            return text + more
+        text += ("\n" if text else "") + row
+    return text or "none"
 
 
 def call_github(method: str, path: str, body: dict | None = None):
@@ -86,7 +120,8 @@ def main() -> int:
     env = os.environ
     repo_url = f"{env['GITHUB_SERVER_URL']}/{env['GITHUB_REPOSITORY']}"
     pr = env.get("GST_PR", "")
-    findings = "; ".join(record.get("findings", []))
+    items = record.pop("finding_items", [])
+    levels = [item["level"] for item in items]
     record.update(
         pr=pr,
         pr_url=f"{repo_url}/pull/{pr}" if pr else "",
@@ -94,7 +129,9 @@ def main() -> int:
         run_url=f"{repo_url}/actions/runs/{env['GITHUB_RUN_ID']}",
         repository=env["GITHUB_REPOSITORY"],
         commit=env["GITHUB_SHA"],
-        top_findings=findings[:MAX_FINDINGS_CHARS] or "none",
+        finding_counts=", ".join(f"{levels.count(lvl)} {lvl}" for lvl in LEVEL_ORDER if lvl in levels)
+        or "none",
+        top_findings=format_findings(items),
         ai_summary=(record.get("ai_summary") or "not available")[:MAX_FINDINGS_CHARS],
     )
     try:
