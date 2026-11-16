@@ -16,14 +16,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Print the Cloud Logging record of a PR's security review, and mark the first HIGH risk of the PR.
+Print the Cloud Logging record of a PR's security review, and decide whether it sends the HIGH-risk email.
 
-The HIGH-risk email alert matches only records with ``first_alert: true``. A PR gets the label
-``gst-high-risk`` the first time it is HIGH, so later runs of the same PR (re-runs, new pushes) do not
-email again. When a later review is no longer HIGH, the label is removed, so a new HIGH emails again.
+The HIGH-risk email alert matches only records with ``send_alert: true``: every new run that reviews a
+HIGH-risk commit (the PR was opened, or new code was pushed after an earlier approval) sends one email.
+A re-run of the same run reviews the same commit again and does not email again. The PR label
+``gst-high-risk`` shows the latest result: it is set while the PR is HIGH and removed when it is not.
 
 Usage: security_review_record.py <review result JSON written by review_pr_security.py --record-file>
-Environment: GITHUB_TOKEN, GITHUB_REPOSITORY, GITHUB_SERVER_URL, GITHUB_RUN_ID, GITHUB_SHA, GST_PR.
+Environment: GITHUB_TOKEN, GITHUB_REPOSITORY, GITHUB_SERVER_URL, GITHUB_RUN_ID, GITHUB_RUN_ATTEMPT,
+GITHUB_SHA, HEAD_SHA (the PR's head commit), GST_PR.
 """
 
 from __future__ import annotations
@@ -87,14 +89,12 @@ def call_github(method: str, path: str, body: dict | None = None):
         return json.loads(response.read() or b"null")
 
 
-def is_first_high_risk(pr: str, risk: str) -> bool:
-    """Return True only for the first HIGH risk of a PR, and keep the PR's label in sync."""
+def sync_label(pr: str, risk: str) -> None:
+    """Show the latest review result on the PR: the label ``gst-high-risk`` is set only while it is HIGH."""
     if not pr or not os.environ.get("GITHUB_TOKEN"):
-        return risk == "HIGH"
+        return
     labels = {label["name"] for label in call_github("GET", f"/issues/{pr}/labels")}
-    if risk == "HIGH":
-        if LABEL in labels:
-            return False
+    if risk == "HIGH" and LABEL not in labels:
         try:
             call_github(
                 "POST",
@@ -109,10 +109,8 @@ def is_first_high_risk(pr: str, risk: str) -> bool:
             if e.code != 422:  # 422: the label already exists in the repository
                 raise
         call_github("POST", f"/issues/{pr}/labels", {"labels": [LABEL]})
-        return True
-    if LABEL in labels:
+    elif risk != "HIGH" and LABEL in labels:
         call_github("DELETE", f"/issues/{pr}/labels/{LABEL}")
-    return False
 
 
 def main() -> int:
@@ -120,6 +118,7 @@ def main() -> int:
     env = os.environ
     repo_url = f"{env['GITHUB_SERVER_URL']}/{env['GITHUB_REPOSITORY']}"
     pr = env.get("GST_PR", "")
+    head_sha = env.get("HEAD_SHA") or env["GITHUB_SHA"]
     items = record.pop("finding_items", [])
     levels = [item["level"] for item in items]
     record.update(
@@ -128,17 +127,20 @@ def main() -> int:
         run_id=env["GITHUB_RUN_ID"],
         run_url=f"{repo_url}/actions/runs/{env['GITHUB_RUN_ID']}",
         repository=env["GITHUB_REPOSITORY"],
-        commit=env["GITHUB_SHA"],
+        commit=head_sha,
+        commit_short=head_sha[:10],
+        commit_url=f"{repo_url}/pull/{pr}/commits/{head_sha}" if pr else f"{repo_url}/commit/{head_sha}",
         finding_counts=", ".join(f"{levels.count(lvl)} {lvl}" for lvl in LEVEL_ORDER if lvl in levels)
         or "none",
         top_findings=format_findings(items),
         ai_summary=(record.get("ai_summary") or "not available")[:MAX_FINDINGS_CHARS],
+        # A re-run of the same run reviews the same commit again, so it must not email again.
+        send_alert=record.get("risk") == "HIGH" and env.get("GITHUB_RUN_ATTEMPT", "1") == "1",
     )
     try:
-        record["first_alert"] = is_first_high_risk(pr, record.get("risk", ""))
+        sync_label(pr, record.get("risk", ""))
     except Exception as e:  # The record must still be written if GitHub is unreachable.
-        print(f"Could not check the PR label: {e}", file=sys.stderr)
-        record["first_alert"] = record.get("risk") == "HIGH"
+        print(f"Could not update the PR label: {e}", file=sys.stderr)
     print(json.dumps(record))
     return 0
 
