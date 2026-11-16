@@ -157,11 +157,12 @@ jobs:
             --ignore-path scripts/in_container/run_system_tests_in_airflow.sh \
             --ignore-path scripts/in_container/run_system_tests_in_airflow.py \
             --record-file "${RUNNER_TEMP}/security-review.json"
-      - name: "Record the review in Cloud Logging (first HIGH risk of a PR sends one email)"
+      - name: "Record the review in Cloud Logging (a HIGH-risk commit sends one email)"
         if: always()
         env:
           RISK: ${{ steps.review.outputs.risk }}
           GITHUB_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           export PATH="${PATH}:/snap/bin"
           record="${RUNNER_TEMP}/security-review.json"
