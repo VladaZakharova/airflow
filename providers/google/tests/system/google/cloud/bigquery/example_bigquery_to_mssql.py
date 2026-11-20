@@ -111,7 +111,7 @@ SQL_CREATE_TABLE = f"""if not exists (select * from sys.tables where sys.tables.
     )
 """
 
-GCE_MACHINE_TYPE = "n1-standard-1"
+GCE_MACHINE_TYPE = os.environ.get("GCP_GCE_MACHINE_TYPE", "e2-standard-2")
 GCE_INSTANCE_NAME = f"instance-{DAG_ID}-{ENV_ID}".replace("_", "-")
 GCE_INSTANCE_BODY = {
     "name": GCE_INSTANCE_NAME,
@@ -124,7 +124,7 @@ GCE_INSTANCE_BODY = {
             "initialize_params": {
                 "disk_size_gb": "10",
                 "disk_type": f"zones/{ZONE}/diskTypes/pd-balanced",
-                "source_image": "projects/debian-cloud/global/images/debian-12-bookworm-v20240611",
+                "source_image": "projects/debian-cloud/global/images/family/debian-12",
             },
         }
     ],
