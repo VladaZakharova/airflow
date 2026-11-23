@@ -21,44 +21,71 @@ from airflow_google_provider_resource_cleanup.handlers._base import BaseDeleteHa
 from airflow_google_provider_resource_cleanup.helpers import get_resource_path, run_command_async
 
 
+async def _delete_backup_schedule(resource: dict, log_prefix: str):
+    path_parts = get_resource_path(resource).split("/")
+    project_id = path_parts[1]
+    instance = path_parts[3]
+    database = path_parts[5]
+    backup_schedule = path_parts[-1]
+    cmd = (
+        f"gcloud spanner backup-schedules delete {backup_schedule} "
+        f"--database={database} --instance={instance} --project={project_id} --quiet"
+    )
+    return await run_command_async(cmd, log_prefix, check=True, ignore_not_found=True)
+
+
 async def _delete_database(resource: dict, log_prefix: str):
     path_parts = get_resource_path(resource).split("/")
+    project_id = path_parts[1]
     instance = path_parts[-3]
     database = path_parts[-1]
-    cmd = f"gcloud spanner databases delete {database} --instance={instance} --quiet"
-    await run_command_async(cmd, log_prefix)
+    cmd = f"gcloud spanner databases delete {database} --instance={instance} --project={project_id} --quiet"
+    return await run_command_async(cmd, log_prefix, check=True, ignore_not_found=True)
 
 
 async def _delete_backup(resource: dict, log_prefix: str):
     path_parts = get_resource_path(resource).split("/")
+    project_id = path_parts[1]
     instance = path_parts[-3]
     backup = path_parts[-1]
-    cmd = f"gcloud spanner backups delete {backup} --instance={instance} --quiet"
-    await run_command_async(cmd, log_prefix)
+    cmd = f"gcloud spanner backups delete {backup} --instance={instance} --project={project_id} --quiet"
+    return await run_command_async(cmd, log_prefix, check=True, ignore_not_found=True)
 
 
 async def _delete_instance(resource: dict, log_prefix: str):
-    instance = get_resource_path(resource).split("/")[-1]
-    cmd = f"gcloud spanner instances delete {instance} --quiet"
-    await run_command_async(cmd, log_prefix)
+    path_parts = get_resource_path(resource).split("/")
+    project_id = path_parts[1]
+    instance = path_parts[-1]
+    cmd = f"gcloud spanner instances delete {instance} --project={project_id} --quiet"
+    return await run_command_async(cmd, log_prefix, check=True, ignore_not_found=True)
 
 
 async def _delete_instance_config(resource: dict, log_prefix: str):
-    instance_config = get_resource_path(resource).split("/")[-1]
-    cmd = f"gcloud spanner instance-configs delete {instance_config} --quiet"
-    await run_command_async(cmd, log_prefix)
+    path_parts = get_resource_path(resource).split("/")
+    project_id = path_parts[1]
+    instance_config = path_parts[-1]
+    if not instance_config.startswith("custom-"):
+        print(f"{log_prefix}Managed Spanner instance config {instance_config} cannot be deleted. Skipping.")
+        return False
+    cmd = f"gcloud spanner instance-configs delete {instance_config} --project={project_id} --quiet"
+    return await run_command_async(cmd, log_prefix, check=True, ignore_not_found=True)
 
 
 async def _delete_instance_partition(resource: dict, log_prefix: str):
     path_parts = get_resource_path(resource).split("/")
+    project_id = path_parts[1]
     instance = path_parts[-3]
     instance_partition = path_parts[-1]
-    cmd = f"gcloud spanner instance-partitions delete {instance_partition} --instance={instance} --quiet"
-    await run_command_async(cmd, log_prefix)
+    cmd = (
+        f"gcloud spanner instance-partitions delete {instance_partition} "
+        f"--instance={instance} --project={project_id} --quiet"
+    )
+    return await run_command_async(cmd, log_prefix, check=True, ignore_not_found=True)
 
 
 class SpannerDeleteHandler(BaseDeleteHandler):
     DELETERS = {
+        "spanner.googleapis.com/BackupSchedule": _delete_backup_schedule,
         "spanner.googleapis.com/Database": _delete_database,
         "spanner.googleapis.com/Backup": _delete_backup,
         "spanner.googleapis.com/Instance": _delete_instance,
@@ -67,9 +94,10 @@ class SpannerDeleteHandler(BaseDeleteHandler):
     }
 
     DELETION_ORDER = [
+        "spanner.googleapis.com/BackupSchedule",
         "spanner.googleapis.com/Backup",
         "spanner.googleapis.com/Database",
-        "spanner.googleapis.com/InstanceConfig",
         "spanner.googleapis.com/InstancePartition",
         "spanner.googleapis.com/Instance",
+        "spanner.googleapis.com/InstanceConfig",
     ]

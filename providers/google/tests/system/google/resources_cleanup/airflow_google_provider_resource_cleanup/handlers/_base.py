@@ -30,11 +30,12 @@ class BaseDeleteHandler:
     SEMAPHORE_COUNT: int = 10
     SLEEP_AFTER_EACH_REQUEST = 0.01
 
-    def __init__(self):
+    def __init__(self, project_id: str | None = None):
         if not self.DELETERS or not self.DELETION_ORDER:
             raise NotImplementedError(
                 "To be able to use this handler you need to define DELETERS and DELETION_ORDER!"
             )
+        self.project_id = project_id
 
     def categorize_resources(self, resources):
         categorized_resources = defaultdict(list)

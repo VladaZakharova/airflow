@@ -21,20 +21,36 @@ from airflow_google_provider_resource_cleanup.handlers._base import BaseDeleteHa
 from airflow_google_provider_resource_cleanup.helpers import get_resource_path, run_command_async
 
 
+def _extract_service_params(resource: dict) -> tuple[str, str, str]:
+    path_parts = get_resource_path(resource).split("/")
+    project_id = path_parts[1]
+    location = resource.get("location") or path_parts[3]
+    service = path_parts[-1]
+    return service, location, project_id
+
+
+def _extract_backup_params(resource: dict) -> tuple[str, str, str, str]:
+    path_parts = get_resource_path(resource).split("/")
+    project_id = path_parts[1]
+    location = resource.get("location") or path_parts[3]
+    service = path_parts[-3]
+    backup = path_parts[-1]
+    return backup, service, location, project_id
+
+
 async def _delete_dataproc_metastore_service(resource: dict, log_prefix: str):
-    location = resource.get("location")
-    name = get_resource_path(resource)
-    cmd = f"gcloud metastore services delete {name} --location={location} --quiet"
-    await run_command_async(cmd, log_prefix)
+    service, location, project_id = _extract_service_params(resource)
+    cmd = f"gcloud metastore services delete {service} --location={location} --project={project_id} --quiet"
+    return await run_command_async(cmd, log_prefix, check=True, ignore_not_found=True)
 
 
 async def _delete_dataproc_metastore_backup(resource: dict, log_prefix: str):
-    location = resource.get("location")
-    path_parts = get_resource_path(resource).split("/")
-    service = path_parts[-3]
-    backup = path_parts[-1]
-    cmd = f"gcloud metastore backups delete {backup} --service={service} --location={location} --quiet"
-    await run_command_async(cmd, log_prefix)
+    backup, service, location, project_id = _extract_backup_params(resource)
+    cmd = (
+        f"gcloud metastore services backups delete {backup} "
+        f"--service={service} --location={location} --project={project_id} --quiet"
+    )
+    return await run_command_async(cmd, log_prefix, check=True, ignore_not_found=True)
 
 
 class DataprocMetastoreDeleteHandler(BaseDeleteHandler):

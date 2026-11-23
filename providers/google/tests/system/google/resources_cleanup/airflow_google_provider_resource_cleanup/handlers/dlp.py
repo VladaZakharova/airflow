@@ -17,29 +17,68 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from airflow_google_provider_resource_cleanup.handlers._base import BaseDeleteHandler
-from airflow_google_provider_resource_cleanup.helpers import get_resource_path, run_command_async
+from airflow_google_provider_resource_cleanup.helpers import curl, get_resource_path
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
+API_BASE = "https://dlp.googleapis.com/v2/"
 
 
-async def _delete_dlp_job(resource: dict, log_prefix: str):
-    job_id = get_resource_path(resource)
-    cmd_delete = f"gcloud alpha dlp jobs delete {job_id.split('/')[-1]} --quiet"
-    await run_command_async(cmd_delete, log_prefix)
+def _resolve_dlp_resource_path(resource: dict, project_id: str | None = None) -> str:
+    path = get_resource_path(resource)
+    path_parts = path.split("/")
+    # Cloud Asset Inventory returns numeric project numbers for DLP assets, which the DLP v2 API rejects.
+    if (
+        len(path_parts) >= 2
+        and path_parts[0] == "projects"
+        and path_parts[1].isdigit()
+        and isinstance(project_id, str)
+        and project_id
+        and not project_id.isdigit()
+    ):
+        path_parts[1] = project_id
+        return "/".join(path_parts)
+    return path
 
 
-async def _delete_dlp_job_trigger(resource: dict, log_prefix: str):
-    job_id = get_resource_path(resource)
-    cmd_delete = f"gcloud alpha dlp job-triggers delete {job_id.split('/')[-1]} --quiet"
-    await run_command_async(cmd_delete, log_prefix)
+async def _delete_dlp_resource(
+    resource: dict,
+    log_prefix: str,
+    *,
+    project_id: str | None = None,
+):
+    name = _resolve_dlp_resource_path(resource, project_id=project_id)
+    return await curl(f"{API_BASE}{name}", log_prefix=log_prefix)
 
 
 class DLPDeleteHandler(BaseDeleteHandler):
-    DELETERS = {
-        "dlp.googleapis.com/DlpJob": _delete_dlp_job,
-        "dlp.googleapis.com/JobTrigger": _delete_dlp_job_trigger,
+    DELETERS: dict[str, Callable[[dict, str], Awaitable[bool | None]]] = {
+        "dlp.googleapis.com/JobTrigger": _delete_dlp_resource,
+        "dlp.googleapis.com/DiscoveryConfig": _delete_dlp_resource,
+        "dlp.googleapis.com/DlpJob": _delete_dlp_resource,
+        "dlp.googleapis.com/InspectTemplate": _delete_dlp_resource,
+        "dlp.googleapis.com/DeidentifyTemplate": _delete_dlp_resource,
+        "dlp.googleapis.com/StoredInfoType": _delete_dlp_resource,
     }
 
     DELETION_ORDER = [
-        "dlp.googleapis.com/DlpJob",
         "dlp.googleapis.com/JobTrigger",
+        "dlp.googleapis.com/DiscoveryConfig",
+        "dlp.googleapis.com/DlpJob",
+        "dlp.googleapis.com/InspectTemplate",
+        "dlp.googleapis.com/DeidentifyTemplate",
+        "dlp.googleapis.com/StoredInfoType",
     ]
+
+    def __init__(self, project_id: str | None = None):
+        super().__init__(project_id=project_id)
+        if self.project_id:
+
+            async def delete_dlp_resource(resource: dict, log_prefix: str) -> bool | None:
+                return await _delete_dlp_resource(resource, log_prefix, project_id=self.project_id)
+
+            self.DELETERS = dict.fromkeys(self.DELETERS, delete_dlp_resource)

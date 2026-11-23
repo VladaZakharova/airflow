@@ -17,21 +17,55 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Any
+
 from airflow_google_provider_resource_cleanup.handlers._base import BaseDeleteHandler
 from airflow_google_provider_resource_cleanup.helpers import get_resource_path, run_command_async
 
 
+def _extract_project_id(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    candidate = value.strip().split("/")[-1]
+    # gcloud transfer jobs delete rejects numeric project numbers and requires a project ID.
+    if not candidate or candidate.isdigit():
+        return None
+    return candidate
+
+
+def _extract_transfer_job_params(
+    resource: dict,
+    project_id: str | None = None,
+) -> tuple[str, str | None]:
+    path_parts = get_resource_path(resource).split("/")
+    transfer_job_name = path_parts[-1]
+    if path_parts[0] == "projects" and len(path_parts) >= 4:
+        extracted_project = _extract_project_id(path_parts[1])
+        if extracted_project:
+            return transfer_job_name, extracted_project
+    extracted_project = _extract_project_id(resource.get("project")) or _extract_project_id(project_id)
+    return transfer_job_name, extracted_project
+
+
 async def _delete_bucket(resource: dict, log_prefix: str):
-    name = get_resource_path(resource)
-    cmd = f"gcloud storage rm --recursive gs://{name}"
-    await run_command_async(cmd, log_prefix)
+    name = get_resource_path(resource).split("/")[-1]
+    cmd = f"gcloud storage rm --recursive gs://{name} --quiet"
+    return await run_command_async(cmd, log_prefix, check=True, ignore_not_found=True)
 
 
-async def _delete_transfer_job(resource: dict, log_prefix: str):
-    name = get_resource_path(resource)
-    _, project_id, _, transfer_job_name = name.split("/")
-    cmd = f"gcloud transfer jobs delete {transfer_job_name} --project {project_id}"
-    await run_command_async(cmd, log_prefix)
+async def _delete_transfer_job(
+    resource: dict,
+    log_prefix: str,
+    *,
+    project_id: str | None = None,
+):
+    if resource.get("state") == "DELETED":
+        print(f"{log_prefix}Transfer job {get_resource_path(resource)} is already deleted. Skipping.")
+        return False
+    transfer_job_name, resolved_project_id = _extract_transfer_job_params(resource, project_id=project_id)
+    project_flag = f" --project={resolved_project_id}" if resolved_project_id else ""
+    cmd = f"gcloud transfer jobs delete {transfer_job_name}{project_flag} --quiet"
+    return await run_command_async(cmd, log_prefix, check=True, ignore_not_found=True)
 
 
 class StorageDeleteHandler(BaseDeleteHandler):
@@ -44,3 +78,15 @@ class StorageDeleteHandler(BaseDeleteHandler):
         "storagetransfer.googleapis.com/TransferJob",
         "storage.googleapis.com/Bucket",
     ]
+
+    def __init__(self, project_id: str | None = None):
+        super().__init__(project_id=project_id)
+        if self.project_id:
+
+            async def delete_transfer_job(resource: dict, log_prefix: str) -> bool | None:
+                return await _delete_transfer_job(resource, log_prefix, project_id=self.project_id)
+
+            self.DELETERS = {
+                **self.DELETERS,
+                "storagetransfer.googleapis.com/TransferJob": delete_transfer_job,
+            }

@@ -53,6 +53,7 @@ async def test_handle_asset_type():
         delete_handlers=mock_delete_handlers,
     )
 
+    mock_handler_cls.assert_called_once_with(project_id=cfg.project_id)
     mock_handler_instance.handle.assert_called_once()
     called_args = mock_handler_instance.handle.call_args[0][0]
     assert len(called_args) == 1
@@ -178,9 +179,13 @@ def test_get_delete_handlers_registers_implemented_handlers():
         "dataflow",
         "datafusion",
         "dataproc_metastore",
+        "dlp",
         "gke",
         "kafka",
         "spanner",
+        "sqladmin",
+        "storage",
+        "storagetransfer",
     ]:
         assert asset_type in handlers
 
