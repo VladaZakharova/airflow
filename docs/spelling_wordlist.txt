@@ -228,6 +228,7 @@ busybox
 bytestring
 cacert
 Cadwyn
+caf
 callables
 callsite
 camelCase

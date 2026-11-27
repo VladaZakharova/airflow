@@ -417,10 +417,10 @@ class TestBeamRunner:
         mock_proc.stderr = fake_stderr_fd
         mock_proc.stdout = fake_stdout_fd
         fake_stderr_fd.readline.side_effect = [
-            b"apache-beam-stderr-1",
-            b"apache-beam-stderr-2",
+            b"apache-beam-stderr-1\n",
+            b"apache-beam-stderr-2\n",
             StopIteration,
-            b"apache-beam-stderr-3",
+            b"apache-beam-stderr-3\n",
             StopIteration,
             b"apache-beam-other-stderr",
         ]
@@ -438,7 +438,9 @@ class TestBeamRunner:
         with pytest.raises(AirflowException, match="Apache Beam process failed with return code 1"):
             run_beam_command(cmd, fake_logger)
 
-        mock_set_blocking.assert_not_called()
+        mock_set_blocking.assert_has_calls(
+            [mock.call(fake_stdout_fd.fileno(), False), mock.call(fake_stderr_fd.fileno(), False)]
+        )
         mock_popen.assert_called_once_with(
             cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True, cwd=None
         )
@@ -520,32 +522,100 @@ class TestBeamRunner:
 
         check_job_id_by_name_callback.assert_called_once_with()
 
-    def test_process_fd_decodes_invalid_utf8_and_skips_partial_lines_in_callback(self):
+    @pytest.mark.execution_timeout(60)
+    def test_run_beam_command_drains_stdout_while_stderr_stays_open(self):
+        # One early stderr line followed by more stdout than a pipe buffer (64 KiB on Linux) holds.
+        script = (
+            "import sys\n"
+            "sys.stderr.write('Picked up JAVA_TOOL_OPTIONS: -XX:UseAVX=2\\n')\n"
+            "sys.stderr.flush()\n"
+            "for i in range(2000):\n"
+            "    sys.stdout.write(f'line-{i} ' + 'X' * 100 + '\\n')\n"
+            "sys.stdout.flush()\n"
+        )
+        fake_logger = MagicMock(spec=logging.Logger)
+
+        run_beam_command([sys.executable, "-c", script], fake_logger)
+
+        fake_logger.warning.assert_called_once_with("Picked up JAVA_TOOL_OPTIONS: -XX:UseAVX=2")
+        stdout_lines = [
+            call.args[0] for call in fake_logger.info.call_args_list if call.args[0].startswith("line-")
+        ]
+        assert stdout_lines == [f"line-{i} " + "X" * 100 for i in range(2000)]
+
+    def test_process_fd_joins_line_split_across_reads(self):
         fake_logger = MagicMock(spec=logging.Logger)
         mock_proc = MagicMock(name="FakeProc", spec=subprocess.Popen)
         fake_stdout_fd = MagicMock(name="FakeStdout", spec=io.BufferedReader)
         fake_stderr_fd = MagicMock(name="FakeStderr", spec=io.BufferedReader)
         mock_proc.stdout = fake_stdout_fd
         mock_proc.stderr = fake_stderr_fd
+        # The first read ends inside the two-byte UTF-8 sequence of "é".
         fake_stdout_fd.readline.side_effect = [
-            b"Submitted job: 2026-11-0",
-            b"bad \xff\xfe line\n",
+            b"Submitted job: caf\xc3",
+            b"",
+            b"\xa9-2026\n",
+            b"bad \xff\xfe li",
+            b"",
+            b"ne",
             b"",
         ]
         process_line_callback = MagicMock(spec=callable)
+        partial_lines: dict = {}
 
         process_fd(
             mock_proc,
             fake_stdout_fd,
             fake_logger,
             process_line_callback=process_line_callback,
+            partial_lines=partial_lines,
+            flush_partial_line=False,
         )
+        process_line_callback.assert_not_called()
+        fake_logger.info.assert_not_called()
 
-        process_line_callback.assert_called_once_with("bad \ufffd\ufffd line\n")
-        assert fake_logger.info.call_args_list == [
-            mock.call("Submitted job: 2026-11-0"),
+        process_fd(
+            mock_proc,
+            fake_stdout_fd,
+            fake_logger,
+            process_line_callback=process_line_callback,
+            partial_lines=partial_lines,
+            flush_partial_line=False,
+        )
+        process_line_callback.assert_called_once_with("Submitted job: café-2026\n")
+        fake_logger.info.assert_called_once_with("Submitted job: café-2026")
+
+        process_fd(
+            mock_proc,
+            fake_stdout_fd,
+            fake_logger,
+            process_line_callback=process_line_callback,
+            partial_lines=partial_lines,
+        )
+        assert process_line_callback.call_args_list == [
+            mock.call("Submitted job: café-2026\n"),
             mock.call("bad \ufffd\ufffd line"),
         ]
+        assert fake_logger.info.call_args_list == [
+            mock.call("Submitted job: café-2026"),
+            mock.call("bad \ufffd\ufffd line"),
+        ]
+        assert partial_lines == {}
+
+    def test_process_fd_processes_unterminated_line_without_partial_lines(self):
+        fake_logger = MagicMock(spec=logging.Logger)
+        mock_proc = MagicMock(name="FakeProc", spec=subprocess.Popen)
+        fake_stdout_fd = MagicMock(name="FakeStdout", spec=io.BufferedReader)
+        fake_stderr_fd = MagicMock(name="FakeStderr", spec=io.BufferedReader)
+        mock_proc.stdout = fake_stdout_fd
+        mock_proc.stderr = fake_stderr_fd
+        fake_stderr_fd.readline.side_effect = [b"no trailing ", b"newline", b""]
+        process_line_callback = MagicMock(spec=callable)
+
+        process_fd(mock_proc, fake_stderr_fd, fake_logger, process_line_callback=process_line_callback)
+
+        process_line_callback.assert_called_once_with("no trailing newline")
+        fake_logger.warning.assert_called_once_with("no trailing newline")
 
 
 class TestBeamOptionsToArgs:
