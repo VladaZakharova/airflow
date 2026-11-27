@@ -30,7 +30,7 @@ import subprocess
 import tempfile
 import textwrap
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from packaging.version import Version
 
@@ -125,6 +125,8 @@ def process_fd(
     log: Logger,
     process_line_callback: Callable[[str], None] | None = None,
     is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
+    partial_lines: dict[Any, bytes] | None = None,
+    flush_partial_line: bool = True,
 ):
     """
     Print output to logs.
@@ -134,20 +136,37 @@ def process_fd(
     :param process_line_callback: Optional callback which can be used to process
         stdout and stderr to detect job id.
     :param log: logger.
+    :param partial_lines: Line read so far without its newline, per file descriptor. Pass the same
+        dict on every call so that a line split across reads of a non-blocking pipe is put back
+        together before it is decoded, logged and passed to the callback.
+    :param flush_partial_line: Whether to process a line that is still missing its newline when
+        there is nothing more to read. Set to False while the subprocess can still complete it.
     """
     if fd not in (proc.stdout, proc.stderr):
         raise AirflowException("No data in stderr or in stdout.")
 
     fd_to_log = {proc.stderr: log.warning, proc.stdout: log.info}
     func_log = fd_to_log[fd]
+    if partial_lines is None:
+        partial_lines = {}
 
-    for line_raw in iter(fd.readline, b""):
+    def process_line(line_raw: bytes) -> None:
         line = line_raw.decode(errors="replace")
-        if process_line_callback and line.endswith("\n"):
+        if process_line_callback:
             process_line_callback(line)
         func_log(line.rstrip("\n"))
+
+    for chunk in iter(fd.readline, b""):
+        line_raw = partial_lines.pop(fd, b"") + chunk
+        if not line_raw.endswith(b"\n"):
+            partial_lines[fd] = line_raw
+            continue
+        process_line(line_raw)
         if is_dataflow_job_id_exist_callback and is_dataflow_job_id_exist_callback():
             return
+
+    if flush_partial_line and fd in partial_lines:
+        process_line(partial_lines.pop(fd))
 
 
 def run_beam_command(
@@ -178,18 +197,17 @@ def run_beam_command(
         close_fds=True,
     )
 
-    if (
-        (is_dataflow_job_id_exist_callback or check_job_id_by_name_callback)
-        and hasattr(os, "set_blocking")
-        and proc.stdout
-        and proc.stderr
-    ):
+    # process_fd() reads a pipe until readline() returns b"". On a blocking pipe that only happens
+    # at EOF, so the other pipe is not drained meanwhile and the subprocess deadlocks once it fills.
+    # Non-blocking reads can end in the middle of a line, hence partial_lines below.
+    if hasattr(os, "set_blocking") and proc.stdout and proc.stderr:
         os.set_blocking(proc.stdout.fileno(), False)
         os.set_blocking(proc.stderr.fileno(), False)
 
     # Waits for Apache Beam pipeline to complete.
     log.info("Start waiting for Apache Beam process to complete.")
     reads = [fd for fd in (proc.stderr, proc.stdout) if fd is not None]
+    partial_lines: dict[Any, bytes] = {}
     while True:
         # Wait for at least one available fd.
         readable_fds, _, _ = select.select(reads, [], [], 5)
@@ -200,7 +218,15 @@ def run_beam_command(
             continue
 
         for readable_fd in readable_fds:
-            process_fd(proc, readable_fd, log, process_line_callback, is_dataflow_job_id_exist_callback)
+            process_fd(
+                proc,
+                readable_fd,
+                log,
+                process_line_callback,
+                is_dataflow_job_id_exist_callback,
+                partial_lines=partial_lines,
+                flush_partial_line=False,
+            )
             if is_dataflow_job_id_exist_callback and is_dataflow_job_id_exist_callback():
                 return
 
@@ -209,7 +235,14 @@ def run_beam_command(
 
     # Corner case: check if more output was created between the last read and the process termination
     for readable_fd in reads:
-        process_fd(proc, readable_fd, log, process_line_callback, is_dataflow_job_id_exist_callback)
+        process_fd(
+            proc,
+            readable_fd,
+            log,
+            process_line_callback,
+            is_dataflow_job_id_exist_callback,
+            partial_lines=partial_lines,
+        )
 
     log.info("Process exited with return code: %s", proc.returncode)
 
